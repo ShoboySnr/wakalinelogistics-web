@@ -19,6 +19,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        $this->loadViewsFrom(
+            app_path('Modules/DeliveryCalculator/Views'),
+            'delivery-calculator'
+        );
+
+        $this->loadViewsFrom(
+            app_path('Modules/LandingPage/Views'),
+            'landing-page'
+        );
     }
 }
