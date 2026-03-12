@@ -89,10 +89,13 @@
                             BETA
                         </span>
                     </h1>
-                    <span class="block text-lg font-normal text-gray-300 mb-3">Smart Delivery Fee Calculator</span>
+                    <span class="block text-lg font-normal text-gray-300 mb-3">Smart Bike Courier Delivery Fee Calculator</span>
                     <p class="text-gray-300 text-base sm:text-lg max-w-2xl mx-auto">
-                        Our intelligent system instantly calculates your delivery fee anywhere in Lagos using advanced zone detection.
+                        Our intelligent system instantly calculates your bike courier delivery fee anywhere in Lagos using advanced zone detection.
                     </p>
+                    <div class="mt-4 inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
+                        <span class="text-sm font-medium text-gray-200">Bike Courier Services</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -166,7 +169,7 @@
                 <div x-show="result" x-cloak class="border-t border-gray-100 p-6 sm:p-8 bg-gray-50">
                     <div class="mb-6">
                         <h2 class="text-xl font-bold text-gray-900 mb-1">Your Metter Reading</h2>
-                        <p class="text-sm text-gray-500">Metter 1.0 has analyzed your route and calculated the optimal delivery fee</p>
+                        <p class="text-sm text-gray-500">Metter 1.0 has analyzed your route and calculated the optimal bike courier delivery fee</p>
                     </div>
                     
                     <div class="space-y-4 mb-6">
@@ -273,7 +276,7 @@
                 <div class="flex items-start justify-between mb-6">
                     <div>
                         <h3 class="text-2xl font-bold mb-2">Integrate Metter 1.0 API <span class="text-sm font-normal text-primary bg-white/20 px-2 py-1 rounded">v1.0</span></h3>
-                        <p class="text-gray-300">Add smart real-time delivery pricing to your ecommerce platform</p>
+                        <p class="text-gray-300">Add smart real-time bike courier delivery pricing to your ecommerce platform</p>
                     </div>
                     <svg class="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
