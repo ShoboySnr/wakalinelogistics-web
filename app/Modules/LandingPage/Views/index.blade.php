@@ -33,7 +33,7 @@
             <a href="{{ route('home') }}" class="nav-logo">
                 <img src="{{ asset('assets/img/mywakawaka-logo-white.png') }}" alt="Waka Line Logistics">
             </a>
-            <a href="{{ route('meter.index') }}" class="nav-cta">Calculate Price</a>
+            <a href="{{ route('metter.index') }}" class="nav-cta">Meet Metter 1.0</a>
         </div>
     </nav>
 

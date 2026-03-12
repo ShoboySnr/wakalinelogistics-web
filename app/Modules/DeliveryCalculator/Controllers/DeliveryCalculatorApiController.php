@@ -19,8 +19,8 @@ class DeliveryCalculatorApiController extends Controller
     public function calculatePrice(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'pickup_address' => 'required|string|max:255',
-            'dropoff_address' => 'required|string|max:255',
+            'pickup_address' => 'required|string|max:500',
+            'dropoff_address' => 'required|string|max:500',
         ]);
 
         $result = $this->priceService->processDeliveryCalculation(
@@ -41,10 +41,12 @@ class DeliveryCalculatorApiController extends Controller
             'data' => [
                 'pickup' => [
                     'address' => $result['pickup'],
+                    'formatted_address' => $result['pickup_formatted'] ?? $result['pickup'],
                     'zone' => $result['pickup_zone']
                 ],
                 'delivery' => [
                     'address' => $result['delivery'],
+                    'formatted_address' => $result['delivery_formatted'] ?? $result['delivery'],
                     'zone' => $result['delivery_zone']
                 ],
                 'distance_km' => $result['distance_km'],
@@ -57,8 +59,8 @@ class DeliveryCalculatorApiController extends Controller
     public function quickQuote(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'pickup_address' => 'required|string|max:255',
-            'dropoff_address' => 'required|string|max:255',
+            'pickup_address' => 'required|string|max:500',
+            'dropoff_address' => 'required|string|max:500',
         ]);
 
         $result = $this->priceService->processDeliveryCalculation(

@@ -25,8 +25,8 @@ class DeliveryCalculatorController extends Controller
     public function calculate(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'pickup_address' => 'required|string|max:255',
-            'dropoff_address' => 'required|string|max:255',
+            'pickup_address' => 'required|string|max:500',
+            'dropoff_address' => 'required|string|max:500',
         ]);
 
         $pickupGeo = $this->priceService->geocodeAddress($validated['pickup_address']);

@@ -4,23 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Lagos Delivery Price Calculator - Wakaline Logistics</title>
+    <title>Metter 1.0 | Waka Line Logistics</title>
     <link rel="icon" type="image/png" href="{{ asset('assets/img/favicon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.api_key') }}&libraries=places"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script>
+        (function() {
+            emailjs.init('FQ1fbEP10MYWg6Lwx');
+        })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         [x-cloak] { display: none !important; }
-        * { font-family: 'Inter', sans-serif; }
+        * { font-family: Tahoma, sans-serif; }
         .gradient-bg {
             background: linear-gradient(135deg, #2F3437 0%, #1a1d1f 100%);
         }
         .input-focus:focus {
             border-color: #C1666B;
             box-shadow: 0 0 0 3px rgba(193, 102, 107, 0.1);
+        }
+        
+        #formContentScroll::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #formContentScroll::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        
+        #formContentScroll::-webkit-scrollbar-thumb {
+            background: #C1666B;
+            border-radius: 10px;
+        }
+        
+        #formContentScroll::-webkit-scrollbar-thumb:hover {
+            background: #a85559;
+        }
+        
+        #formContentScroll {
+            scrollbar-width: thin;
+            scrollbar-color: #C1666B #f1f1f1;
         }
     </style>
     <script>
@@ -38,8 +65,7 @@
 </head>
 <body class="bg-white min-h-screen">
     <div class="min-h-screen">
-        <!-- Header Section -->
-        <div class="gradient-bg py-8 px-4 sm:px-6 lg:px-8">
+        <div class="gradient-bg py-4 px-4 sm:px-6 lg:px-8">
             <div class="max-w-5xl mx-auto">
                 <div class="flex items-center justify-center mb-8">
                     <a href="{{ route('home') }}">
@@ -47,24 +73,25 @@
                     </a>
                 </div>
                 <div class="text-white mb-10 mt-10 text-center">
-                    <h1 class="text-3xl sm:text-4xl font-bold mb-3">
-                        Waka Line Meter
+                    <h1 class="text-3xl sm:text-4xl font-bold mb-3 flex items-center justify-center gap-3">
+                        <span>Metter 1.0</span>
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-500 text-gray-900 animate-pulse">
+                            BETA
+                        </span>
                     </h1>
+                    <span class="block text-lg font-normal text-gray-300 mb-3">Smart Delivery Fee Calculator</span>
                     <p class="text-gray-300 text-base sm:text-lg max-w-2xl mx-auto">
-                        Instantly calculate your delivery fee anywhere in Lagos.
+                        Our intelligent system instantly calculates your delivery fee anywhere in Lagos using advanced zone detection.
                     </p>
                 </div>
             </div>
         </div>
 
         <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-16">
-            <!-- Main Calculator Card -->
             <div x-data="deliveryCalculator()" class="bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden">
-                <!-- Form Section -->
                 <div class="p-6 sm:p-8">
                     <form @submit.prevent="calculateDelivery" class="space-y-5">
                         <div class="grid md:grid-cols-2 gap-5">
-                            <!-- Pickup Address -->
                             <div>
                                 <label for="pickup_address" class="block text-sm font-semibold text-gray-700 mb-2">
                                     Pickup Location
@@ -80,10 +107,9 @@
                                 >
                             </div>
 
-                            <!-- Delivery Address -->
                             <div>
                                 <label for="delivery_address" class="block text-sm font-semibold text-gray-700 mb-2">
-                                    Drop Off Location
+                                    Dropoff Location
                                 </label>
                                 <input 
                                     type="text" 
@@ -97,24 +123,22 @@
                             </div>
                         </div>
 
-                        <!-- Calculate Button -->
                         <button 
                             type="submit"
                             :disabled="loading"
                             class="w-full bg-primary hover:bg-opacity-90 text-white font-semibold py-4 px-6 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
                         >
-                            <span x-show="!loading">Check Price</span>
+                            <span x-show="!loading">Calculate with Metter 1.0</span>
                             <span x-show="loading" class="flex items-center justify-center">
                                 <svg class="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
                                     <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"></circle>
                                     <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                 </svg>
-                                Calculating...
+                                Checking price, hold on...
                             </span>
                         </button>
                     </form>
 
-                    <!-- Error Message -->
                     <div x-show="error" x-cloak class="mt-5 p-4 bg-red-50 border border-red-200 rounded-lg">
                         <div class="flex items-start space-x-2">
                             <svg class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -129,15 +153,13 @@
                 </div>
 
 
-                <!-- Results Section -->
                 <div x-show="result" x-cloak class="border-t border-gray-100 p-6 sm:p-8 bg-gray-50">
                     <div class="mb-6">
-                        <h2 class="text-xl font-bold text-gray-900 mb-1">Your Delivery Quote</h2>
-                        <p class="text-sm text-gray-500">Review your delivery details below</p>
+                        <h2 class="text-xl font-bold text-gray-900 mb-1">Your Metter Reading</h2>
+                        <p class="text-sm text-gray-500">Metter 1.0 has analyzed your route and calculated the optimal delivery fee</p>
                     </div>
                     
                     <div class="space-y-4 mb-6">
-                        <!-- Route Info -->
                         <div class="bg-white rounded-lg p-4 border border-gray-200">
                             <div class="flex items-start space-x-3">
                                 <div class="flex-shrink-0 mt-1">
@@ -146,9 +168,9 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                                     </svg>
                                 </div>
-                                <div class="flex-1">
+                                <div class="flex-1 min-w-0">
                                     <p class="text-xs font-medium text-gray-500 mb-1">Pickup</p>
-                                    <p class="text-sm font-medium text-gray-900" x-text="result?.pickup"></p>
+                                    <p class="text-sm font-medium text-gray-900 break-words overflow-wrap-anywhere" x-text="result?.pickup || ''"></p>
                                     <p class="text-xs text-primary mt-0.5" x-text="result?.pickup_zone"></p>
                                 </div>
                             </div>
@@ -159,15 +181,14 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                     </svg>
                                 </div>
-                                <div class="flex-1">
-                                    <p class="text-xs font-medium text-gray-500 mb-1">Drop Off</p>
-                                    <p class="text-sm font-medium text-gray-900" x-text="result?.delivery"></p>
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-xs font-medium text-gray-500 mb-1">Dropoff</p>
+                                    <p class="text-sm font-medium text-gray-900 break-words overflow-wrap-anywhere" x-text="result?.delivery || ''"></p>
                                     <p class="text-xs text-primary mt-0.5" x-text="result?.delivery_zone"></p>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Distance & Price -->
                         <div class="grid grid-cols-2 gap-4">
                             <div class="bg-white rounded-lg p-4 border border-gray-200">
                                 <p class="text-xs font-medium text-gray-500 mb-1">Distance</p>
@@ -184,20 +205,30 @@
                         </div>
                     </div>
 
-                    <!-- Book Delivery Button -->
-                    <button 
-                        @click="showBookingModal = true"
-                        class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-6 rounded-lg transition-all flex items-center justify-center space-x-2 shadow-lg"
-                    >
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-                        </svg>
-                        <span>Book Delivery</span>
-                    </button>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <a 
+                            href="https://wa.me/2348100665758?text=Hi,%20I%20want%20to%20book%20a%20delivery"
+                            target="_blank"
+                            class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-6 rounded-lg transition-all flex items-center justify-center space-x-2 shadow-lg">
+                            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
+                            </svg>
+                            <span>Book via WhatsApp</span>
+                        </a>
+                        
+                        <button 
+                            type="button"
+                            onclick="openOrderFormModal();"
+                            class="w-full bg-primary hover:bg-opacity-90 text-white font-semibold py-4 px-6 rounded-lg transition-all flex items-center justify-center space-x-2 shadow-lg">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            <span>Fill Order Form</span>
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Zone Information -->
             <div class="mt-8 bg-white rounded-xl shadow-lg border border-gray-100 p-6">
                 <h3 class="text-lg font-bold text-gray-900 mb-4">Delivery Zones</h3>
                 <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
@@ -228,12 +259,11 @@
                 </div>
             </div>
 
-            <!-- API Integration Section -->
             <div class="mt-8 bg-gradient-to-br from-secondary to-secondary/90 rounded-xl shadow-lg p-8 text-white">
                 <div class="flex items-start justify-between mb-6">
                     <div>
-                        <h3 class="text-2xl font-bold mb-2">Integrate Our Meter API <span class="text-sm font-normal text-primary bg-white/20 px-2 py-1 rounded">v1.0</span></h3>
-                        <p class="text-gray-300">Add real-time delivery pricing to your ecommerce platform</p>
+                        <h3 class="text-2xl font-bold mb-2">Integrate Metter 1.0 API <span class="text-sm font-normal text-primary bg-white/20 px-2 py-1 rounded">v1.0</span></h3>
+                        <p class="text-gray-300">Add smart real-time delivery pricing to your ecommerce platform</p>
                     </div>
                     <svg class="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
@@ -250,7 +280,7 @@
                         </h4>
                         <p class="text-sm text-gray-300 mb-3">Get instant delivery prices for checkout</p>
                         <div class="bg-secondary/50 rounded p-3 font-mono text-xs overflow-x-auto">
-                            <span class="text-green-400">POST</span> <span class="text-gray-300">/api/wakalinelogistics/v1/meter/quote</span>
+                            <span class="text-green-400">POST</span> <span class="text-gray-300">/api/wakalinelogistics/v1/metter/quote</span>
                         </div>
                     </div>
 
@@ -263,7 +293,7 @@
                         </h4>
                         <p class="text-sm text-gray-300 mb-3">Get complete delivery information with zones</p>
                         <div class="bg-secondary/50 rounded p-3 font-mono text-xs overflow-x-auto">
-                            <span class="text-green-400">POST</span> <span class="text-gray-300">/api/wakalinelogistics/v1/meter/calculate</span>
+                            <span class="text-green-400">POST</span> <span class="text-gray-300">/api/wakalinelogistics/v1/metter/calculate</span>
                         </div>
                     </div>
                 </div>
@@ -317,13 +347,11 @@
                 </div>
             </div>
 
-            <!-- Booking Options Modal -->
-            <div x-show="showBookingModal" 
-                 x-cloak
+            <div :class="showBookingModal ? 'flex' : 'hidden'" 
                  @click.self="showBookingModal = false"
-                 class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                 class="hidden fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 z-50">
                 <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-8 relative">
-                    <button @click="showBookingModal = false" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                    <button @click="showBookingModal = false" class="absolute top-4 right-4 text-white">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
@@ -333,7 +361,6 @@
                     <p class="text-gray-600 mb-6">Choose how you'd like to place your order</p>
                     
                     <div class="space-y-4">
-                        <!-- Fill Form Option -->
                         <button 
                             @click="showBookingModal = false; showOrderForm = true"
                             class="w-full bg-primary hover:bg-opacity-90 text-white font-semibold py-4 px-6 rounded-lg transition-all flex items-center justify-center space-x-3 shadow-lg">
@@ -343,7 +370,6 @@
                             <span>Fill Order Form</span>
                         </button>
                         
-                        <!-- WhatsApp Option -->
                         <a 
                             href="https://wa.me/2348100665758?text=Hi,%20I%20want%20to%20make%20a%20delivery%20order"
                             target="_blank"
@@ -357,41 +383,45 @@
                 </div>
             </div>
 
-            <!-- Order Form Modal (from landing page) -->
-            <div x-show="showOrderForm" 
-                 x-cloak
-                 class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto p-4">
-                <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full my-8 relative">
-                    <button @click="closeOrderForm" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 z-10">
+            <div id="orderFormModal"
+                 onclick="if(event.target === this) { closeOrderFormModal(); }"
+                 class="hidden fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4"
+                 style="z-index: 9999; overflow-y: hidden;">
+                <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full my-8 relative flex flex-col" style="max-height: 90vh;">
+                    <button onclick="closeOrderFormModal();" class="absolute top-4 right-4 text-white z-10">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                         </svg>
                     </button>
 
-                    <!-- Modal Header -->
                     <div class="bg-gradient-to-r from-primary to-primary/80 text-white p-6 rounded-t-xl">
-                        <h2 class="text-2xl font-bold mb-4">Place a Delivery Order</h2>
+                        <h2 class="text-2xl font-bold mb-4 flex items-center gap-2">
+                            <span>Place a Delivery Order</span>
+                            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-500 text-gray-900">
+                                BETA
+                            </span>
+                        </h2>
                         <div class="flex items-center justify-between">
-                            <div class="flex items-center space-x-2" :class="{'text-white': formStep === 1, 'text-white/50': formStep !== 1}">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center" :class="{'bg-white text-primary': formStep >= 1, 'bg-white/30': formStep < 1}">1</div>
+                            <div id="step1Indicator" class="flex items-center space-x-2 text-white">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center bg-white text-primary">1</div>
                                 <span class="text-sm font-medium">Pickup</span>
                             </div>
-                            <div class="flex-1 h-0.5 mx-2" :class="{'bg-white': formStep > 1, 'bg-white/30': formStep <= 1}"></div>
-                            <div class="flex items-center space-x-2" :class="{'text-white': formStep === 2, 'text-white/50': formStep !== 2}">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center" :class="{'bg-white text-primary': formStep >= 2, 'bg-white/30': formStep < 2}">2</div>
-                                <span class="text-sm font-medium">Delivery</span>
+                            <div id="line1" class="flex-1 h-0.5 mx-2 bg-white/30"></div>
+                            <div id="step2Indicator" class="flex items-center space-x-2 text-white/50">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center bg-white/30">2</div>
+                                <span class="text-sm font-medium">Dropoff</span>
                             </div>
-                            <div class="flex-1 h-0.5 mx-2" :class="{'bg-white': formStep > 2, 'bg-white/30': formStep <= 2}"></div>
-                            <div class="flex items-center space-x-2" :class="{'text-white': formStep === 3, 'text-white/50': formStep !== 3}">
-                                <div class="w-8 h-8 rounded-full flex items-center justify-center" :class="{'bg-white text-primary': formStep >= 3, 'bg-white/30': formStep < 3}">3</div>
+                            <div id="line2" class="flex-1 h-0.5 mx-2 bg-white/30"></div>
+                            <div id="step3Indicator" class="flex items-center space-x-2 text-white/50">
+                                <div class="w-8 h-8 rounded-full flex items-center justify-center bg-white/30">3</div>
                                 <span class="text-sm font-medium">Package</span>
                             </div>
                         </div>
                     </div>
 
-                    <form @submit.prevent="submitOrderForm" class="p-6">
-                        <!-- Step 1: Pickup -->
-                        <div x-show="formStep === 1" class="space-y-4">
+                    <div class="flex-1 overflow-y-auto" style="max-height: calc(90vh - 200px);" id="formContentScroll">
+                        <form id="orderForm" class="p-6">
+                        <div data-step="1" class="space-y-4" style="display: block;">
                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Pickup Information</h3>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
@@ -399,7 +429,7 @@
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Your Phone Number</label>
-                                <input type="tel" x-model="orderForm.senderPhone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="e.g. 0810 000 0000">
+                                <input type="tel" x-model="orderForm.senderPhone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="e.g. 08100000000">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Your Email</label>
@@ -415,19 +445,18 @@
                             </div>
                         </div>
 
-                        <!-- Step 2: Delivery -->
-                        <div x-show="formStep === 2" class="space-y-4">
-                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Delivery Information</h3>
+                        <div data-step="2" class="space-y-4" style="display: none;">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Dropoff Information</h3>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Recipient's Name</label>
                                 <input type="text" x-model="orderForm.recipientName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Full name">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Recipient's Phone Number</label>
-                                <input type="tel" x-model="orderForm.recipientPhone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="e.g. 0810 000 0000">
+                                <input type="tel" x-model="orderForm.recipientPhone" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="e.g. 08100000000">
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Delivery Address</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Dropoff Address</label>
                                 <textarea x-model="orderForm.deliveryAddress" required rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Full address where the package should be delivered"></textarea>
                             </div>
                             <div>
@@ -440,8 +469,7 @@
                             </div>
                         </div>
 
-                        <!-- Step 3: Package -->
-                        <div x-show="formStep === 3" class="space-y-4">
+                        <div data-step="3" class="space-y-4" style="display: none;">
                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Package Details</h3>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">What are you sending?</label>
@@ -470,14 +498,52 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Additional Notes (optional)</label>
                                 <textarea x-model="orderForm.additionalNotes" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent" placeholder="Any special instructions"></textarea>
                             </div>
-                            <div class="bg-primary/10 border border-primary/20 rounded-lg p-4 text-center">
-                                <p class="text-sm text-gray-600">Estimated Total</p>
-                                <p class="text-2xl font-bold text-primary">₦3,500</p>
+                            <div id="orderFormPricing" class="bg-primary/10 border border-primary/20 rounded-lg p-4">
+                                <div id="pricingLoading" class="text-center" style="display: none;">
+                                    <p class="text-sm text-gray-600">Checking price, hold on...</p>
+                                </div>
+                                <div id="pricingResult" style="display: none;">
+                                    <div class="space-y-3 mb-3">
+                                        <div>
+                                            <p class="text-xs text-gray-500 mb-1">Pickup Address:</p>
+                                            <p id="formPickupAddress" class="text-sm font-medium text-gray-900"></p>
+                                            <p id="formPickupZone" class="text-xs text-primary mt-0.5"></p>
+                                        </div>
+                                        <div>
+                                            <p class="text-xs text-gray-500 mb-1">Dropoff Address:</p>
+                                            <p id="formDropoffAddress" class="text-sm font-medium text-gray-900"></p>
+                                            <p id="formDropoffZone" class="text-xs text-primary mt-0.5"></p>
+                                        </div>
+                                    </div>
+                                    <div class="border-t border-primary/20 pt-3">
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div class="text-center">
+                                                <p class="text-xs text-gray-500 mb-1">Distance</p>
+                                                <p id="formDistance" class="text-lg font-bold text-gray-900"><span id="formDistanceValue"></span> km</p>
+                                            </div>
+                                            <div class="text-center">
+                                                <p class="text-xs text-gray-500 mb-1">Delivery Fee</p>
+                                                <p id="formDeliveryFee" class="text-lg font-bold text-primary"></p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 pt-3 border-t border-primary/20">
+                                        <p class="text-xs text-gray-500 text-center mx-auto" style="max-width: 80%;">
+                                            <svg class="w-3 h-3 inline-block mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/>
+                                            </svg>
+                                            Metter 1.0 uses intelligent zone detection and the closest landmark or bus stop to calculate your delivery fee.
+                                        </p>
+                                    </div>
+                                </div>
+                                <div id="pricingPlaceholder" class="text-center">
+                                    <p class="text-sm text-gray-600">Enter pickup and dropoff addresses to see pricing</p>
+                                    <p class="text-xs text-gray-500 mt-2">⚠️ Price must be calculated before submitting order</p>
+                                </div>
                             </div>
                         </div>
 
-                        <!-- Success Message -->
-                        <div x-show="orderFormSuccess" class="text-center py-8">
+                        <div id="orderFormSuccessMessage" class="text-center py-8" style="display: none;">
                             <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                                 <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
@@ -485,27 +551,70 @@
                             </div>
                             <h3 class="text-xl font-bold text-gray-900 mb-2">Order Placed Successfully!</h3>
                             <p class="text-gray-600 mb-6">We've received your delivery order. A confirmation email has been sent to you. Our team will contact you shortly to confirm pickup.</p>
-                            <button type="button" @click="closeOrderForm" class="bg-primary hover:bg-opacity-90 text-white font-semibold py-3 px-8 rounded-lg transition-all">Done</button>
+                            <button type="button" onclick="closeOrderFormModal()" class="bg-primary hover:bg-opacity-90 text-white font-semibold py-3 px-8 rounded-lg transition-all">Done</button>
                         </div>
 
-                        <!-- Form Actions -->
-                        <div x-show="!orderFormSuccess" class="flex items-center justify-between mt-6 pt-6 border-t">
-                            <button type="button" @click="formStep > 1 ? formStep-- : null" :disabled="formStep === 1" class="px-6 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
+                        </form>
+                    </div>
+
+                    <div class="border-t bg-white rounded-b-xl">
+                        <div id="formActions" class="flex items-center justify-between p-6">
+                            <button type="button" id="formBackBtn" onclick="prevFormStep()" class="px-6 py-2 border border-gray-300 rounded-lg font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">
                                 Back
                             </button>
-                            <button type="button" @click="formStep < 3 ? formStep++ : null" x-show="formStep < 3" class="px-6 py-2 bg-primary hover:bg-opacity-90 text-white font-semibold rounded-lg transition-all">
+                            <button type="button" id="formNextBtn" onclick="nextFormStep()" class="px-6 py-2 bg-primary hover:bg-opacity-90 text-white font-semibold rounded-lg transition-all">
                                 Next
                             </button>
-                            <button type="submit" x-show="formStep === 3" :disabled="orderFormSubmitting" class="px-6 py-2 bg-primary hover:bg-opacity-90 text-white font-semibold rounded-lg transition-all disabled:opacity-50">
-                                <span x-show="!orderFormSubmitting">Submit Order</span>
-                                <span x-show="orderFormSubmitting">Submitting...</span>
+                            <button type="submit" form="orderForm" id="formSubmitBtn" disabled class="px-6 py-2 bg-primary hover:bg-opacity-90 text-white font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed" style="display: none;">
+                                <span id="submitBtnText" class="flex items-center justify-center">Submit Order</span>
+                                <span id="submitBtnLoading" class="flex items-center justify-center" style="display: none;">
+                                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Submitting...
+                                </span>
                             </button>
                         </div>
-                    </form>
+
+                        <div id="orderFormError" class="hidden mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <div class="flex items-start">
+                                <svg class="w-5 h-5 text-red-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                                </svg>
+                                <div class="flex-1">
+                                    <h4 class="text-sm font-semibold text-red-800 mb-1">Email Service Unavailable</h4>
+                                    <p id="orderFormErrorMessage" class="text-sm text-red-700"></p>
+                                    <div class="mt-3 flex items-center space-x-4">
+                                        <a href="https://wa.me/2348100665758" target="_blank" class="inline-flex items-center text-sm font-medium text-red-800 hover:text-red-900">
+                                            <svg class="w-4 h-4 mr-1.5" fill="currentColor" viewBox="0 0 24 24">
+                                                <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                            </svg>
+                                            Contact via WhatsApp
+                                        </a>
+                                        <button type="button" onclick="document.getElementById('orderFormError').classList.add('hidden')" class="text-sm font-medium text-red-800 hover:text-red-900">
+                                            Dismiss
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
+
+    <button 
+        id="feedbackBtn"
+        onclick="openFeedbackForm()"
+        class="fixed bottom-6 right-6 bg-primary hover:bg-opacity-90 text-white font-semibold py-3 px-5 rounded-full shadow-2xl transition-all hover:scale-105 flex items-center gap-2 z-50 group"
+        style="z-index: 9998;">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"/>
+        </svg>
+        <span class="hidden sm:inline">Feedback</span>
+    </button>
 
     <script>
         function deliveryCalculator() {
@@ -520,6 +629,7 @@
                 formStep: 1,
                 orderFormSuccess: false,
                 orderFormSubmitting: false,
+                isPriceCalculated: false,
                 orderForm: {
                     senderName: '',
                     senderPhone: '',
@@ -544,9 +654,27 @@
 
                 initAutocomplete(elementId) {
                     const input = document.getElementById(elementId);
+                    const lagosBounds = new google.maps.LatLngBounds(
+                        new google.maps.LatLng(6.3876, 3.0982),
+                        new google.maps.LatLng(6.7027, 3.6964)
+                    );
+                    
                     const autocomplete = new google.maps.places.Autocomplete(input, {
+                        bounds: lagosBounds,
+                        strictBounds: true,
                         componentRestrictions: { country: 'ng' },
-                        fields: ['formatted_address', 'geometry', 'name']
+                        fields: ['formatted_address', 'geometry', 'name', 'address_components']
+                    });
+
+                    autocomplete.addListener('place_changed', () => {
+                        const place = autocomplete.getPlace();
+                        if (place.formatted_address) {
+                            if (elementId === 'pickup_address') {
+                                this.pickupAddress = place.formatted_address;
+                            } else if (elementId === 'delivery_address') {
+                                this.deliveryAddress = place.formatted_address;
+                            }
+                        }
                     });
                 },
 
@@ -556,7 +684,7 @@
                     this.result = null;
 
                     try {
-                        const response = await fetch('/meter/calculate', {
+                        const response = await fetch('/metter/calculate', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -615,23 +743,7 @@
                 },
 
                 async submitOrderForm() {
-                    this.orderFormSubmitting = true;
-                    
-                    try {
-                        // Simulate form submission (replace with actual API call)
-                        await new Promise(resolve => setTimeout(resolve, 1500));
-                        
-                        // Show success message
-                        this.orderFormSuccess = true;
-                        
-                        // You can add actual form submission logic here
-                        console.log('Order submitted:', this.orderForm);
-                    } catch (error) {
-                        console.error('Error submitting order:', error);
-                        alert('Failed to submit order. Please try again.');
-                    } finally {
-                        this.orderFormSubmitting = false;
-                    }
+                    console.log('submitOrderForm called from Alpine - redirecting to vanilla JS handler');
                 },
 
                 bookDelivery() {
@@ -646,9 +758,376 @@
                     
                     const whatsappUrl = `https://wa.me/2348100665758?text=${encodeURIComponent(message)}`;
                     window.open(whatsappUrl, '_blank');
+                },
+
+                closeOrderForm() {
+                    this.orderFormSuccess = false;
+                    this.orderFormSubmitting = false;
+                    this.isPriceCalculated = false;
+                    
+                    this.orderForm = {
+                        senderName: '',
+                        senderPhone: '',
+                        senderEmail: '',
+                        pickupAddress: '',
+                        pickupArea: '',
+                        recipientName: '',
+                        recipientPhone: '',
+                        deliveryAddress: '',
+                        deliveryArea: '',
+                        deliveryNotes: '',
+                        packageDescription: '',
+                        packageSize: '',
+                        preferredTime: '',
+                        additionalNotes: ''
+                    };
+                    
+                    document.getElementById('pricingResult').style.display = 'none';
+                    document.getElementById('pricingPlaceholder').style.display = 'block';
                 }
             }
         }
+
+        let currentFormStep = 1;
+
+        function showFormStep(step) {
+            document.querySelectorAll('[data-step]').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            const currentStep = document.querySelector(`[data-step="${step}"]`);
+            if (currentStep) {
+                currentStep.style.display = 'block';
+            }
+            
+            const step1 = document.getElementById('step1Indicator');
+            const step2 = document.getElementById('step2Indicator');
+            const step3 = document.getElementById('step3Indicator');
+            const line1 = document.getElementById('line1');
+            const line2 = document.getElementById('line2');
+            
+            [step1, step2, step3].forEach(indicator => {
+                if (indicator) {
+                    indicator.className = 'flex items-center space-x-2 text-white/50';
+                    const circle = indicator.querySelector('div');
+                    if (circle) {
+                        circle.className = 'w-8 h-8 rounded-full flex items-center justify-center bg-white/30';
+                    }
+                }
+            });
+            
+            if (step >= 1 && step1) {
+                step1.className = 'flex items-center space-x-2 text-white';
+                const circle1 = step1.querySelector('div');
+                if (circle1) circle1.className = 'w-8 h-8 rounded-full flex items-center justify-center bg-white text-primary';
+            }
+            
+            if (step >= 2) {
+                if (line1) line1.className = 'flex-1 h-0.5 mx-2 bg-white';
+                if (step2) {
+                    step2.className = 'flex items-center space-x-2 text-white';
+                    const circle2 = step2.querySelector('div');
+                    if (circle2) circle2.className = 'w-8 h-8 rounded-full flex items-center justify-center bg-white text-primary';
+                }
+            } else {
+                if (line1) line1.className = 'flex-1 h-0.5 mx-2 bg-white/30';
+            }
+            
+            if (step >= 3) {
+                if (line2) line2.className = 'flex-1 h-0.5 mx-2 bg-white';
+                if (step3) {
+                    step3.className = 'flex items-center space-x-2 text-white';
+                    const circle3 = step3.querySelector('div');
+                    if (circle3) circle3.className = 'w-8 h-8 rounded-full flex items-center justify-center bg-white text-primary';
+                }
+            } else {
+                if (line2) line2.className = 'flex-1 h-0.5 mx-2 bg-white/30';
+            }
+            
+            const backBtn = document.getElementById('formBackBtn');
+            const nextBtn = document.getElementById('formNextBtn');
+            const submitBtn = document.getElementById('formSubmitBtn');
+            
+            if (backBtn) backBtn.disabled = step === 1;
+            if (nextBtn) nextBtn.style.display = step < 3 ? 'block' : 'none';
+            if (submitBtn) submitBtn.style.display = step === 3 ? 'block' : 'none';
+            
+            currentFormStep = step;
+        }
+
+        function nextFormStep() {
+            if (currentFormStep < 3) {
+                const currentStepElement = document.querySelector(`[data-step="${currentFormStep}"]`);
+                if (currentStepElement) {
+                    const requiredFields = currentStepElement.querySelectorAll('[required]');
+                    let allValid = true;
+                    
+                    requiredFields.forEach(field => {
+                        if (!field.value.trim()) {
+                            allValid = false;
+                            field.classList.add('border-red-500');
+                            if (allValid === false && !field.classList.contains('focused')) {
+                                field.classList.add('focused');
+                                field.focus();
+                            }
+                        } else {
+                            field.classList.remove('border-red-500');
+                        }
+                    });
+                    
+                    if (!allValid) {
+                        return;
+                    }
+                }
+                
+                const nextStep = currentFormStep + 1;
+                showFormStep(nextStep);
+                
+                if (nextStep === 3) {
+                    setTimeout(() => {
+                        calculateOrderFormPrice();
+                    }, 100);
+                }
+            }
+        }
+
+        async function calculateOrderFormPrice() {
+            const allTextareas = document.querySelectorAll('#orderFormModal textarea');
+            let pickupAddress = '';
+            let dropoffAddress = '';
+            
+            console.log('Total textareas found:', allTextareas.length);
+            
+            allTextareas.forEach((textarea, index) => {
+                const model = textarea.getAttribute('x-model');
+                const value = textarea.value;
+                console.log(`Textarea ${index}:`, { model, value: value.substring(0, 50) });
+                
+                if (model === 'orderForm.pickupAddress') {
+                    pickupAddress = value?.trim() || '';
+                } else if (model === 'orderForm.deliveryAddress') {
+                    dropoffAddress = value?.trim() || '';
+                }
+            });
+            
+            console.log('Final Pickup Address:', pickupAddress);
+            console.log('Final Dropoff Address:', dropoffAddress);
+            
+            if (!pickupAddress || !dropoffAddress) {
+                console.log('Missing addresses - showing placeholder');
+                document.getElementById('pricingPlaceholder').style.display = 'block';
+                document.getElementById('pricingResult').style.display = 'none';
+                document.getElementById('pricingLoading').style.display = 'none';
+                return;
+            }
+            
+            document.getElementById('pricingPlaceholder').style.display = 'none';
+            document.getElementById('pricingResult').style.display = 'none';
+            document.getElementById('pricingLoading').style.display = 'block';
+            
+            try {
+                const response = await fetch('/metter/calculate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: JSON.stringify({
+                        pickup_address: pickupAddress,
+                        dropoff_address: dropoffAddress
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('formPickupAddress').textContent = pickupAddress;
+                    document.getElementById('formPickupZone').textContent = data.data.pickup_zone;
+                    document.getElementById('formDropoffAddress').textContent = dropoffAddress;
+                    document.getElementById('formDropoffZone').textContent = data.data.delivery_zone;
+                    document.getElementById('formDistanceValue').textContent = data.data.distance_km;
+                    document.getElementById('formDeliveryFee').textContent = '₦' + data.data.delivery_fee.toLocaleString();
+                    
+                    document.getElementById('pricingLoading').style.display = 'none';
+                    document.getElementById('pricingResult').style.display = 'block';
+                    
+                    isPriceCalculated = true;
+                    document.getElementById('formSubmitBtn').disabled = false;
+                } else {
+                    throw new Error(data.message || 'Failed to calculate price');
+                }
+            } catch (error) {
+                console.error('Error calculating price:', error);
+                document.getElementById('pricingLoading').style.display = 'none';
+                document.getElementById('pricingPlaceholder').style.display = 'block';
+                document.getElementById('pricingPlaceholder').innerHTML = '<p class="text-sm text-red-600">Unable to calculate price. Please check addresses.</p>';
+            }
+        }
+
+        function prevFormStep() {
+            if (currentFormStep > 1) {
+                showFormStep(currentFormStep - 1);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            showFormStep(1);
+        });
+        
+        let isSubmitting = false;
+        let isPriceCalculated = false;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const orderForm = document.getElementById('orderForm');
+            if (orderForm) {
+                orderForm.addEventListener('submit', async function(e) {
+                    e.preventDefault();
+                    
+                    if (currentFormStep !== 3) {
+                        return false;
+                    }
+                    
+                    if (!isPriceCalculated) {
+                        alert('Please calculate the delivery price first');
+                        return false;
+                    }
+                    
+                    if (isSubmitting) {
+                        return false;
+                    }
+                    
+                    await submitOrderFormVanilla();
+                    return false;
+                });
+            }
+        });
+
+        async function submitOrderFormVanilla() {
+            isSubmitting = true;
+            
+            document.getElementById('submitBtnText').style.display = 'none';
+            document.getElementById('submitBtnLoading').style.display = 'flex';
+            document.getElementById('formSubmitBtn').disabled = true;
+            
+            const errorContainer = document.getElementById('orderFormError');
+            if (errorContainer) {
+                errorContainer.classList.add('hidden');
+            }
+            
+            try {
+                const deliveryFeeElement = document.getElementById('formDeliveryFee');
+                const deliveryFee = deliveryFeeElement ? deliveryFeeElement.textContent : '₦3,500';
+                
+                const senderName = document.querySelector('[x-model="orderForm.senderName"]')?.value || '';
+                const senderPhone = document.querySelector('[x-model="orderForm.senderPhone"]')?.value || '';
+                const senderEmail = document.querySelector('[x-model="orderForm.senderEmail"]')?.value || '';
+                const pickupAddress = document.querySelector('[x-model="orderForm.pickupAddress"]')?.value || '';
+                const pickupArea = document.querySelector('[x-model="orderForm.pickupArea"]')?.value || 'Not provided';
+                const recipientName = document.querySelector('[x-model="orderForm.recipientName"]')?.value || '';
+                const recipientPhone = document.querySelector('[x-model="orderForm.recipientPhone"]')?.value || '';
+                const deliveryAddress = document.querySelector('[x-model="orderForm.deliveryAddress"]')?.value || '';
+                const deliveryArea = document.querySelector('[x-model="orderForm.deliveryArea"]')?.value || 'Not provided';
+                const deliveryNotes = document.querySelector('[x-model="orderForm.deliveryNotes"]')?.value || 'None';
+                const packageDescription = document.querySelector('[x-model="orderForm.packageDescription"]')?.value || '';
+                const packageSize = document.querySelector('[x-model="orderForm.packageSize"]')?.value || '';
+                const preferredTime = document.querySelector('[x-model="orderForm.preferredTime"]')?.value || '';
+                const additionalNotes = document.querySelector('[x-model="orderForm.additionalNotes"]')?.value || 'None';
+                
+                const templateParams = {
+                    sender_name: senderName,
+                    sender_phone: senderPhone,
+                    sender_email: senderEmail,
+                    pickup_address: pickupAddress,
+                    pickup_area: pickupArea,
+                    recipient_name: recipientName,
+                    recipient_phone: recipientPhone,
+                    delivery_address: deliveryAddress,
+                    delivery_area: deliveryArea,
+                    delivery_notes: deliveryNotes,
+                    package_description: packageDescription,
+                    package_size: packageSize,
+                    preferred_time: preferredTime,
+                    additional_notes: additionalNotes,
+                    price: deliveryFee
+                };
+                
+                await emailjs.send('service_ycnmtd9', 'template_tsx6teo', templateParams);
+                
+                await emailjs.send('service_ycnmtd9', 'template_lpynyqn', templateParams);
+                
+                showSuccessMessage();
+                
+            } catch (error) {
+                console.error('EmailJS error:', error);
+                
+                const errorMessage = document.getElementById('orderFormErrorMessage');
+                
+                if (error.text && error.text.includes('Gmail_API')) {
+                    errorMessage.innerHTML = 'Email service is temporarily unavailable due to authentication issues.<br>Your order details have been logged. Please contact us via WhatsApp to complete your order at <strong>+234 810 066 5758</strong>.<br>We apologize for the inconvenience!';
+                } else {
+                    errorMessage.innerHTML = 'Failed to send order. Please try again or contact us via WhatsApp at <strong>+234 810 066 5758</strong>.';
+                }
+                
+                errorContainer.classList.remove('hidden');
+                errorContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            } finally {
+                isSubmitting = false;
+                document.getElementById('submitBtnText').style.display = 'flex';
+                document.getElementById('submitBtnLoading').style.display = 'none';
+                document.getElementById('formSubmitBtn').disabled = false;
+            }
+        }
+
+        function showSuccessMessage() {
+            document.querySelectorAll('[data-step]').forEach(el => {
+                el.style.display = 'none';
+            });
+            document.getElementById('formActions').style.display = 'none';
+            
+            document.getElementById('orderFormSuccessMessage').style.display = 'block';
+            
+            document.getElementById('orderForm').reset();
+            
+            isPriceCalculated = false;
+            
+            document.getElementById('pricingResult').style.display = 'none';
+            document.getElementById('pricingPlaceholder').style.display = 'block';
+        }
+
+        function openOrderFormModal() {
+            document.getElementById('orderFormModal').classList.remove('hidden');
+            document.getElementById('orderFormModal').classList.add('flex');
+            
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeOrderFormModal() {
+            document.getElementById('orderFormSuccessMessage').style.display = 'none';
+            
+            document.getElementById('formActions').style.display = 'flex';
+            
+            document.getElementById('orderFormModal').classList.add('hidden');
+            document.getElementById('orderFormModal').classList.remove('flex');
+            
+            document.body.style.overflow = '';
+            
+            showFormStep(1);
+            
+            document.getElementById('orderForm').reset();
+            isPriceCalculated = false;
+        }
+
+        function openFeedbackForm() {
+            const tallyFormId = 'Ek1VE2';
+            
+            window.open(
+                `https://tally.so/r/${tallyFormId}`,
+                'TallyPopup',
+                'width=600,height=700,scrollbars=yes,resizable=yes'
+            );
+        }
     </script>
+
+    <script async src="https://tally.so/widgets/embed.js"></script>
 </body>
 </html>
