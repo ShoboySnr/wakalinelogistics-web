@@ -39,4 +39,8 @@ return [
         'api_key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    'metter_api' => [
+        'token' => env('METTER_API_TOKEN', 'your-secure-api-token-here'),
+    ],
+
 ];
