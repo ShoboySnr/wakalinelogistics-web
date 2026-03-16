@@ -93,6 +93,84 @@ document.addEventListener('DOMContentLoaded', function() {
 
         currentStep = step;
         updateButtons();
+
+        // Calculate delivery fee when reaching step 3
+        if (step === 3) {
+            calculateDeliveryFee();
+        }
+    }
+
+    // Global variable to store calculated fee
+    let calculatedDeliveryFee = 0;
+    let deliveryDistanceKm = 0;
+
+    function calculateDeliveryFee() {
+        var pickupAddress = document.getElementById('pickupAddress').value;
+        var pickupArea = document.getElementById('pickupArea').value;
+        var deliveryAddress = document.getElementById('deliveryAddress').value;
+        var deliveryArea = document.getElementById('deliveryArea').value;
+
+        // Combine address with area for better accuracy
+        var fullPickup = pickupAddress + (pickupArea ? ', ' + pickupArea : '');
+        var fullDelivery = deliveryAddress + (deliveryArea ? ', ' + deliveryArea : '');
+
+        // Show loading state
+        document.getElementById('feeLoadingSection').style.display = 'block';
+        document.getElementById('deliveryFeeSection').style.display = 'none';
+        document.getElementById('feeErrorSection').style.display = 'none';
+
+        // Call Metter API
+        fetch('/api/wakalinelogistics/v1/metter/quote', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({
+                pickup_address: fullPickup,
+                dropoff_address: fullDelivery
+            })
+        })
+        .then(function(response) {
+            if (!response.ok) {
+                throw new Error('Failed to calculate delivery fee');
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            if (data.success && data.delivery_fee) {
+                calculatedDeliveryFee = data.delivery_fee;
+                deliveryDistanceKm = data.distance_km || 0;
+
+                // Format and display the fee
+                var formattedFee = '₦' + calculatedDeliveryFee.toLocaleString('en-NG');
+                document.getElementById('calculatedFee').textContent = formattedFee;
+                
+                if (deliveryDistanceKm > 0) {
+                    document.getElementById('deliveryDistance').textContent = 'Distance: ' + deliveryDistanceKm.toFixed(1) + ' km';
+                } else {
+                    document.getElementById('deliveryDistance').textContent = '';
+                }
+
+                // Hide loading, show fee
+                document.getElementById('feeLoadingSection').style.display = 'none';
+                document.getElementById('deliveryFeeSection').style.display = 'block';
+            } else {
+                throw new Error(data.message || 'Unable to calculate delivery fee');
+            }
+        })
+        .catch(function(error) {
+            console.error('Fee calculation error:', error);
+            
+            // Show error with fallback message
+            document.getElementById('feeLoadingSection').style.display = 'none';
+            document.getElementById('feeErrorSection').style.display = 'block';
+            document.getElementById('feeErrorMessage').textContent = 
+                'Unable to calculate exact fee. Our team will confirm the delivery cost when they contact you. Typical range: ₦1,500 - ₦8,000 depending on distance.';
+            
+            // Set a default fee for email
+            calculatedDeliveryFee = 0;
+        });
     }
 
     function updateButtons() {
@@ -160,6 +238,10 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBtn.textContent = 'Submitting...';
 
             // Collect all form values
+            var priceDisplay = calculatedDeliveryFee > 0 
+                ? '₦' + calculatedDeliveryFee.toLocaleString('en-NG') 
+                : 'To be confirmed';
+            
             var templateParams = {
                 sender_name: document.getElementById('senderName').value,
                 sender_phone: document.getElementById('senderPhone').value,
@@ -175,7 +257,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 package_size: document.getElementById('packageSize').value,
                 preferred_time: document.getElementById('preferredTime').value,
                 additional_notes: document.getElementById('additionalNotes').value || 'None',
-                price: '₦3,500'
+                price: priceDisplay,
+                distance: deliveryDistanceKm > 0 ? deliveryDistanceKm.toFixed(1) + ' km' : 'N/A'
             };
 
             // Send admin notification email

@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Waka Line Logistics - ₦3,500 Flat Rate Delivery Across Lagos | Same Day Delivery</title>
-    <meta name="description" content="Professional delivery service across Lagos. ₦3,500 flat rate for all deliveries. Same-day delivery guaranteed. Order now via WhatsApp!">
+    <title>Waka Line Logistics - Starting from ₦1,500 Delivery Across Lagos | Same Day Delivery</title>
+    <meta name="description" content="Professional delivery service across Lagos. Starting from ₦1,500 for all deliveries. Same-day delivery guaranteed for order before 12pm. Order now via WhatsApp!">
     <meta name="author" content="Waka Line Logistics">
     
-    <meta property="og:title" content="Waka Line Logistics - ₦3,500 Flat Rate Delivery Across Lagos">
-    <meta property="og:description" content="Same-day bike delivery across Lagos. ₦3,500 flat rate. Skip the traffic, save time, and never worry about late deliveries again.">
+    <meta property="og:title" content="Waka Line Logistics - Starting from ₦1,500 Delivery Across Lagos">
+    <meta property="og:description" content="Same-day bike delivery across Lagos. Starting from ₦1,500. Skip the traffic, save time, and never worry about late deliveries again.">
     <meta property="og:type" content="website">
     
     <link rel="icon" type="image/png" href="{{ asset('assets/img/favicon.png') }}">
@@ -45,14 +45,14 @@
         <div class="hero-overlay"></div>
         <div class="container hero-inner">
             <span class="hero-label">RAMADAN PROMO - Limited Time Offer</span>
-            <h1>₦3,500 Flat Rate Delivery<br>Anywhere in Lagos</h1>
+            <h1>Starting from ₦1,500 Delivery Anywhere in Lagos</h1>
             <p class="hero-sub">We deliver your packages anywhere in Lagos, same day.</p>
             <div class="hero-actions">
                 <a href="https://wa.me/2348100665758?text=Hi,%20I%20want%20to%20make%20a%20delivery%20order" class="btn btn-primary">Order via WhatsApp</a>
                 <a href="tel:+2348100665758" class="btn btn-outline">Call Us</a>
             </div>
             <p class="hero-form-link">Prefer a form instead? <a href="#" id="openOrderForm">Place your order here</a></p>
-            <p class="hero-note">Order before 2 pm for same-day delivery</p>
+            <p class="hero-note">Order before 12 pm for same-day delivery</p>
         </div>
     </section>
 
@@ -63,13 +63,24 @@
 
             <!-- Fixed Header -->
             <div class="modal-header">
-                <h2 class="modal-title">Place a Delivery Order</h2>
+                <h2 class="modal-title">
+                    <span>Place a Delivery Order</span>
+                </h2>
                 <div class="form-progress">
-                    <div class="progress-step active" data-step="1"><span>1</span> Pickup</div>
+                    <div class="progress-step active" data-step="1">
+                        <span>1</span>
+                        <span>Pickup</span>
+                    </div>
                     <div class="progress-line"></div>
-                    <div class="progress-step" data-step="2"><span>2</span> Delivery</div>
+                    <div class="progress-step" data-step="2">
+                        <span>2</span>
+                        <span>Dropoff</span>
+                    </div>
                     <div class="progress-line"></div>
-                    <div class="progress-step" data-step="3"><span>3</span> Package</div>
+                    <div class="progress-step" data-step="3">
+                        <span>3</span>
+                        <span>Package</span>
+                    </div>
                 </div>
             </div>
 
@@ -129,7 +140,28 @@
 
                     <!-- Step 3: Package -->
                     <div class="form-step" data-step="3">
-                        <h3>Package Details</h3>
+                        <h3>Package Details & Delivery Fee</h3>
+                        
+                        <!-- Delivery Fee Display -->
+                        <div id="deliveryFeeSection" style="background: linear-gradient(135deg, #C1666B 0%, #a85559 100%); padding: 20px; border-radius: 12px; margin-bottom: 24px; display: none;">
+                            <div style="text-align: center; color: white;">
+                                <p style="font-size: 14px; margin: 0 0 8px 0; opacity: 0.9;">Your Delivery Fee</p>
+                                <p style="font-size: 36px; font-weight: bold; margin: 0;" id="calculatedFee">₦0</p>
+                                <p style="font-size: 12px; margin: 8px 0 0 0; opacity: 0.8;" id="deliveryDistance"></p>
+                            </div>
+                        </div>
+
+                        <!-- Loading State -->
+                        <div id="feeLoadingSection" style="background: #f3f4f6; padding: 20px; border-radius: 12px; margin-bottom: 24px; text-align: center; display: none;">
+                            <div style="display: inline-block; width: 24px; height: 24px; border: 3px solid #C1666B; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                            <p style="margin: 12px 0 0 0; color: #6b7280; font-size: 14px;">Calculating your delivery fee...</p>
+                        </div>
+
+                        <!-- Error State -->
+                        <div id="feeErrorSection" style="background: #fef2f2; border: 1px solid #fecaca; padding: 16px; border-radius: 12px; margin-bottom: 24px; display: none;">
+                            <p style="margin: 0; color: #dc2626; font-size: 14px;" id="feeErrorMessage"></p>
+                        </div>
+
                         <div class="form-group">
                             <label for="packageDescription">What are you sending?</label>
                             <input type="text" id="packageDescription" name="packageDescription" required placeholder="e.g. Documents, Food, Electronics">
@@ -157,7 +189,6 @@
                             <label for="additionalNotes">Additional Notes (optional)</label>
                             <textarea id="additionalNotes" name="additionalNotes" placeholder="Any special instructions" rows="3"></textarea>
                         </div>
-                        <div class="form-price-note">Total: ₦3,500</div>
                     </div>
 
                     <!-- Success Message -->
@@ -212,7 +243,7 @@
                         <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#C1666B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                     </div>
                     <h3>No Surprise Charges</h3>
-                    <p class="testimonial-text">₦3,500 flat — whether it's Ikeja to Lekki or Surulere to Victoria Island. One price, no distance fees, no surge pricing.</p>
+                    <p class="testimonial-text">Starting from ₦1,500 — whether it's Ikeja to Lekki or Surulere to Victoria Island. One price, no distance fees, no surge pricing.</p>
                 </div>
             </div>
         </div>
@@ -301,7 +332,7 @@
             <div class="pricing-card">
                 <div class="pricing-left">
                     <span class="section-tag" style="color:#fcd34d;background:rgba(252,211,77,0.15);border-color:rgba(252,211,77,0.3);">Transparent Pricing</span>
-                    <h2>₦3,500 <span class="pricing-thin">per delivery</span></h2>
+                    <h2><span class="pricing-thin">Starting from</span>₦1,500 <span class="pricing-thin">per delivery</span></h2>
                     <p>Mainland to Island. Island to Mainland. Anywhere in Lagos. One flat rate, zero surprises.</p>
                 </div>
                 <div class="pricing-right">
@@ -335,8 +366,8 @@
             <div class="app-content">
                 <div class="app-text">
                     <span class="section-tag">Coming Soon</span>
-                    <h2>The Waka Line App — Delivery at your fingertips</h2>
-                    <p>We're building something exciting. The Waka Line app will put you in full control of your deliveries — from booking to tracking to payment, all in one place.</p>
+                    <h2>The Waka Line Logistics App called "Metter" — Delivery at your fingertips</h2>
+                    <p>We're building something exciting. "Metter" will put you in full control of your deliveries — from booking to tracking to payment, all in one place.</p>
                     <div class="app-features">
                         <div class="app-feature">
                             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#C1666B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -444,6 +475,7 @@
                 <a href="https://facebook.com/wakalinelogistics" target="_blank" rel="noopener" aria-label="Facebook">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
                 </a>
+                <link href="https://fonts.googleapis.com/css2?family=Tahoma&display=swap" rel="stylesheet">
                 <a href="https://instagram.com/wakalinelogistics" target="_blank" rel="noopener" aria-label="Instagram">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/></svg>
                 </a>

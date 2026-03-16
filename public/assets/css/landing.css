@@ -20,7 +20,7 @@
 html { scroll-behavior: smooth; }
 
 body {
-    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Arial, sans-serif;
+    font-family: Tahoma, Geneva, sans-serif;
     color: var(--text);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
@@ -1074,7 +1074,10 @@ img { max-width: 100%; display: block; }
 }
 
 .modal-header {
-    padding: 36px 32px 0;
+    background: linear-gradient(to right, #C1666B, rgba(193, 102, 107, 0.8));
+    color: white;
+    padding: 24px 32px;
+    border-radius: 12px 12px 0 0;
     flex-shrink: 0;
 }
 
@@ -1093,6 +1096,29 @@ img { max-width: 100%; display: block; }
     min-height: 0;
 }
 
+.modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: #C1666B;
+    border-radius: 10px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: #a85559;
+}
+
+.modal-body {
+    scrollbar-width: thin;
+    scrollbar-color: #C1666B #f1f1f1;
+}
+
 .modal-close {
     position: absolute;
     top: 16px;
@@ -1100,66 +1126,76 @@ img { max-width: 100%; display: block; }
     background: none;
     border: none;
     font-size: 1.6rem;
-    color: var(--gray);
+    color: white;
     cursor: pointer;
     line-height: 1;
+    opacity: 0.8;
 }
-.modal-close:hover { color: var(--dark); }
+.modal-close:hover { opacity: 1; }
 
 .modal-title {
-    font-size: 1.4rem;
+    font-size: 1.5rem;
     font-weight: 700;
-    color: var(--dark);
-    margin-bottom: 24px;
+    color: white;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
 /* ===== Form Progress ===== */
 .form-progress {
     display: flex;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
     gap: 0;
-    margin-bottom: 32px;
 }
 
 .progress-step {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 0.85rem;
-    color: var(--gray);
+    font-size: 0.875rem;
+    color: rgba(255, 255, 255, 0.5);
     font-weight: 500;
 }
-.progress-step span {
-    width: 28px;
-    height: 28px;
+.progress-step span:first-child {
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background: #e5e7eb;
-    color: var(--gray);
+    background: rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.7);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.8rem;
+    font-size: 0.875rem;
     font-weight: 700;
+    flex-shrink: 0;
 }
-.progress-step.active span {
-    background: var(--accent);
-    color: var(--white);
+.progress-step span:last-child {
+    white-space: nowrap;
+}
+.progress-step.active span:first-child {
+    background: white;
+    color: var(--accent);
 }
 .progress-step.active {
-    color: var(--dark);
+    color: white;
     font-weight: 600;
 }
-.progress-step.done span {
-    background: var(--accent);
-    color: var(--white);
+.progress-step.done span:first-child {
+    background: white;
+    color: var(--accent);
 }
 
 .progress-line {
-    width: 40px;
+    flex: 1;
     height: 2px;
-    background: #e5e7eb;
+    background: rgba(255, 255, 255, 0.3);
     margin: 0 8px;
+}
+.progress-line.active {
+    background: white;
 }
 
 /* ===== Form Steps ===== */
@@ -1286,6 +1322,12 @@ img { max-width: 100%; display: block; }
     margin: 0;
 }
 
+/* ===== Animations ===== */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 767px) {
     .hero { min-height: 540px; }
@@ -1298,7 +1340,7 @@ img { max-width: 100%; display: block; }
     .pricing-text { text-align: center; }
     .services, .how-it-works, .why-us, .final-cta { padding: 60px 0; }
     .modal { max-height: 95vh; }
-    .modal-header { padding: 28px 20px 0; }
+    .modal-header { padding: 20px; }
     .modal-body { padding: 0 20px; }
     .form-actions { padding: 14px 20px; }
     .progress-step { font-size: 0.75rem; }

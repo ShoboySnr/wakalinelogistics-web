@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware('web')
                 ->group(base_path('app/Modules/DeliveryCalculator/Routes/web.php'));
             
+            Route::middleware('web')
+                ->group(base_path('app/Modules/Admin/Routes/web.php'));
+            
             Route::prefix('api')
                 ->middleware('api')
                 ->group(base_path('app/Modules/DeliveryCalculator/Routes/api.php'));
@@ -26,7 +29,16 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'api.token' => \App\Http\Middleware\ValidateApiToken::class,
+            'admin' => \App\Modules\Admin\Middleware\AdminMiddleware::class,
         ]);
+        
+        // Redirect unauthenticated users to admin login for admin routes
+        $middleware->redirectGuestsTo(function ($request) {
+            if ($request->is('super-admin') || $request->is('super-admin/*')) {
+                return route('admin.login');
+            }
+            return route('login');
+        });
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

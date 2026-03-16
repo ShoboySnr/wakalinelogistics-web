@@ -1108,6 +1108,22 @@
         }
 
         function openOrderFormModal() {
+            const pickupInput = document.getElementById('pickup_address');
+            const deliveryInput = document.getElementById('delivery_address');
+            
+            const pickupAddressTextarea = document.querySelector('[x-model="orderForm.pickupAddress"]');
+            const deliveryAddressTextarea = document.querySelector('[x-model="orderForm.deliveryAddress"]');
+            
+            if (pickupInput && pickupInput.value && pickupAddressTextarea) {
+                pickupAddressTextarea.value = pickupInput.value;
+                pickupAddressTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            
+            if (deliveryInput && deliveryInput.value && deliveryAddressTextarea) {
+                deliveryAddressTextarea.value = deliveryInput.value;
+                deliveryAddressTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+            
             document.getElementById('orderFormModal').classList.remove('hidden');
             document.getElementById('orderFormModal').classList.add('flex');
             

@@ -19,8 +19,37 @@ class DeliveryCalculatorApiController extends Controller
     public function calculatePrice(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'pickup_address' => 'required|string|max:500',
+            'pickup_address' => 'required',
             'dropoff_address' => 'required|string|max:500',
+        ]);
+
+        if (is_array($validated['pickup_address'])) {
+            $request->validate([
+                'pickup_address' => 'array|min:1|max:10',
+                'pickup_address.*' => 'required|string|max:500',
+            ]);
+
+            $result = $this->priceService->processMultiPickupCalculation(
+                $validated['pickup_address'],
+                $validated['dropoff_address']
+            );
+
+            if (isset($result['error'])) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $result['error'],
+                    'message' => 'Failed to calculate delivery price'
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => $result
+            ], 200);
+        }
+
+        $request->validate([
+            'pickup_address' => 'string|max:500',
         ]);
 
         $result = $this->priceService->processDeliveryCalculation(
