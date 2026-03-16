@@ -204,6 +204,54 @@
 
         <!-- Sidebar Stats -->
         <div class="lg:col-span-1 space-y-6">
+            <!-- Daily Access Code -->
+            <div class="bg-white shadow rounded-lg overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                    <h2 class="text-lg font-semibold text-gray-900">Today's Access Code</h2>
+                </div>
+                <div class="px-6 py-4">
+                    <div class="text-center">
+                        <p class="text-sm text-gray-600 mb-2">Share this code with the rider to enable tracking</p>
+                        <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 mb-3">
+                            <div class="text-3xl font-bold text-blue-600 tracking-widest" style="letter-spacing: 0.5em;">
+                                {{ $rider->getDailyCode() }}
+                            </div>
+                        </div>
+                        <button onclick="copyCode('{{ $rider->getDailyCode() }}')" class="w-full px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            Copy Code
+                        </button>
+                        <p class="text-xs text-gray-500 mt-2">Valid for today only • Resets daily</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white shadow rounded-lg overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+                    <h2 class="text-lg font-semibold text-gray-900">Quick Actions</h2>
+                </div>
+                <div class="px-6 py-4 space-y-3">
+                    <button onclick="generateShareLink()" class="block w-full px-4 py-2 text-center bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors">
+                        🔗 Generate Share Link
+                    </button>
+                    
+                    <a href="{{ route('admin.riders.edit', $rider->id) }}" class="block w-full px-4 py-2 text-center text-white rounded-md brand-accent-bg brand-accent-hover transition-colors">
+                        Edit Rider
+                    </a>
+                    
+                    <form action="{{ route('admin.riders.delete', $rider->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this rider?');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="block w-full px-4 py-2 text-center bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                            Delete Rider
+                        </button>
+                    </form>
+                </div>
+            </div>
+
             <!-- Statistics -->
             <div class="bg-white shadow rounded-lg overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -261,13 +309,21 @@
                                 {{ $index + 1 }}
                             </div>
                             <div class="flex-1">
-                                <p class="text-sm font-medium text-gray-900">
-                                    {{ ucfirst($waypoint['type']) }} - Order #{{ $waypoint['order_number'] }}
-                                </p>
+                                <div class="flex items-center justify-between mb-1">
+                                    <p class="text-sm font-medium text-gray-900">
+                                        {{ ucfirst($waypoint['type']) }} - Order #{{ $waypoint['order_number'] }}
+                                    </p>
+                                    <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                        ⏱️ {{ $waypoint['eta'] }}
+                                    </span>
+                                </div>
                                 <p class="text-sm text-gray-600">{{ $waypoint['address'] }}</p>
                                 @if($waypoint['type'] == 'delivery' && isset($waypoint['receiver']))
                                 <p class="text-xs text-gray-500 mt-1">Receiver: {{ $waypoint['receiver'] }}</p>
                                 @endif
+                                <p class="text-xs text-gray-400 mt-1">
+                                    ⏱️ Time to reach: ~{{ $loop->first ? $waypoint['estimated_time'] : ($waypoint['estimated_time'] - $waypoints[$loop->index - 1]['estimated_time']) }} min
+                                </p>
                             </div>
                         </div>
                         @endforeach
@@ -291,31 +347,11 @@
                 </div>
             </div>
             @endif
-
-            <!-- Quick Actions -->
-            <div class="bg-white shadow rounded-lg overflow-hidden">
-                <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                    <h2 class="text-lg font-semibold text-gray-900">Quick Actions</h2>
-                </div>
-                <div class="px-6 py-4 space-y-3">
-                    <a href="{{ route('admin.riders.edit', $rider->id) }}" class="block w-full px-4 py-2 text-center text-white rounded-md brand-accent-bg brand-accent-hover transition-colors">
-                        Edit Rider
-                    </a>
-                    
-                    <form action="{{ route('admin.riders.delete', $rider->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this rider?');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="block w-full px-4 py-2 text-center bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
-                            Delete Rider
-                        </button>
-                    </form>
-                </div>
-            </div>
         </div>
     </div>
 </div>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
+<script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=places"></script>
 <script>
 let map;
 let directionsService;
@@ -368,34 +404,18 @@ function initMap() {
 }
 
 function shareRouteWhatsApp() {
-    const waypoints = @json($waypoints);
-    const startingPoint = @json($startingPoint);
-    const riderName = @json($rider->name);
-    
-    let message = `🚴 *Route Plan for ${riderName}*\n\n`;
-    message += `📍 *Start:* ${startingPoint}\n\n`;
-    
-    waypoints.forEach((wp, index) => {
-        const icon = wp.type === 'pickup' ? '📦' : '🏠';
-        message += `${icon} *Stop ${index + 1}:* ${wp.type.toUpperCase()}\n`;
-        message += `Order: #${wp.order_number}\n`;
-        message += `${wp.address}\n`;
-        if (wp.receiver && wp.type === 'delivery') {
-            message += `Receiver: ${wp.receiver}\n`;
-        }
-        message += `\n`;
-    });
-    
-    // Create Google Maps route URL
-    const origin = encodeURIComponent(startingPoint);
-    const destination = encodeURIComponent(waypoints[waypoints.length - 1].address);
-    const waypointsParam = waypoints.slice(0, -1).map(wp => encodeURIComponent(wp.address)).join('|');
-    const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&waypoints=${waypointsParam}&travelmode=driving`;
-    
-    message += `🗺️ *Open Route in Google Maps:*\n${mapsUrl}`;
-    
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    const message = @json($whatsappText);
+    const whatsappUrl = `https://wa.me/?text=${message}`;
     window.open(whatsappUrl, '_blank');
+}
+
+function copyCode(code) {
+    navigator.clipboard.writeText(code).then(() => {
+        alert('Code copied to clipboard: ' + code);
+    }).catch(err => {
+        console.error('Failed to copy code:', err);
+        alert('Failed to copy code. Please copy manually: ' + code);
+    });
 }
 
 function copyRouteLink() {
@@ -411,6 +431,39 @@ function copyRouteLink() {
         alert('Route link copied to clipboard!');
     }).catch(err => {
         console.error('Failed to copy:', err);
+    });
+}
+
+function generateShareLink() {
+    const riderId = {{ $rider->id }};
+    
+    if (!confirm('Generate a new shareable route link? This will expire in 7 days.')) {
+        return;
+    }
+    
+    fetch(`/super-admin/riders/${riderId}/generate-share-link`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const message = `Share Link Generated!\n\nURL: ${data.url}\n\nExpires: ${data.expires_at}\n\nCopy this link?`;
+            if (confirm(message)) {
+                navigator.clipboard.writeText(data.url).then(() => {
+                    alert('Link copied to clipboard!');
+                }).catch(err => {
+                    prompt('Copy this link:', data.url);
+                });
+            }
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to generate share link. Please try again.');
     });
 }
 

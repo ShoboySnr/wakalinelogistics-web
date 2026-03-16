@@ -46,6 +46,7 @@ Route::prefix('super-admin')->group(function () {
         Route::get('/riders/{id}/edit', [DashboardController::class, 'editRider'])->name('admin.riders.edit');
         Route::put('/riders/{id}', [DashboardController::class, 'updateRider'])->name('admin.riders.update');
         Route::delete('/riders/{id}', [DashboardController::class, 'deleteRider'])->name('admin.riders.delete');
+        Route::post('/riders/{id}/generate-share-link', [DashboardController::class, 'generateRouteShareLink'])->name('admin.riders.generate-share-link');
         Route::post('/orders/{id}/assign-rider', [DashboardController::class, 'assignRider'])->name('admin.orders.assign-rider');
     });
 });

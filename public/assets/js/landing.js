@@ -242,33 +242,75 @@ document.addEventListener('DOMContentLoaded', function() {
                 ? '₦' + calculatedDeliveryFee.toLocaleString('en-NG') 
                 : 'To be confirmed';
             
-            var templateParams = {
+            var orderData = {
                 sender_name: document.getElementById('senderName').value,
                 sender_phone: document.getElementById('senderPhone').value,
                 sender_email: document.getElementById('senderEmail').value,
                 pickup_address: document.getElementById('pickupAddress').value,
-                pickup_area: document.getElementById('pickupArea').value || 'Not provided',
+                pickup_area: document.getElementById('pickupArea').value || '',
                 recipient_name: document.getElementById('recipientName').value,
                 recipient_phone: document.getElementById('recipientPhone').value,
                 delivery_address: document.getElementById('deliveryAddress').value,
-                delivery_area: document.getElementById('deliveryArea').value || 'Not provided',
-                delivery_notes: document.getElementById('deliveryNotes').value || 'None',
+                delivery_area: document.getElementById('deliveryArea').value || '',
+                delivery_notes: document.getElementById('deliveryNotes').value || '',
                 package_description: document.getElementById('packageDescription').value,
                 package_size: document.getElementById('packageSize').value,
                 preferred_time: document.getElementById('preferredTime').value,
-                additional_notes: document.getElementById('additionalNotes').value || 'None',
-                price: priceDisplay,
-                distance: deliveryDistanceKm > 0 ? deliveryDistanceKm.toFixed(1) + ' km' : 'N/A'
+                additional_notes: document.getElementById('additionalNotes').value || '',
+                price: calculatedDeliveryFee,
+                distance: deliveryDistanceKm,
+                form_source: 'Landing Page'
             };
 
-            // Send admin notification email
-            emailjs.send('service_ycnmtd9', 'template_tsx6teo', templateParams)
-            .then(function() {
-                // Send customer confirmation email
-                return emailjs.send('service_ycnmtd9', 'template_lpynyqn', templateParams);
+            // Submit order to database
+            fetch('/api/orders/submit-public', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(orderData)
+            })
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                if (data.success) {
+                    // Order saved successfully, now send emails
+                    var templateParams = {
+                        sender_name: orderData.sender_name,
+                        sender_phone: orderData.sender_phone,
+                        sender_email: orderData.sender_email,
+                        pickup_address: orderData.pickup_address,
+                        pickup_area: orderData.pickup_area || 'Not provided',
+                        recipient_name: orderData.recipient_name,
+                        recipient_phone: orderData.recipient_phone,
+                        delivery_address: orderData.delivery_address,
+                        delivery_area: orderData.delivery_area || 'Not provided',
+                        delivery_notes: orderData.delivery_notes || 'None',
+                        package_description: orderData.package_description,
+                        package_size: orderData.package_size,
+                        preferred_time: orderData.preferred_time,
+                        additional_notes: orderData.additional_notes || 'None',
+                        price: priceDisplay,
+                        distance: deliveryDistanceKm > 0 ? deliveryDistanceKm.toFixed(1) + ' km' : 'N/A',
+                        order_number: data.order_number
+                    };
+
+                    // Send emails (optional - order is already saved)
+                    return emailjs.send('service_ycnmtd9', 'template_tsx6teo', templateParams)
+                        .then(function() {
+                            return emailjs.send('service_ycnmtd9', 'template_lpynyqn', templateParams);
+                        })
+                        .catch(function(emailError) {
+                            console.log('Email sending failed, but order was saved:', emailError);
+                        });
+                } else {
+                    throw new Error(data.message || 'Failed to submit order');
+                }
             })
             .then(function() {
-                // Both emails sent successfully
+                // Show success message
                 steps.forEach(function(s) { s.style.display = 'none'; });
                 document.querySelector('.form-progress').style.display = 'none';
                 formActions.style.display = 'none';
@@ -276,9 +318,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('formError').style.display = 'none';
             })
             .catch(function(error) {
-                console.error('EmailJS error:', error);
+                console.error('Order submission error:', error);
                 document.getElementById('formError').style.display = 'block';
-                document.getElementById('formErrorMsg').textContent = 'Failed to send order. Please try again or contact us via WhatsApp.';
+                document.getElementById('formErrorMsg').textContent = error.message || 'Failed to submit order. Please try again or contact us via WhatsApp.';
             })
             .finally(function() {
                 submitBtn.disabled = false;

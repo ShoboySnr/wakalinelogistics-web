@@ -1029,24 +1029,26 @@
             
             try {
                 const deliveryFeeElement = document.getElementById('formDeliveryFee');
-                const deliveryFee = deliveryFeeElement ? deliveryFeeElement.textContent : '₦3,500';
+                const deliveryFeeText = deliveryFeeElement ? deliveryFeeElement.textContent : '₦3,500';
+                const deliveryFeeNumeric = parseFloat(deliveryFeeText.replace(/[₦,]/g, '')) || 0;
+                const distanceValue = parseFloat(document.getElementById('formDistanceValue')?.textContent) || 0;
                 
                 const senderName = document.querySelector('[x-model="orderForm.senderName"]')?.value || '';
                 const senderPhone = document.querySelector('[x-model="orderForm.senderPhone"]')?.value || '';
                 const senderEmail = document.querySelector('[x-model="orderForm.senderEmail"]')?.value || '';
                 const pickupAddress = document.querySelector('[x-model="orderForm.pickupAddress"]')?.value || '';
-                const pickupArea = document.querySelector('[x-model="orderForm.pickupArea"]')?.value || 'Not provided';
+                const pickupArea = document.querySelector('[x-model="orderForm.pickupArea"]')?.value || '';
                 const recipientName = document.querySelector('[x-model="orderForm.recipientName"]')?.value || '';
                 const recipientPhone = document.querySelector('[x-model="orderForm.recipientPhone"]')?.value || '';
                 const deliveryAddress = document.querySelector('[x-model="orderForm.deliveryAddress"]')?.value || '';
-                const deliveryArea = document.querySelector('[x-model="orderForm.deliveryArea"]')?.value || 'Not provided';
-                const deliveryNotes = document.querySelector('[x-model="orderForm.deliveryNotes"]')?.value || 'None';
+                const deliveryArea = document.querySelector('[x-model="orderForm.deliveryArea"]')?.value || '';
+                const deliveryNotes = document.querySelector('[x-model="orderForm.deliveryNotes"]')?.value || '';
                 const packageDescription = document.querySelector('[x-model="orderForm.packageDescription"]')?.value || '';
                 const packageSize = document.querySelector('[x-model="orderForm.packageSize"]')?.value || '';
                 const preferredTime = document.querySelector('[x-model="orderForm.preferredTime"]')?.value || '';
-                const additionalNotes = document.querySelector('[x-model="orderForm.additionalNotes"]')?.value || 'None';
+                const additionalNotes = document.querySelector('[x-model="orderForm.additionalNotes"]')?.value || '';
                 
-                const templateParams = {
+                const orderData = {
                     sender_name: senderName,
                     sender_phone: senderPhone,
                     sender_email: senderEmail,
@@ -1061,25 +1063,61 @@
                     package_size: packageSize,
                     preferred_time: preferredTime,
                     additional_notes: additionalNotes,
-                    price: deliveryFee
+                    price: deliveryFeeNumeric,
+                    distance: distanceValue,
+                    form_source: 'Metter Calculator'
                 };
                 
-                await emailjs.send('service_ycnmtd9', 'template_tsx6teo', templateParams);
+                // Submit order to database first
+                const response = await fetch('/api/orders/submit-public', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(orderData)
+                });
                 
-                await emailjs.send('service_ycnmtd9', 'template_lpynyqn', templateParams);
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.message || 'Failed to submit order');
+                }
+                
+                // Order saved successfully, now send emails (optional)
+                const templateParams = {
+                    sender_name: senderName,
+                    sender_phone: senderPhone,
+                    sender_email: senderEmail,
+                    pickup_address: pickupAddress,
+                    pickup_area: pickupArea || 'Not provided',
+                    recipient_name: recipientName,
+                    recipient_phone: recipientPhone,
+                    delivery_address: deliveryAddress,
+                    delivery_area: deliveryArea || 'Not provided',
+                    delivery_notes: deliveryNotes || 'None',
+                    package_description: packageDescription,
+                    package_size: packageSize,
+                    preferred_time: preferredTime,
+                    additional_notes: additionalNotes || 'None',
+                    price: deliveryFeeText,
+                    order_number: result.order_number
+                };
+                
+                try {
+                    await emailjs.send('service_ycnmtd9', 'template_tsx6teo', templateParams);
+                    await emailjs.send('service_ycnmtd9', 'template_lpynyqn', templateParams);
+                } catch (emailError) {
+                    console.log('Email sending failed, but order was saved:', emailError);
+                }
                 
                 showSuccessMessage();
                 
             } catch (error) {
-                console.error('EmailJS error:', error);
+                console.error('Order submission error:', error);
                 
                 const errorMessage = document.getElementById('orderFormErrorMessage');
-                
-                if (error.text && error.text.includes('Gmail_API')) {
-                    errorMessage.innerHTML = 'Email service is temporarily unavailable due to authentication issues.<br>Your order details have been logged. Please contact us via WhatsApp to complete your order at <strong>+234 810 066 5758</strong>.<br>We apologize for the inconvenience!';
-                } else {
-                    errorMessage.innerHTML = 'Failed to send order. Please try again or contact us via WhatsApp at <strong>+234 810 066 5758</strong>.';
-                }
+                errorMessage.innerHTML = error.message || 'Failed to submit order. Please try again or contact us via WhatsApp at <strong>+234 810 066 5758</strong>.';
                 
                 errorContainer.classList.remove('hidden');
                 errorContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

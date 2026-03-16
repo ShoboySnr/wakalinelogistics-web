@@ -20,6 +20,11 @@ class Rider extends Model
         'address',
         'rating',
         'total_deliveries',
+        'current_latitude',
+        'current_longitude',
+        'last_location_update',
+        'daily_code',
+        'daily_code_date',
         // Guarantor 1
         'guarantor1_full_name',
         'guarantor1_dob',
@@ -81,6 +86,8 @@ class Rider extends Model
         'guarantor1_years_known' => 'integer',
         'guarantor2_years_known' => 'integer',
         'witness_date' => 'date',
+        'last_location_update' => 'datetime',
+        'daily_code_date' => 'date',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];
@@ -103,5 +110,45 @@ class Rider extends Model
     public function isActive(): bool
     {
         return $this->status === 'active';
+    }
+
+    /**
+     * Generate a new daily code for the rider
+     */
+    public function generateDailyCode(): string
+    {
+        $code = strtoupper(substr(md5(uniqid($this->id . time(), true)), 0, 6));
+        
+        $this->update([
+            'daily_code' => $code,
+            'daily_code_date' => today()
+        ]);
+        
+        return $code;
+    }
+
+    /**
+     * Get the current valid daily code (generate if needed)
+     */
+    public function getDailyCode(): string
+    {
+        // If no code exists or code is from a previous day, generate new one
+        if (!$this->daily_code || !$this->daily_code_date || $this->daily_code_date->lt(today())) {
+            return $this->generateDailyCode();
+        }
+        
+        return $this->daily_code;
+    }
+
+    /**
+     * Validate a provided code against the rider's daily code
+     */
+    public function validateDailyCode(string $code): bool
+    {
+        // Code must exist, be for today, and match
+        return $this->daily_code 
+            && $this->daily_code_date 
+            && $this->daily_code_date->isToday()
+            && strtoupper($code) === strtoupper($this->daily_code);
     }
 }

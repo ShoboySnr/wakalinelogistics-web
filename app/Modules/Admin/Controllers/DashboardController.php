@@ -8,6 +8,7 @@ use App\Modules\Admin\Models\ActivityLog;
 use App\Modules\Admin\Models\Setting;
 use App\Modules\Admin\Models\Rider;
 use App\Modules\Admin\Models\Expense;
+use App\Modules\Admin\Models\RouteShare;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -137,11 +138,16 @@ class DashboardController extends Controller
             'in_transit' => Order::where('status', 'in_transit')->count(),
             'delivered' => Order::where('status', 'delivered')->count(),
             'cancelled' => Order::where('status', 'cancelled')->count(),
-            // Revenue statistics
-            'revenue_today' => Order::whereDate('created_at', today())->sum('price'),
-            'revenue_week' => Order::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->sum('price'),
+            // Revenue statistics - only count delivered orders
+            'revenue_today' => Order::whereDate('created_at', today())
+                                    ->where('status', 'delivered')
+                                    ->sum('price'),
+            'revenue_week' => Order::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
+                                   ->where('status', 'delivered')
+                                   ->sum('price'),
             'revenue_month' => Order::whereMonth('created_at', now()->month)
                                     ->whereYear('created_at', now()->year)
+                                    ->where('status', 'delivered')
                                     ->sum('price'),
         ];
 
@@ -575,31 +581,88 @@ class DashboardController extends Controller
         // Build route waypoints for route planning
         $startingPoint = 'Iju Ishaga, Lagos, Nigeria';
         $waypoints = [];
+        $cumulativeTime = 0; // in minutes
         
         foreach ($pendingOrders as $order) {
-            // Add pickup location
-            if ($order->pickup_address) {
+            // Add pickup location only if not yet picked up
+            if ($order->pickup_address && !$order->pickup_date) {
+                // Estimate time: ~5 min per km in Lagos traffic + 5 min stop time
+                $estimatedTravelTime = $order->distance ? ($order->distance * 5) : 15;
+                $cumulativeTime += $estimatedTravelTime + 5; // travel + stop time
+                
                 $waypoints[] = [
                     'address' => $order->pickup_address,
                     'type' => 'pickup',
                     'order_number' => $order->order_number,
-                    'order_id' => $order->id
+                    'order_id' => $order->id,
+                    'sender' => $order->sender_name ?? $order->customer_name,
+                    'estimated_time' => $cumulativeTime,
+                    'eta' => now()->addMinutes($cumulativeTime)->format('g:i A')
                 ];
             }
             
-            // Add delivery location
+            // Add delivery location (always include if order is in transit or confirmed)
             if ($order->delivery_address) {
+                // Estimate time: ~5 min per km in Lagos traffic + 5 min stop time
+                $estimatedTravelTime = $order->distance ? ($order->distance * 5) : 15;
+                $cumulativeTime += $estimatedTravelTime + 5; // travel + stop time
+                
                 $waypoints[] = [
                     'address' => $order->delivery_address,
                     'type' => 'delivery',
                     'order_number' => $order->order_number,
                     'order_id' => $order->id,
-                    'receiver' => $order->receiver_name ?? 'N/A'
+                    'receiver' => $order->receiver_name ?? 'N/A',
+                    'estimated_time' => $cumulativeTime,
+                    'eta' => now()->addMinutes($cumulativeTime)->format('g:i A')
                 ];
             }
         }
         
-        return view('Admin::riders.show', compact('rider', 'pendingOrders', 'startingPoint', 'waypoints'));
+        // Generate WhatsApp share text
+        $whatsappText = $this->generateWhatsAppRouteText($rider, $waypoints, $startingPoint);
+        
+        return view('Admin::riders.show', compact('rider', 'pendingOrders', 'startingPoint', 'waypoints', 'whatsappText'));
+    }
+    
+    private function generateWhatsAppRouteText($rider, $waypoints, $startingPoint)
+    {
+        if (empty($waypoints)) {
+            return "No active deliveries at the moment.";
+        }
+        
+        $text = "🚚 *Delivery Route for {$rider->name}*\n\n";
+        $text .= "📍 *Starting Point:* {$startingPoint}\n\n";
+        $text .= "📋 *Route Plan:*\n";
+        
+        $stepNumber = 1;
+        $previousTime = 0;
+        
+        foreach ($waypoints as $waypoint) {
+            $timeToNextStop = $waypoint['estimated_time'] - $previousTime;
+            
+            if ($waypoint['type'] === 'pickup') {
+                $text .= "{$stepNumber}. 📦 *PICKUP* - Order #{$waypoint['order_number']}\n";
+                $text .= "   From: {$waypoint['sender']}\n";
+                $text .= "   Location: {$waypoint['address']}\n";
+                $text .= "   ⏱️ Time to reach: ~{$timeToNextStop} min\n";
+                $text .= "   🕐 ETA: {$waypoint['eta']}\n\n";
+            } else {
+                $text .= "{$stepNumber}. 🏠 *DROP OFF* - Order #{$waypoint['order_number']}\n";
+                $text .= "   To: {$waypoint['receiver']}\n";
+                $text .= "   Location: {$waypoint['address']}\n";
+                $text .= "   ⏱️ Time to reach: ~{$timeToNextStop} min\n";
+                $text .= "   🕐 ETA: {$waypoint['eta']}\n\n";
+            }
+            
+            $previousTime = $waypoint['estimated_time'];
+            $stepNumber++;
+        }
+        
+        $text .= "✅ Total Stops: " . count($waypoints) . "\n";
+        $text .= "⏱️ Total Journey Time: ~" . end($waypoints)['estimated_time'] . " minutes";
+        
+        return urlencode($text);
     }
 
     public function editRider($id)
@@ -645,6 +708,32 @@ class DashboardController extends Controller
         ActivityLog::log('rider_deleted', "Deleted rider: {$riderName}");
 
         return redirect()->route('admin.riders')->with('success', 'Rider deleted successfully');
+    }
+
+    public function generateRouteShareLink($id)
+    {
+        $rider = Rider::findOrFail($id);
+        
+        // Deactivate any existing active shares for this rider
+        RouteShare::where('rider_id', $rider->id)
+            ->where('is_active', true)
+            ->update(['is_active' => false]);
+        
+        // Create new share link (expires in 7 days)
+        $routeShare = RouteShare::create([
+            'rider_id' => $rider->id,
+            'token' => RouteShare::generateToken(),
+            'expires_at' => now()->addDays(7),
+            'is_active' => true,
+        ]);
+        
+        ActivityLog::log('route_share_created', "Generated route share link for rider: {$rider->name}", $routeShare);
+        
+        return response()->json([
+            'success' => true,
+            'url' => $routeShare->getShareUrl(),
+            'expires_at' => $routeShare->expires_at->format('M d, Y g:i A'),
+        ]);
     }
 
     // Expenses Management
