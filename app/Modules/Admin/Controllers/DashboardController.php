@@ -9,6 +9,7 @@ use App\Modules\Admin\Models\Setting;
 use App\Modules\Admin\Models\Rider;
 use App\Modules\Admin\Models\Expense;
 use App\Modules\Admin\Models\RouteShare;
+use App\Modules\Admin\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -75,9 +76,9 @@ class DashboardController extends Controller
     {
         $query = Order::with('user');
 
-        // Status filtering - default to 'pending' if no filter is specified
-        $statusFilter = $request->get('status', 'pending');
-        if ($statusFilter && $statusFilter != 'all') {
+        // Status filtering - show all orders if no filter is specified
+        $statusFilter = $request->get('status');
+        if ($statusFilter) {
             $query->where('status', $statusFilter);
         }
 
@@ -171,6 +172,12 @@ class DashboardController extends Controller
         $oldStatus = $order->status;
         $order->status = $request->status;
         
+        // Auto-set pickup_date when status changes to in_transit (item has been picked up)
+        if ($request->status == 'in_transit' && !$order->pickup_date) {
+            $order->pickup_date = now();
+        }
+        
+        // Auto-set delivery_date when status changes to delivered
         if ($request->status == 'delivered' && !$order->delivery_date) {
             $order->delivery_date = now();
         }
@@ -240,6 +247,7 @@ class DashboardController extends Controller
     public function storeOrder(Request $request)
     {
         $validated = $request->validate([
+            'client_id' => 'nullable|exists:clients,id',
             'source' => 'required|string|in:whatsapp,instagram,web,phone,walk-in,email,other',
             'source_contact' => 'nullable|string|max:255',
             'source_notes' => 'nullable|string',
@@ -259,6 +267,7 @@ class DashboardController extends Controller
             'delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'status' => 'required|in:pending,confirmed,in_transit,delivered,cancelled',
+            'priority_level' => 'required|in:normal,high,urgent',
             'pickup_date' => 'nullable|date',
             'package_image_1' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'package_image_2' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
@@ -321,6 +330,7 @@ class DashboardController extends Controller
         $order = Order::findOrFail($id);
 
         $validated = $request->validate([
+            'client_id' => 'nullable|exists:clients,id',
             'source' => 'required|string|in:whatsapp,instagram,web,phone,walk-in,email,other',
             'source_contact' => 'nullable|string|max:255',
             'source_notes' => 'nullable|string',
@@ -340,6 +350,7 @@ class DashboardController extends Controller
             'delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'status' => 'required|in:pending,confirmed,in_transit,delivered,cancelled',
+            'priority_level' => 'required|in:normal,high,urgent',
             'pickup_date' => 'nullable|date',
             'package_image_1' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             'package_image_2' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
@@ -572,57 +583,117 @@ class DashboardController extends Controller
             $query->latest()->limit(10);
         }])->findOrFail($id);
         
-        // Get pending/active orders (not delivered or cancelled)
+        // Get orders for route planning: assigned to rider but not yet delivered
+        // Includes: 1) Orders not yet picked up (no pickup_date), 2) Orders in transit (no delivery_date)
         $pendingOrders = $rider->orders()
+            ->where(function($query) {
+                $query->whereNull('pickup_date') // Not yet picked up
+                      ->orWhere(function($q) {
+                          $q->whereNotNull('pickup_date') // Already picked up
+                            ->whereNull('delivery_date'); // But not yet delivered
+                      });
+            })
             ->whereIn('status', ['pending', 'confirmed', 'in_transit'])
-            ->latest()
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'asc')
             ->get();
         
-        // Build route waypoints for route planning
-        $startingPoint = 'Iju Ishaga, Lagos, Nigeria';
-        $waypoints = [];
-        $cumulativeTime = 0; // in minutes
+        \Log::info("Route Planning Debug", [
+            'rider_id' => $rider->id,
+            'pending_orders_count' => $pendingOrders->count(),
+            'orders' => $pendingOrders->pluck('order_number')->toArray(),
+            'priorities' => $pendingOrders->map(function($o) {
+                return ['order' => $o->order_number, 'priority' => $o->priority_level ?? 'NULL'];
+            })->toArray()
+        ]);
         
+        // Build route waypoints with proximity-based smart routing
+        $startingPoint = 'Iju Ishaga, Lagos, Nigeria';
+        $allStops = [];
+        
+        // Collect all stops (pickups and drop-offs)
         foreach ($pendingOrders as $order) {
-            // Add pickup location only if not yet picked up
-            if ($order->pickup_address && !$order->pickup_date) {
-                // Estimate time: ~5 min per km in Lagos traffic + 5 min stop time
-                $estimatedTravelTime = $order->distance ? ($order->distance * 5) : 15;
-                $cumulativeTime += $estimatedTravelTime + 5; // travel + stop time
+            // For orders not yet picked up: add both pickup AND dropoff
+            if (!$order->pickup_date) {
+                // Add pickup stop
+                if ($order->pickup_address) {
+                    $allStops[] = [
+                        'address' => $order->pickup_address,
+                        'type' => 'pickup',
+                        'order_number' => $order->order_number,
+                        'order_id' => $order->id,
+                        'sender' => $order->sender_name ?? $order->customer_name,
+                        'phone' => $order->sender_phone ?? $order->customer_phone,
+                        'priority' => 1,
+                        'paired_order_id' => $order->id,
+                        'status' => $order->status,
+                        'priority_level' => $order->priority_level ?? 'normal',
+                        'item_description' => $order->item_description ?? 'N/A',
+                    ];
+                }
                 
-                $waypoints[] = [
-                    'address' => $order->pickup_address,
-                    'type' => 'pickup',
-                    'order_number' => $order->order_number,
-                    'order_id' => $order->id,
-                    'sender' => $order->sender_name ?? $order->customer_name,
-                    'estimated_time' => $cumulativeTime,
-                    'eta' => now()->addMinutes($cumulativeTime)->format('g:i A')
-                ];
+                // Add dropoff stop (will be done after pickup due to constraint)
+                if ($order->delivery_address) {
+                    $allStops[] = [
+                        'address' => $order->delivery_address,
+                        'type' => 'dropoff',
+                        'order_number' => $order->order_number,
+                        'order_id' => $order->id,
+                        'receiver' => $order->receiver_name ?? 'N/A',
+                        'phone' => $order->receiver_phone ?? 'N/A',
+                        'priority' => 2,
+                        'paired_order_id' => $order->id,
+                        'status' => $order->status,
+                        'priority_level' => $order->priority_level ?? 'normal',
+                        'item_description' => $order->item_description ?? 'N/A',
+                    ];
+                }
             }
+            // For orders already picked up: add only dropoff
+            elseif ($order->pickup_date && !$order->delivery_date) {
+                if ($order->delivery_address) {
+                    $allStops[] = [
+                        'address' => $order->delivery_address,
+                        'type' => 'dropoff',
+                        'order_number' => $order->order_number,
+                        'order_id' => $order->id,
+                        'receiver' => $order->receiver_name ?? 'N/A',
+                        'phone' => $order->receiver_phone ?? 'N/A',
+                        'priority' => 2,
+                        'paired_order_id' => $order->id,
+                        'status' => $order->status,
+                        'priority_level' => $order->priority_level ?? 'normal',
+                        'item_description' => $order->item_description ?? 'N/A',
+                    ];
+                }
+            }
+        }
+        
+        \Log::info("All Stops Collected", ['count' => count($allStops), 'stops' => $allStops]);
+        
+        // Optimize route using nearest neighbor algorithm with constraints
+        $waypoints = $this->optimizeRoute($allStops, $startingPoint);
+        
+        \Log::info("Waypoints After Optimization", ['count' => count($waypoints), 'waypoints' => $waypoints]);
+        
+        // Calculate cumulative time and ETA for each stop
+        $cumulativeTime = 0;
+        foreach ($waypoints as &$waypoint) {
+            // Estimate time: ~5 min per km in Lagos traffic + 5 min stop time
+            $estimatedTravelTime = 15;
+            $cumulativeTime += $estimatedTravelTime + 5; // travel + stop time
             
-            // Add delivery location (always include if order is in transit or confirmed)
-            if ($order->delivery_address) {
-                // Estimate time: ~5 min per km in Lagos traffic + 5 min stop time
-                $estimatedTravelTime = $order->distance ? ($order->distance * 5) : 15;
-                $cumulativeTime += $estimatedTravelTime + 5; // travel + stop time
-                
-                $waypoints[] = [
-                    'address' => $order->delivery_address,
-                    'type' => 'delivery',
-                    'order_number' => $order->order_number,
-                    'order_id' => $order->id,
-                    'receiver' => $order->receiver_name ?? 'N/A',
-                    'estimated_time' => $cumulativeTime,
-                    'eta' => now()->addMinutes($cumulativeTime)->format('g:i A')
-                ];
-            }
+            $waypoint['estimated_time'] = $cumulativeTime;
+            $waypoint['eta'] = now()->addMinutes($cumulativeTime)->format('g:i A');
         }
         
         // Generate WhatsApp share text
         $whatsappText = $this->generateWhatsAppRouteText($rider, $waypoints, $startingPoint);
         
-        return view('Admin::riders.show', compact('rider', 'pendingOrders', 'startingPoint', 'waypoints', 'whatsappText'));
+        // Generate Google Maps URL
+        $googleMapsUrl = $this->generateGoogleMapsUrl($startingPoint, $waypoints);
+        
+        return view('Admin::riders.show', compact('rider', 'pendingOrders', 'startingPoint', 'waypoints', 'whatsappText', 'googleMapsUrl'));
     }
     
     private function generateWhatsAppRouteText($rider, $waypoints, $startingPoint)
@@ -631,9 +702,9 @@ class DashboardController extends Controller
             return "No active deliveries at the moment.";
         }
         
-        $text = "🚚 *Delivery Route for {$rider->name}*\n\n";
-        $text .= "📍 *Starting Point:* {$startingPoint}\n\n";
-        $text .= "📋 *Route Plan:*\n";
+        $text = "*Drop-off Route for {$rider->name}*\n\n";
+        $text .= "*Starting Point:* {$startingPoint}\n\n";
+        $text .= "*Route Plan:*\n";
         
         $stepNumber = 1;
         $previousTime = 0;
@@ -642,27 +713,68 @@ class DashboardController extends Controller
             $timeToNextStop = $waypoint['estimated_time'] - $previousTime;
             
             if ($waypoint['type'] === 'pickup') {
-                $text .= "{$stepNumber}. 📦 *PICKUP* - Order #{$waypoint['order_number']}\n";
+                $text .= "{$stepNumber}. *PICKUP* - Order #{$waypoint['order_number']}\n";
                 $text .= "   From: {$waypoint['sender']}\n";
+                if (isset($waypoint['phone'])) {
+                    $text .= "   Phone: {$waypoint['phone']}\n";
+                }
                 $text .= "   Location: {$waypoint['address']}\n";
-                $text .= "   ⏱️ Time to reach: ~{$timeToNextStop} min\n";
-                $text .= "   🕐 ETA: {$waypoint['eta']}\n\n";
+                $text .= "   Time to reach: ~{$timeToNextStop} min\n";
+                $text .= "   ETA: {$waypoint['eta']}\n\n";
             } else {
-                $text .= "{$stepNumber}. 🏠 *DROP OFF* - Order #{$waypoint['order_number']}\n";
+                $text .= "{$stepNumber}. *DROP OFF* - Order #{$waypoint['order_number']}\n";
                 $text .= "   To: {$waypoint['receiver']}\n";
+                if (isset($waypoint['phone'])) {
+                    $text .= "   Phone: {$waypoint['phone']}\n";
+                }
                 $text .= "   Location: {$waypoint['address']}\n";
-                $text .= "   ⏱️ Time to reach: ~{$timeToNextStop} min\n";
-                $text .= "   🕐 ETA: {$waypoint['eta']}\n\n";
+                $text .= "   Time to reach: ~{$timeToNextStop} min\n";
+                $text .= "   ETA: {$waypoint['eta']}\n\n";
             }
             
             $previousTime = $waypoint['estimated_time'];
             $stepNumber++;
         }
         
-        $text .= "✅ Total Stops: " . count($waypoints) . "\n";
-        $text .= "⏱️ Total Journey Time: ~" . end($waypoints)['estimated_time'] . " minutes";
+        $text .= "Total Stops: " . count($waypoints) . "\n";
+        $text .= "Total Journey Time: ~" . end($waypoints)['estimated_time'] . " minutes";
         
         return urlencode($text);
+    }
+    
+    /**
+     * Generate Google Maps URL with route waypoints
+     */
+    private function generateGoogleMapsUrl($startingPoint, $waypoints)
+    {
+        if (empty($waypoints)) {
+            return null;
+        }
+        
+        // Google Maps Directions URL format:
+        // https://www.google.com/maps/dir/?api=1&origin=START&destination=END&waypoints=WAYPOINT1|WAYPOINT2|...
+        
+        $origin = urlencode($startingPoint);
+        $destination = urlencode($waypoints[count($waypoints) - 1]['address']); // Last stop
+        
+        // Build waypoints string (all stops except the last one)
+        $waypointAddresses = [];
+        for ($i = 0; $i < count($waypoints) - 1; $i++) {
+            $waypointAddresses[] = urlencode($waypoints[$i]['address']);
+        }
+        $waypointsParam = implode('|', $waypointAddresses);
+        
+        // Construct Google Maps URL
+        $url = "https://www.google.com/maps/dir/?api=1&origin={$origin}&destination={$destination}";
+        
+        if (!empty($waypointsParam)) {
+            $url .= "&waypoints={$waypointsParam}";
+        }
+        
+        // Add travel mode (driving)
+        $url .= "&travelmode=driving";
+        
+        return $url;
     }
 
     public function editRider($id)
@@ -821,5 +933,476 @@ class DashboardController extends Controller
         ActivityLog::log('expense_deleted', "Deleted expense: {$description} - ₦" . number_format($amount, 2));
 
         return redirect()->route('admin.expenses')->with('success', 'Expense deleted successfully');
+    }
+    
+    /**
+     * Optimize route using smart hybrid approach with priority handling:
+     * - Urgent and high-priority orders are visited first
+     * - Dropoffs for already-picked-up orders can be delivered anytime (most flexible)
+     * - New pickups must happen before their corresponding dropoffs
+     * - Uses nearest neighbor with these constraints
+     */
+    private function optimizeRoute($stops, $startingPoint)
+    {
+        if (empty($stops)) {
+            return [];
+        }
+        
+        // Identify which orders are already picked up (from previous routes)
+        $pickups = array_filter($stops, function($s) { return $s['type'] === 'pickup'; });
+        $dropoffs = array_filter($stops, function($s) { return $s['type'] === 'dropoff'; });
+        
+        $alreadyPickedUpOrders = [];
+        foreach ($dropoffs as $dropoff) {
+            $hasPickupInRoute = false;
+            foreach ($pickups as $pickup) {
+                if ($pickup['paired_order_id'] === $dropoff['paired_order_id']) {
+                    $hasPickupInRoute = true;
+                    break;
+                }
+            }
+            if (!$hasPickupInRoute) {
+                $alreadyPickedUpOrders[] = $dropoff['paired_order_id'];
+            }
+        }
+        
+        // Separate stops by priority level
+        $urgentStops = array_filter($stops, function($s) { return ($s['priority_level'] ?? 'normal') === 'urgent'; });
+        $highPriorityStops = array_filter($stops, function($s) { return ($s['priority_level'] ?? 'normal') === 'high'; });
+        $normalStops = array_filter($stops, function($s) { return ($s['priority_level'] ?? 'normal') === 'normal'; });
+        
+        \Log::info("Priority Separation", [
+            'urgent_count' => count($urgentStops),
+            'high_count' => count($highPriorityStops),
+            'normal_count' => count($normalStops),
+            'urgent_orders' => array_map(fn($s) => $s['order_number'], $urgentStops),
+            'high_orders' => array_map(fn($s) => $s['order_number'], $highPriorityStops),
+        ]);
+        
+        // Combine in priority order: urgent first, then high, then normal
+        $prioritizedStops = array_merge(array_values($urgentStops), array_values($highPriorityStops), array_values($normalStops));
+        
+        $optimizedRoute = [];
+        $remainingStops = $prioritizedStops;
+        $currentLocation = $startingPoint;
+        $pickedUpOrders = $alreadyPickedUpOrders; // Orders already in vehicle
+        
+        // Use nearest neighbor with smart constraints and priority
+        while (!empty($remainingStops)) {
+            $nearestStop = null;
+            $nearestDistance = PHP_FLOAT_MAX;
+            $nearestIndex = -1;
+            $currentPriorityLevel = null;
+            
+            // First pass: find the highest priority level among valid stops
+            foreach ($remainingStops as $stop) {
+                if ($stop['type'] === 'dropoff' && !in_array($stop['paired_order_id'], $pickedUpOrders)) {
+                    continue;
+                }
+                $priorityLevel = $stop['priority_level'] ?? 'normal';
+                if ($currentPriorityLevel === null || $this->getPriorityWeight($priorityLevel) > $this->getPriorityWeight($currentPriorityLevel)) {
+                    $currentPriorityLevel = $priorityLevel;
+                }
+            }
+            
+            // Second pass: find nearest stop among highest priority stops
+            foreach ($remainingStops as $index => $stop) {
+                // Constraint: Can only drop-off if item has been picked up
+                if ($stop['type'] === 'dropoff' && !in_array($stop['paired_order_id'], $pickedUpOrders)) {
+                    continue; // Skip this drop-off, item not picked up yet
+                }
+                
+                // Only consider stops with current highest priority level
+                if (($stop['priority_level'] ?? 'normal') !== $currentPriorityLevel) {
+                    continue;
+                }
+                
+                $distance = $this->estimateDistance($currentLocation, $stop['address']);
+                
+                if ($distance < $nearestDistance) {
+                    $nearestDistance = $distance;
+                    $nearestStop = $stop;
+                    $nearestIndex = $index;
+                }
+            }
+            
+            if ($nearestStop === null) {
+                // No valid stops found (shouldn't happen, but safety check)
+                break;
+            }
+            
+            // Add to optimized route
+            $optimizedRoute[] = $nearestStop;
+            
+            // Track pickups
+            if ($nearestStop['type'] === 'pickup') {
+                $pickedUpOrders[] = $nearestStop['paired_order_id'];
+            }
+            
+            // Update current location
+            $currentLocation = $nearestStop['address'];
+            
+            // Remove from remaining stops
+            array_splice($remainingStops, $nearestIndex, 1);
+        }
+        
+        return $optimizedRoute;
+    }
+    
+    /**
+     * Get priority weight for sorting (higher = more urgent)
+     */
+    private function getPriorityWeight($priorityLevel)
+    {
+        return match($priorityLevel) {
+            'urgent' => 3,
+            'high' => 2,
+            'normal' => 1,
+            default => 1,
+        };
+    }
+    
+    /**
+     * Estimate distance between two addresses using Google Maps Distance Matrix API
+     */
+    private function estimateDistance($address1, $address2)
+    {
+        $apiKey = env('GOOGLE_MAPS_API_KEY');
+        
+        // If API key is available, use Google Maps Distance Matrix API
+        if ($apiKey) {
+            try {
+                $distance = $this->getGoogleMapsDistance($address1, $address2, $apiKey);
+                if ($distance !== null) {
+                    return $distance;
+                }
+            } catch (\Exception $e) {
+                \Log::warning('Google Maps API failed, using fallback', [
+                    'error' => $e->getMessage(),
+                    'address1' => $address1,
+                    'address2' => $address2
+                ]);
+            }
+        }
+        
+        // Fallback to area-based estimation
+        return $this->estimateDistanceByArea($address1, $address2);
+    }
+    
+    /**
+     * Get actual distance using Google Maps Distance Matrix API with caching
+     */
+    private function getGoogleMapsDistance($origin, $destination, $apiKey)
+    {
+        // Create cache key based on normalized addresses
+        $cacheKey = 'gmaps_distance_' . md5(strtolower(trim($origin)) . '|' . strtolower(trim($destination)));
+        
+        // Check if we have cached result (valid for 7 days)
+        $cachedDistance = \Cache::get($cacheKey);
+        if ($cachedDistance !== null) {
+            return $cachedDistance;
+        }
+        
+        $origin = urlencode($origin);
+        $destination = urlencode($destination);
+        
+        $url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins={$origin}&destinations={$destination}&key={$apiKey}&mode=driving";
+        
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 5); // 5 second timeout
+        
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+        
+        if ($httpCode !== 200 || !$response) {
+            return null;
+        }
+        
+        $data = json_decode($response, true);
+        
+        if (!isset($data['status']) || $data['status'] !== 'OK') {
+            return null;
+        }
+        
+        if (!isset($data['rows'][0]['elements'][0]['distance']['value'])) {
+            // If Google can't find the address, try with simplified address (city/area only)
+            if ($data['status'] === 'OK' && isset($data['rows'][0]['elements'][0]['status']) && $data['rows'][0]['elements'][0]['status'] === 'NOT_FOUND') {
+                $simplifiedOrigin = $this->extractCityArea($origin);
+                $simplifiedDestination = $this->extractCityArea($destination);
+                
+                if ($simplifiedOrigin !== $origin || $simplifiedDestination !== $destination) {
+                    // Try again with simplified addresses
+                    return $this->getGoogleMapsDistance($simplifiedOrigin, $simplifiedDestination, $apiKey);
+                }
+            }
+            return null;
+        }
+        
+        // Distance is in meters, convert to kilometers
+        $distanceInMeters = $data['rows'][0]['elements'][0]['distance']['value'];
+        $distanceInKm = $distanceInMeters / 1000;
+        
+        // Cache the result for 7 days (604800 seconds)
+        \Cache::put($cacheKey, $distanceInKm, 604800);
+        
+        return $distanceInKm;
+    }
+    
+    /**
+     * Extract city/area from full address for fallback when Google can't find address
+     * Example: "21b Fatal Idowu Arobieke Lekki Phase 1 Lagos" -> "Lekki Phase 1 Lagos"
+     */
+    private function extractCityArea($address)
+    {
+        // Common Lagos areas and landmarks
+        $areas = [
+            'Lekki Phase 1', 'Lekki Phase 2', 'Lekki', 'Ajah', 'Victoria Island', 'VI', 'Ikoyi',
+            'Ikeja', 'Surulere', 'Yaba', 'Gbagada', 'Maryland', 'Ojota', 'Ketu', 'Ikorodu',
+            'Festac', 'Apapa', 'Isolo', 'Oshodi', 'Mushin', 'Bariga', 'Somolu', 'Agege',
+            'Egbeda', 'Alimosho', 'Ifako', 'Abule Egba', 'Iyana Ipaja', 'Badagry', 'Epe',
+            'Magodo', 'Omole', 'Berger', 'Ojodu', 'Ogba', 'Anthony', 'Obanikoro',
+            'Palmgrove', 'Onipanu', 'Fadeyi', 'Jibowu', 'Baruwa', 'Igando', 'Isheri',
+            'Iju Ishaga', 'Iju', 'Ishaga', 'Ejigbo', 'Idimu', 'Ikotun', 'Akowonjo'
+        ];
+        
+        $addressLower = strtolower($address);
+        
+        // Try to find area in address
+        foreach ($areas as $area) {
+            if (stripos($addressLower, strtolower($area)) !== false) {
+                // Extract from area onwards, include "Lagos" if present
+                $pattern = '/' . preg_quote($area, '/') . '.*?Lagos/i';
+                if (preg_match($pattern, $address, $matches)) {
+                    return trim($matches[0]);
+                }
+                // If no "Lagos" found, just return area + Lagos
+                return $area . ' Lagos';
+            }
+        }
+        
+        // If no specific area found, try to extract last 2-3 words (usually area + city)
+        $words = explode(' ', trim($address));
+        if (count($words) >= 2) {
+            return implode(' ', array_slice($words, -2));
+        }
+        
+        return $address; // Return original if can't simplify
+    }
+    
+    /**
+     * Fallback: Estimate distance using area/location matching
+     */
+    private function estimateDistanceByArea($address1, $address2)
+    {
+        // Extract area names from addresses (common Lagos areas)
+        $lagosAreas = [
+            'ikeja', 'lekki', 'vi', 'victoria island', 'ikoyi', 'surulere', 'yaba', 
+            'gbagada', 'maryland', 'ojota', 'ketu', 'mile 12', 'ikorodu', 'ajah',
+            'festac', 'apapa', 'isolo', 'oshodi', 'mushin', 'bariga', 'somolu',
+            'agege', 'egbeda', 'alimosho', 'ifako', 'abule egba', 'iyana ipaja',
+            'badagry', 'epe', 'magodo', 'omole', 'berger', 'ojodu', 'ogba',
+            'anthony', 'obanikoro', 'palmgrove', 'onipanu', 'fadeyi', 'jibowu'
+        ];
+        
+        $addr1Lower = strtolower($address1);
+        $addr2Lower = strtolower($address2);
+        
+        // Find areas in both addresses
+        $area1 = null;
+        $area2 = null;
+        
+        foreach ($lagosAreas as $area) {
+            if (strpos($addr1Lower, $area) !== false) {
+                $area1 = $area;
+                break;
+            }
+        }
+        
+        foreach ($lagosAreas as $area) {
+            if (strpos($addr2Lower, $area) !== false) {
+                $area2 = $area;
+                break;
+            }
+        }
+        
+        // If same area, very close
+        if ($area1 && $area2 && $area1 === $area2) {
+            return 1 + (rand(0, 5) / 10); // 1-1.5 km
+        }
+        
+        // If both areas found but different, use predefined distances
+        if ($area1 && $area2) {
+            return $this->getAreaDistance($area1, $area2);
+        }
+        
+        // Fallback to string similarity
+        similar_text($addr1Lower, $addr2Lower, $percent);
+        $estimatedDistance = 100 - $percent;
+        
+        return max(5, $estimatedDistance); // Minimum 5km if no area match
+    }
+    
+    /**
+     * Get approximate distance between two Lagos areas
+     */
+    private function getAreaDistance($area1, $area2)
+    {
+        // Simplified distance matrix for major Lagos areas (in km)
+        $distances = [
+            'ikeja' => ['lekki' => 25, 'vi' => 15, 'yaba' => 10, 'surulere' => 8, 'ikorodu' => 30],
+            'lekki' => ['ikeja' => 25, 'vi' => 8, 'yaba' => 20, 'ajah' => 10, 'ikorodu' => 35],
+            'vi' => ['ikeja' => 15, 'lekki' => 8, 'yaba' => 12, 'ikoyi' => 3],
+            'yaba' => ['ikeja' => 10, 'lekki' => 20, 'vi' => 12, 'surulere' => 5, 'gbagada' => 8],
+            'surulere' => ['ikeja' => 8, 'yaba' => 5, 'isolo' => 6, 'oshodi' => 7],
+            'ikorodu' => ['ikeja' => 30, 'lekki' => 35, 'gbagada' => 20, 'ketu' => 15],
+        ];
+        
+        // Check if we have a predefined distance
+        if (isset($distances[$area1][$area2])) {
+            return $distances[$area1][$area2] + (rand(0, 10) / 10);
+        }
+        
+        if (isset($distances[$area2][$area1])) {
+            return $distances[$area2][$area1] + (rand(0, 10) / 10);
+        }
+        
+        // Default distance if not in matrix
+        return 15 + (rand(0, 20) / 10); // 15-17 km average
+    }
+
+    // Client Management
+    public function clients(Request $request)
+    {
+        $query = Client::query();
+
+        // Search functionality
+        if ($request->has('search') && $request->search != '') {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter by status
+        if ($request->has('status') && $request->status != '') {
+            $isActive = $request->status === 'active';
+            $query->where('is_active', $isActive);
+        }
+
+        $clients = $query->orderBy('name', 'asc')->paginate(20);
+
+        return view('Admin::clients.index', compact('clients'));
+    }
+
+    public function createClient()
+    {
+        return view('Admin::clients.create');
+    }
+
+    public function storeClient(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'company_name' => 'nullable|string|max:255',
+            'contact_person' => 'nullable|string|max:255',
+            'phone' => 'required|string|max:20',
+            'alternate_phone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'alternate_email' => 'nullable|email|max:255',
+            'pickup_address' => 'required|string',
+            'business_address' => 'nullable|string',
+            'city' => 'nullable|string|max:255',
+            'state' => 'nullable|string|max:255',
+            'business_type' => 'nullable|string|max:255',
+            'tax_id' => 'nullable|string|max:255',
+            'website' => 'nullable|url|max:255',
+            'payment_terms' => 'nullable|in:prepaid,postpaid,credit_30,credit_60',
+            'credit_limit' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+            'special_instructions' => 'nullable|string',
+            'onboarded_date' => 'nullable|date',
+            'is_active' => 'boolean',
+        ]);
+
+        $client = Client::create($validated);
+
+        ActivityLog::log('client_created', "Created client: {$client->name}", $client);
+
+        return redirect()->route('admin.clients')->with('success', 'Client created successfully');
+    }
+
+    public function editClient($id)
+    {
+        $client = Client::findOrFail($id);
+        return view('Admin::clients.edit', compact('client'));
+    }
+
+    public function updateClient(Request $request, $id)
+    {
+        $client = Client::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'company_name' => 'nullable|string|max:255',
+            'contact_person' => 'nullable|string|max:255',
+            'phone' => 'required|string|max:20',
+            'alternate_phone' => 'nullable|string|max:20',
+            'email' => 'nullable|email|max:255',
+            'alternate_email' => 'nullable|email|max:255',
+            'pickup_address' => 'required|string',
+            'business_address' => 'nullable|string',
+            'city' => 'nullable|string|max:255',
+            'state' => 'nullable|string|max:255',
+            'business_type' => 'nullable|string|max:255',
+            'tax_id' => 'nullable|string|max:255',
+            'website' => 'nullable|url|max:255',
+            'payment_terms' => 'nullable|in:prepaid,postpaid,credit_30,credit_60',
+            'credit_limit' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+            'special_instructions' => 'nullable|string',
+            'onboarded_date' => 'nullable|date',
+            'is_active' => 'boolean',
+        ]);
+
+        $client->update($validated);
+
+        ActivityLog::log('client_updated', "Updated client: {$client->name}", $client);
+
+        return redirect()->route('admin.clients')->with('success', 'Client updated successfully');
+    }
+
+    public function deleteClient($id)
+    {
+        $client = Client::findOrFail($id);
+        $clientName = $client->name;
+
+        // Check if client has orders
+        if ($client->orders()->count() > 0) {
+            return back()->withErrors(['error' => 'Cannot delete client with existing orders. Consider deactivating instead.']);
+        }
+
+        $client->delete();
+
+        ActivityLog::log('client_deleted', "Deleted client: {$clientName}");
+
+        return redirect()->route('admin.clients')->with('success', 'Client deleted successfully');
+    }
+
+    public function getClientData($id)
+    {
+        $client = Client::findOrFail($id);
+        
+        return response()->json([
+            'id' => $client->id,
+            'name' => $client->name,
+            'phone' => $client->phone,
+            'email' => $client->email,
+            'pickup_address' => $client->pickup_address,
+        ]);
     }
 }

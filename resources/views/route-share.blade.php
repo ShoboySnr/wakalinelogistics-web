@@ -3,10 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Delivery Route - {{ $rider->name }}</title>
+    <title>Drop-off Route - {{ $rider->name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <meta name="route-token" content="{{ $routeShare->token }}">
     <style>
+        :root {
+            --brand-dark: #2F3437;
+            --brand-accent: #C1666B;
+            --brand-accent-hover: #a8555a;
+        }
         .status-badge {
             transition: all 0.3s ease;
         }
@@ -20,11 +25,15 @@
         .rider-marker {
             width: 40px;
             height: 40px;
-            background: #3B82F6;
+            background: var(--brand-accent);
             border: 3px solid white;
             border-radius: 50%;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
+        .brand-bg { background-color: var(--brand-dark); }
+        .brand-accent-bg { background-color: var(--brand-accent); }
+        .brand-accent-hover:hover { background-color: var(--brand-accent-hover); }
+        .brand-accent-text { color: var(--brand-accent); }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -35,7 +44,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <div>
                         <div class="flex items-center gap-3">
-                            <h1 class="text-2xl font-bold text-gray-900">🚚 Delivery Route</h1>
+                            <h1 class="text-2xl font-bold text-gray-900">Drop-off Route</h1>
                             <span id="live-indicator" class="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
                                 <span class="w-2 h-2 bg-green-500 rounded-full pulse"></span>
                                 Live
@@ -51,7 +60,7 @@
                         <p class="text-xs text-gray-500 mt-1" id="last-update">Last updated: Just now</p>
                     </div>
                     <div class="text-right">
-                        <button id="enable-tracking-btn" onclick="showCodeModal()" class="mb-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2">
+                        <button id="enable-tracking-btn" onclick="showCodeModal()" class="mb-2 px-4 py-2 brand-accent-bg text-white text-sm rounded-md brand-accent-hover transition-colors flex items-center gap-2">
                             <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                                 <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd"/>
                             </svg>
@@ -62,10 +71,10 @@
                     </div>
                 </div>
                 
-                @if($waypoints->count() > 0)
-                <div class="bg-blue-50 border-l-4 border-blue-400 p-4 rounded">
-                    <p class="text-sm text-blue-700">
-                        <strong data-stops-count>{{ $waypoints->count() }}</strong> stops on this route
+                @if(count($waypoints) > 0)
+                <div class="bg-pink-50 border-l-4 border-pink-400 p-4 rounded">
+                    <p class="text-sm" style="color: var(--brand-accent);">
+                        <strong data-stops-count>{{ count($waypoints) }}</strong> stops on this route
                     </p>
                 </div>
                 @else
@@ -75,16 +84,24 @@
                 @endif
             </div>
 
-            @if($waypoints->count() > 0)
+            @if(count($waypoints) > 0)
             <!-- Route Map -->
             <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">📍 Route Map</h2>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold text-gray-900">Route Map</h2>
+                    <a href="{{ $googleMapsUrl ?? '#' }}" target="_blank" class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                        Open in Google Maps
+                    </a>
+                </div>
                 <div id="route-map" class="w-full h-96 rounded-lg border border-gray-300"></div>
             </div>
 
             <!-- Route Details -->
             <div class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">📋 Route Plan</h2>
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Route Plan</h2>
                 
                 <!-- Starting Point -->
                 <div class="mb-6 pb-4 border-b border-gray-200">
@@ -100,28 +117,66 @@
                 </div>
 
                 <!-- Waypoints -->
+                @php
+                    // Identify orders that have both pickup and dropoff in this route
+                    $orderColors = [];
+                    $colorPalette = ['bg-purple-50 border-l-purple-400', 'bg-amber-50 border-l-amber-400', 'bg-teal-50 border-l-teal-400', 'bg-rose-50 border-l-rose-400', 'bg-indigo-50 border-l-indigo-400'];
+                    $colorIndex = 0;
+                    
+                    foreach($waypoints as $wp) {
+                        $orderId = $wp['paired_order_id'];
+                        if (!isset($orderColors[$orderId])) {
+                            // Check if this order has both pickup and dropoff
+                            $hasPickup = collect($waypoints)->where('paired_order_id', $orderId)->where('type', 'pickup')->count() > 0;
+                            $hasDropoff = collect($waypoints)->where('paired_order_id', $orderId)->where('type', 'dropoff')->count() > 0;
+                            
+                            if ($hasPickup && $hasDropoff) {
+                                $orderColors[$orderId] = $colorPalette[$colorIndex % count($colorPalette)];
+                                $colorIndex++;
+                            }
+                        }
+                    }
+                @endphp
+                
                 <div class="space-y-4">
                     @foreach($waypoints as $index => $waypoint)
-                    <div class="flex items-start pb-4 {{ !$loop->last ? 'border-b border-gray-200' : '' }}" data-waypoint-id="{{ $waypoint['order_id'] }}">
-                        <div class="flex-shrink-0 w-8 h-8 {{ $waypoint['type'] === 'pickup' ? 'bg-blue-500' : 'bg-purple-500' }} rounded-full flex items-center justify-center text-white font-bold text-sm">
+                    @php
+                        $hasBothStops = isset($orderColors[$waypoint['paired_order_id']]);
+                        $bgClass = $hasBothStops ? $orderColors[$waypoint['paired_order_id']] . ' border-l-4' : '';
+                    @endphp
+                    <div class="flex items-start pb-4 {{ !$loop->last ? 'border-b border-gray-200' : '' }} {{ $bgClass }} {{ $hasBothStops ? 'pl-3 -ml-3 rounded-l' : '' }}" data-waypoint-id="{{ $waypoint['order_id'] }}">
+                        <div class="flex-shrink-0 w-8 h-8 {{ $waypoint['type'] === 'pickup' ? 'brand-accent-bg' : 'brand-bg' }} rounded-full flex items-center justify-center text-white font-bold text-sm">
                             {{ $index + 1 }}
                         </div>
                         <div class="ml-4 flex-1">
                             <div class="flex items-center justify-between mb-2">
                                 <div class="flex items-center flex-wrap gap-2">
-                                    <span class="text-lg">{{ $waypoint['type'] === 'pickup' ? '📦' : '🏠' }}</span>
                                     <span class="font-semibold text-gray-900">
                                         {{ $waypoint['type'] === 'pickup' ? 'PICKUP' : 'DROP OFF' }}
                                     </span>
                                     <span class="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
                                         Order #{{ $waypoint['order_number'] }}
                                     </span>
+                                    @if($hasBothStops)
+                                    <span class="px-2 py-1 bg-white text-gray-700 text-xs rounded border border-gray-300 font-semibold">
+                                        Full Journey
+                                    </span>
+                                    @endif
+                                    @if(isset($waypoint['priority_level']) && $waypoint['priority_level'] === 'urgent')
+                                    <span class="text-xs font-bold text-white bg-red-600 px-2 py-0.5 rounded animate-pulse">
+                                        🚨 URGENT
+                                    </span>
+                                    @elseif(isset($waypoint['priority_level']) && $waypoint['priority_level'] === 'high')
+                                    <span class="text-xs font-semibold text-orange-700 bg-orange-100 px-2 py-0.5 rounded border border-orange-300">
+                                        ⚡ High Priority
+                                    </span>
+                                    @endif
                                     <span class="status-badge px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
-                                        ⏳ {{ ucwords(str_replace('_', ' ', $waypoint['status'] ?? 'pending')) }}
+                                        {{ ucwords(str_replace('_', ' ', $waypoint['status'] ?? 'pending')) }}
                                     </span>
                                 </div>
-                                <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded whitespace-nowrap">
-                                    ⏱️ {{ $waypoint['eta'] }}
+                                <span class="text-xs font-semibold bg-pink-50 px-2 py-1 rounded whitespace-nowrap brand-accent-text">
+                                    {{ $waypoint['eta'] }}
                                 </span>
                             </div>
                             
@@ -136,6 +191,11 @@
                                 <p class="text-gray-600">
                                     <strong>Location:</strong> {{ $waypoint['address'] }}
                                 </p>
+                                @if(isset($waypoint['item_description']) && $waypoint['item_description'] !== 'N/A')
+                                <p class="text-gray-700 bg-blue-50 px-2 py-1 rounded border-l-2 border-blue-400">
+                                    <strong>📦 Item:</strong> {{ $waypoint['item_description'] }}
+                                </p>
+                                @endif
                                 <p class="text-xs text-gray-400 mt-1" data-time-to-stop>
                                     <strong>Time to reach:</strong> ~{{ $loop->first ? $waypoint['estimated_time'] : ($waypoint['estimated_time'] - $waypoints[$loop->index - 1]['estimated_time']) }} min
                                 </p>
@@ -194,7 +254,7 @@
                 <button 
                     onclick="validateCode()" 
                     id="validate-btn"
-                    class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                    class="flex-1 px-4 py-2 brand-accent-bg text-white rounded-md brand-accent-hover transition-colors"
                 >
                     Verify Code
                 </button>
@@ -351,7 +411,7 @@
                 // Update ETA
                 const etaBadge = waypointEl.querySelector('.text-blue-600');
                 if (etaBadge) {
-                    etaBadge.innerHTML = `⏱️ ${waypoint.eta}`;
+                    etaBadge.innerHTML = waypoint.eta;
                 }
                 
                 // Update time to reach (calculate from previous waypoint)
@@ -410,8 +470,8 @@
     // Create waypoint HTML element
     function createWaypointElement(waypoint, index, allWaypoints) {
         const isPickup = waypoint.type === 'pickup';
-        const bgColor = isPickup ? 'bg-blue-500' : 'bg-purple-500';
-        const icon = isPickup ? '📦' : '🏠';
+        const bgColor = isPickup ? 'brand-accent-bg' : 'brand-bg';
+        const icon = '';
         const actionType = isPickup ? 'PICKUP' : 'DROP OFF';
         const contactLabel = isPickup ? 'From:' : 'To:';
         const contactName = isPickup ? waypoint.sender : waypoint.receiver;
@@ -436,11 +496,11 @@
                                 Order #${waypoint.order_number}
                             </span>
                             <span class="status-badge px-2 py-1 bg-yellow-100 text-yellow-800 text-xs rounded">
-                                ⏳ ${formatStatus(waypoint.status)}
+                                ${formatStatus(waypoint.status)}
                             </span>
                         </div>
-                        <span class="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded whitespace-nowrap">
-                            ⏱️ ${waypoint.eta}
+                        <span class="text-xs font-semibold bg-pink-50 px-2 py-1 rounded whitespace-nowrap brand-accent-text">
+                            ${waypoint.eta}
                         </span>
                     </div>
                     <div class="space-y-1 text-sm">
@@ -472,7 +532,7 @@
     // Show notification
     function showNotification(message, type = 'info') {
         const colors = {
-            info: 'bg-blue-600',
+            info: 'brand-accent-bg',
             success: 'bg-green-600',
             warning: 'bg-yellow-600',
             error: 'bg-red-600'
@@ -538,19 +598,20 @@
         switch(status) {
             case 'delivered':
                 badge.classList.add('bg-green-100', 'text-green-800');
-                badge.textContent = '✓ Delivered';
+                badge.textContent = 'Delivered';
                 break;
             case 'in_transit':
-                badge.classList.add('bg-blue-100', 'text-blue-800');
-                badge.textContent = '🚚 In Transit';
+                badge.classList.add('bg-pink-100');
+                badge.style.color = 'var(--brand-accent)';
+                badge.textContent = 'In Transit';
                 break;
             case 'confirmed':
                 badge.classList.add('bg-yellow-100', 'text-yellow-800');
-                badge.textContent = '⏳ Confirmed';
+                badge.textContent = 'Confirmed';
                 break;
             default:
                 badge.classList.add('bg-gray-100', 'text-gray-800');
-                badge.textContent = '📋 Pending';
+                badge.textContent = 'Pending';
         }
     }
 
@@ -750,7 +811,7 @@
                 },
                 body: JSON.stringify({
                     status: status,
-                    [status === 'in_transit' ? 'pickup_date' : 'delivery_date']: new Date().toISOString()
+                    [status === 'in_transit' ? 'pickup_date' : 'dropoff_date']: new Date().toISOString()
                 })
             });
             

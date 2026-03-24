@@ -23,6 +23,7 @@ class Order extends Model
         'user_id',
         'created_by',
         'rider_id',
+        'client_id',
         'source',
         'source_contact',
         'source_notes',
@@ -43,6 +44,7 @@ class Order extends Model
         'distance',
         'price',
         'status',
+        'priority_level',
         'notes',
         'pickup_date',
         'delivery_date',
@@ -77,6 +79,11 @@ class Order extends Model
     public function rider(): BelongsTo
     {
         return $this->belongsTo(Rider::class);
+    }
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
     }
 
     public static function generateOrderNumber(): string

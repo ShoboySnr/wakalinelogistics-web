@@ -31,7 +31,7 @@
                 @forelse($riders as $rider)
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4">
-                        <div class="text-sm font-medium text-gray-900">{{ $rider->name }}</div>
+                        <a href="{{ route('admin.riders.show', $rider->id) }}" class="text-sm font-medium brand-accent-text hover:underline">{{ $rider->name }}</a>
                     </td>
                     <td class="px-6 py-4">
                         <div class="text-sm text-gray-900">{{ $rider->email }}</div>

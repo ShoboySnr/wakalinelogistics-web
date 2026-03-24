@@ -36,6 +36,23 @@
             @endif
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="md:col-span-2 bg-pink-50 border-2 rounded-lg p-4 mb-4">
+                    <div>
+                        <label for="client_id" class="block text-sm font-medium text-gray-700 mb-2">
+                            Select Client (Optional)
+                        </label>
+                        <select name="client_id" id="client_id"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 bg-white">
+                            <option value="">-- Select a client --</option>
+                            @foreach(\App\Modules\Admin\Models\Client::where('is_active', true)->orderBy('name')->get() as $client)
+                                <option value="{{ $client->id }}" data-name="{{ $client->name }}" data-phone="{{ $client->phone }}" data-email="{{ $client->email }}" data-address="{{ $client->pickup_address }}">
+                                    {{ $client->name }} ({{ $client->phone }})
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                </div>
+
                 <!-- Order Source Information -->
                 <div class="md:col-span-2">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4">Order Source</h3>
@@ -117,14 +134,14 @@
                            value="{{ old('sender_email') }}" placeholder="sender@example.com">
                 </div>
 
-                <!-- Delivery Information -->
+                <!-- Drop-off Information -->
                 <div class="md:col-span-2 mt-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4 pb-2 border-b-2 border-gray-200">Delivery Information</h3>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4 pb-2 border-b-2 border-gray-200">Drop-off Information</h3>
                 </div>
 
                 <div class="md:col-span-2">
                     <label for="delivery_address" class="block text-sm font-medium text-gray-700 mb-2">
-                        Delivery Address <span class="text-red-500">*</span>
+                        Drop-off Address <span class="text-red-500">*</span>
                     </label>
                     <textarea name="delivery_address" id="delivery_address" rows="2" required
                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
@@ -221,6 +238,19 @@
                     </select>
                 </div>
 
+                <div>
+                    <label for="priority_level" class="block text-sm font-medium text-gray-700 mb-2">
+                        Priority Level <span class="text-red-500">*</span>
+                    </label>
+                    <select name="priority_level" id="priority_level" required
+                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                        <option value="normal" {{ old('priority_level', 'normal') == 'normal' ? 'selected' : '' }}>Normal</option>
+                        <option value="high" {{ old('priority_level') == 'high' ? 'selected' : '' }}>High Priority</option>
+                        <option value="urgent" {{ old('priority_level') == 'urgent' ? 'selected' : '' }}>Urgent</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">High priority and urgent orders will be visited first in the route</p>
+                </div>
+
                 <div class="md:col-span-2">
                     <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">
                         Notes
@@ -242,7 +272,7 @@
 
                 <div>
                     <label for="delivery_date" class="block text-sm font-medium text-gray-700 mb-2">
-                        Delivery Date & Time
+                        Drop-off Date & Time
                     </label>
                     <input type="datetime-local" name="delivery_date" id="delivery_date"
                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
@@ -339,4 +369,42 @@
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const clientSelect = document.getElementById('client_id');
+    const pickupAddress = document.getElementById('pickup_address');
+    const senderName = document.getElementById('sender_name');
+    const senderPhone = document.getElementById('sender_phone');
+    const senderEmail = document.getElementById('sender_email');
+
+    clientSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        
+        if (this.value) {
+            // Auto-fill pickup details from selected client
+            pickupAddress.value = selectedOption.dataset.address || '';
+            senderName.value = selectedOption.dataset.name || '';
+            senderPhone.value = selectedOption.dataset.phone || '';
+            senderEmail.value = selectedOption.dataset.email || '';
+            
+            // Highlight the fields that were auto-filled
+            [pickupAddress, senderName, senderPhone, senderEmail].forEach(field => {
+                if (field.value) {
+                    field.classList.add('bg-green-50', 'border-green-300');
+                    setTimeout(() => {
+                        field.classList.remove('bg-green-50', 'border-green-300');
+                    }, 2000);
+                }
+            });
+        } else {
+            // Clear fields if no client selected
+            pickupAddress.value = '';
+            senderName.value = '';
+            senderPhone.value = '';
+            senderEmail.value = '';
+        }
+    });
+});
+</script>
 @endsection

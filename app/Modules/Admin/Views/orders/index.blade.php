@@ -65,40 +65,40 @@
     <!-- Order Status Statistics Cards -->
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
         <!-- Total Orders -->
-        <div class="bg-white rounded-lg shadow p-4">
+        <a href="{{ route('admin.orders') }}" class="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow cursor-pointer {{ !request('status') ? 'ring-2 ring-pink-500' : '' }}">
             <p class="text-xs font-medium text-gray-500 uppercase mb-1">Total</p>
             <p class="text-2xl font-bold text-gray-900">{{ $stats['total'] }}</p>
-        </div>
+        </a>
 
         <!-- Pending Orders -->
-        <div class="bg-white rounded-lg shadow p-4">
+        <a href="{{ route('admin.orders', ['status' => 'pending']) }}" class="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow cursor-pointer {{ request('status') === 'pending' ? 'ring-2 ring-yellow-500' : '' }}">
             <p class="text-xs font-medium text-gray-500 uppercase mb-1">Pending</p>
             <p class="text-2xl font-bold text-gray-900">{{ $stats['pending'] }}</p>
-        </div>
+        </a>
 
         <!-- Confirmed Orders -->
-        <div class="bg-white rounded-lg shadow p-4">
+        <a href="{{ route('admin.orders', ['status' => 'confirmed']) }}" class="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow cursor-pointer {{ request('status') === 'confirmed' ? 'ring-2 ring-blue-500' : '' }}">
             <p class="text-xs font-medium text-gray-500 uppercase mb-1">Confirmed</p>
             <p class="text-2xl font-bold text-gray-900">{{ $stats['confirmed'] }}</p>
-        </div>
+        </a>
 
         <!-- In Transit Orders -->
-        <div class="bg-white rounded-lg shadow p-4">
+        <a href="{{ route('admin.orders', ['status' => 'in_transit']) }}" class="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow cursor-pointer {{ request('status') === 'in_transit' ? 'ring-2 ring-purple-500' : '' }}">
             <p class="text-xs font-medium text-gray-500 uppercase mb-1">In Transit</p>
             <p class="text-2xl font-bold text-gray-900">{{ $stats['in_transit'] }}</p>
-        </div>
+        </a>
 
         <!-- Delivered Orders -->
-        <div class="bg-white rounded-lg shadow p-4">
+        <a href="{{ route('admin.orders', ['status' => 'delivered']) }}" class="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow cursor-pointer {{ request('status') === 'delivered' ? 'ring-2 ring-green-500' : '' }}">
             <p class="text-xs font-medium text-gray-500 uppercase mb-1">Delivered</p>
             <p class="text-2xl font-bold text-gray-900">{{ $stats['delivered'] }}</p>
-        </div>
+        </a>
 
         <!-- Cancelled Orders -->
-        <div class="bg-white rounded-lg shadow p-4">
+        <a href="{{ route('admin.orders', ['status' => 'cancelled']) }}" class="bg-white rounded-lg shadow p-4 hover:shadow-lg transition-shadow cursor-pointer {{ request('status') === 'cancelled' ? 'ring-2 ring-red-500' : '' }}">
             <p class="text-xs font-medium text-gray-500 uppercase mb-1">Cancelled</p>
             <p class="text-2xl font-bold text-gray-900">{{ $stats['cancelled'] }}</p>
-        </div>
+        </a>
     </div>
 
     <!-- Filters -->

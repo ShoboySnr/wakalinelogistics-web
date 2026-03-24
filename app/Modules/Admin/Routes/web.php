@@ -48,5 +48,14 @@ Route::prefix('super-admin')->group(function () {
         Route::delete('/riders/{id}', [DashboardController::class, 'deleteRider'])->name('admin.riders.delete');
         Route::post('/riders/{id}/generate-share-link', [DashboardController::class, 'generateRouteShareLink'])->name('admin.riders.generate-share-link');
         Route::post('/orders/{id}/assign-rider', [DashboardController::class, 'assignRider'])->name('admin.orders.assign-rider');
+        
+        // Client Routes
+        Route::get('/clients', [DashboardController::class, 'clients'])->name('admin.clients');
+        Route::get('/clients/create', [DashboardController::class, 'createClient'])->name('admin.clients.create');
+        Route::post('/clients', [DashboardController::class, 'storeClient'])->name('admin.clients.store');
+        Route::get('/clients/{id}/edit', [DashboardController::class, 'editClient'])->name('admin.clients.edit');
+        Route::put('/clients/{id}', [DashboardController::class, 'updateClient'])->name('admin.clients.update');
+        Route::delete('/clients/{id}', [DashboardController::class, 'deleteClient'])->name('admin.clients.delete');
+        Route::get('/clients/{id}/data', [DashboardController::class, 'getClientData'])->name('admin.clients.data');
     });
 });

@@ -237,18 +237,37 @@
             <!-- Current Status -->
             <div class="bg-white shadow rounded-lg overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
-                    <h3 class="text-lg font-semibold text-gray-900">Status</h3>
+                    <h3 class="text-lg font-semibold text-gray-900">Status & Priority</h3>
                 </div>
-                <div class="px-6 py-4">
-                    <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full 
-                        @if($order->status == 'pending') bg-yellow-100 text-yellow-800
-                        @elseif($order->status == 'confirmed') bg-blue-100 text-blue-800
-                        @elseif($order->status == 'in_transit') bg-purple-100 text-purple-800
-                        @elseif($order->status == 'delivered') bg-green-100 text-green-800
-                        @else bg-red-100 text-red-800
-                        @endif">
-                        {{ ucfirst(str_replace('_', ' ', $order->status)) }}
-                    </span>
+                <div class="px-6 py-4 space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full 
+                            @if($order->status == 'pending') bg-yellow-100 text-yellow-800
+                            @elseif($order->status == 'confirmed') bg-blue-100 text-blue-800
+                            @elseif($order->status == 'in_transit') bg-purple-100 text-purple-800
+                            @elseif($order->status == 'delivered') bg-green-100 text-green-800
+                            @else bg-red-100 text-red-800
+                            @endif">
+                            {{ ucfirst(str_replace('_', ' ', $order->status)) }}
+                        </span>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Priority Level</label>
+                        @if(($order->priority_level ?? 'normal') === 'urgent')
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-bold bg-red-600 text-white rounded-full animate-pulse">
+                            🚨 URGENT
+                        </span>
+                        @elseif(($order->priority_level ?? 'normal') === 'high')
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold bg-orange-100 text-orange-700 rounded-full border border-orange-300">
+                            ⚡ High Priority
+                        </span>
+                        @else
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold bg-gray-100 text-gray-700 rounded-full">
+                            Normal
+                        </span>
+                        @endif
+                    </div>
                 </div>
             </div>
 
@@ -281,7 +300,9 @@
                     @if($order->rider)
                         <div class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
                             <p class="text-sm font-medium text-blue-900">Current Rider:</p>
-                            <p class="text-sm text-blue-800">{{ $order->rider->name }}</p>
+                            <p class="text-sm text-blue-800">
+                                <a href="{{ route('admin.riders.show', $order->rider->id) }}" class="brand-accent-text hover:underline font-semibold">{{ $order->rider->name }}</a>
+                            </p>
                             <p class="text-xs text-blue-600">{{ $order->rider->phone }}</p>
                         </div>
                     @else
