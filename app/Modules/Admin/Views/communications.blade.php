@@ -55,11 +55,17 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         @forelse($messages as $m)
-                        <tr>
+                        <tr class="cursor-pointer message-row" 
+                            data-first-name="{{ e($m->first_name) }}"
+                            data-last-name="{{ e($m->last_name) }}"
+                            data-email="{{ e($m->email) }}"
+                            data-phone="{{ e($m->phone) }}"
+                            data-message="{{ htmlspecialchars(html_entity_decode($m->message), ENT_NOQUOTES, 'UTF-8') }}"
+                            data-received-at="{{ e($m->created_at->toDayDateTimeString()) }}">
                             <td class="px-6 py-4 text-sm text-gray-900">{{ $m->first_name }} {{ $m->last_name }}</td>
                             <td class="px-6 py-4 text-sm text-gray-500">{{ $m->email }}</td>
                             <td class="px-6 py-4 text-sm text-gray-500">{{ $m->phone }}</td>
-                            <td class="px-6 py-4 text-sm text-gray-700 max-w-xl truncate">{{ $m->message }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-700 max-w-xl truncate">{!! htmlspecialchars(html_entity_decode($m->message), ENT_NOQUOTES, 'UTF-8') !!}</td>
                             <td class="px-6 py-4 text-sm text-gray-500">{{ $m->created_at->toDayDateTimeString() }}</td>
                         </tr>
                         @empty
@@ -99,4 +105,79 @@
     });
 </script>
 
+<!-- Modal for showing full contact details -->
+<div id="contact-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black bg-opacity-50">
+    <div class="bg-white rounded-lg shadow-lg w-full max-w-2xl mx-4">
+        <div class="flex items-center justify-between px-6 py-4 border-b">
+            <h3 id="modal-title" class="text-lg font-semibold">Contact Details</h3>
+            <button id="modal-close" class="text-gray-600 hover:text-gray-800">&times;</button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div><strong>From:</strong> <span id="modal-from"></span></div>
+                <div><strong>Email:</strong> <span id="modal-email"></span></div>
+                <div><strong>Phone:</strong> <span id="modal-phone"></span></div>
+                <div><strong>Received:</strong> <span id="modal-received"></span></div>
+            </div>
+            <div>
+                <strong>Message</strong>
+                <div id="modal-message" class="mt-2 py-4 bg-gray-50 rounded text-sm text-gray-800 whitespace-pre-wrap"></div>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t text-right">
+            <button id="modal-close-2" class="px-4 py-2 bg-gray-100 rounded">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const rows = document.querySelectorAll('.message-row');
+        const modal = document.getElementById('contact-modal');
+        const modalFrom = document.getElementById('modal-from');
+        const modalEmail = document.getElementById('modal-email');
+        const modalPhone = document.getElementById('modal-phone');
+        const modalMessage = document.getElementById('modal-message');
+        const modalReceived = document.getElementById('modal-received');
+        const modalClose = document.getElementById('modal-close');
+        const modalClose2 = document.getElementById('modal-close-2');
+
+        function openModal(data) {
+            modalFrom.textContent = data.firstName + (data.lastName ? ' ' + data.lastName : '');
+            modalEmail.textContent = data.email || '-';
+            modalPhone.textContent = data.phone || '-';
+            modalMessage.textContent = data.message || '';
+            modalReceived.textContent = data.receivedAt || '-';
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        rows.forEach(function (row) {
+            row.addEventListener('click', function () {
+                const data = {
+                    firstName: row.getAttribute('data-first-name') || '',
+                    lastName: row.getAttribute('data-last-name') || '',
+                    email: row.getAttribute('data-email') || '',
+                    phone: row.getAttribute('data-phone') || '',
+                    message: row.getAttribute('data-message') || '',
+                    receivedAt: row.getAttribute('data-received-at') || ''
+                };
+                openModal(data);
+            });
+        });
+
+        modalClose.addEventListener('click', closeModal);
+        modalClose2.addEventListener('click', closeModal);
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) closeModal();
+        });
+    });
+</script>
+
 @endsection
+
