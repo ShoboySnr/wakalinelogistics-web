@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Modules\Admin\Controllers\AdminAuthController;
 use App\Modules\Admin\Controllers\DashboardController;
+use App\Modules\Admin\Controllers\CommunicationsController;
 
 // Admin Routes
 Route::prefix('super-admin')->group(function () {
@@ -57,5 +58,8 @@ Route::prefix('super-admin')->group(function () {
         Route::put('/clients/{id}', [DashboardController::class, 'updateClient'])->name('admin.clients.update');
         Route::delete('/clients/{id}', [DashboardController::class, 'deleteClient'])->name('admin.clients.delete');
         Route::get('/clients/{id}/data', [DashboardController::class, 'getClientData'])->name('admin.clients.data');
+        
+        // Communications (subscriptions & contact messages)
+        Route::get('/communications', [CommunicationsController::class, 'index'])->name('admin.communications');
     });
 });
