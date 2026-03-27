@@ -11,10 +11,12 @@ class ValidateApiToken
     public function handle(Request $request, Closure $next): Response
     {
         $token = $request->header('X-API-Token') ?? $request->bearerToken();
-        
-        $validToken = config('services.metter_api.token');
-        
-        if (!$token || $token !== $validToken) {
+        $validTokens = array_filter([
+            config('services.metter_api.token'),
+            config('services.frontend_api.token'),
+        ]);
+
+        if (!$token || !in_array($token, (array) $validTokens, true)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Unauthorized. Valid API token required.',

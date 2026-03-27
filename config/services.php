@@ -42,5 +42,8 @@ return [
     'metter_api' => [
         'token' => env('METTER_API_TOKEN', 'your-secure-api-token-here'),
     ],
+    'frontend_api' => [
+        'token' => env('FRONTEND_API_TOKEN', 'your-frontend-api-token-here'),
+    ],
 
 ];
