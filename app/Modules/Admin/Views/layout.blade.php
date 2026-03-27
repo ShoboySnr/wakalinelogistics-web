@@ -107,6 +107,14 @@
                         </svg>
                         <span class="font-medium">Settings</span>
                     </a>
+                    
+                    <a href="{{ route('admin.communications') }}" 
+                       class="sidebar-link flex items-center px-4 py-3 text-gray-300 rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.communications*') ? 'active' : '' }}">
+                        <svg class="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 12H8m8 0a4 4 0 110-8 4 4 0 010 8zm0 0v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4"/>
+                        </svg>
+                        <span class="font-medium">Communications</span>
+                    </a>
                 </nav>
                 
                 <!-- User Section -->
