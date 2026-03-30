@@ -18,8 +18,8 @@ Route::prefix('route-share')->group(function () {
     Route::post('{token}/validate-code', [RouteShareApiController::class, 'validateDailyCode']);
 });
 
-// Public order submission endpoint (no auth required for website forms)
-Route::post('orders/submit-public', [\App\Http\Controllers\Api\OrderController::class, 'submitOrder']);
+// Public order submission endpoint
+Route::post('orders/submit-public', [\App\Http\Controllers\Api\OrderController::class, 'submitOrder'])->middleware('api.token');
 
 // Metter API Routes
 Route::prefix('wakalinelogistics/v1')->group(function () {

@@ -10,6 +10,11 @@ class ValidateApiToken
 {
     public function handle(Request $request, Closure $next, ?string $expected = null): Response
     {
+        // Skip token validation for OPTIONS preflight requests
+        if ($request->isMethod('OPTIONS')) {
+            return $next($request);
+        }
+        
         $token = $request->header('X-API-Token') ?? $request->bearerToken();
 
         $metterToken = config('services.metter_api.token');

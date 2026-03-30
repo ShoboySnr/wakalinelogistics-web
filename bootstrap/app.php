@@ -36,6 +36,11 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Modules\Admin\Middleware\AdminMiddleware::class,
         ]);
         
+        // Enable CORS for API routes
+        $middleware->api(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+        
         // Redirect unauthenticated users to admin login for admin routes
         $middleware->redirectGuestsTo(function ($request) {
             if ($request->is('super-admin') || $request->is('super-admin/*')) {
