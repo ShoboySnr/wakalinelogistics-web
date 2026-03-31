@@ -61,5 +61,13 @@ Route::prefix('super-admin')->group(function () {
         
         // Communications (subscriptions & contact messages)
         Route::get('/communications', [CommunicationsController::class, 'index'])->name('admin.communications');
+
+        // Subscriptions
+        Route::put('/communications/subscriptions/{id}', [CommunicationsController::class, 'updateSubscription'])->name('admin.communications.subscriptions.update');
+        Route::delete('/communications/subscriptions/{id}', [CommunicationsController::class, 'deleteSubscription'])->name('admin.communications.subscriptions.delete');
+
+        // Contact messages
+        Route::put('/communications/messages/{id}', [CommunicationsController::class, 'updateMessage'])->name('admin.communications.messages.update');
+        Route::delete('/communications/messages/{id}', [CommunicationsController::class, 'deleteMessage'])->name('admin.communications.messages.delete');
     });
 });
