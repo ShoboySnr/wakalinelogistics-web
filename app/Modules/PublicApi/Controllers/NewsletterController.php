@@ -11,7 +11,7 @@ class NewsletterController extends Controller
     public function subscribe(Request $request)
     {
         $data = $request->validate([
-            'email' => 'required|email'
+            'email' => 'required|email|unique:subscriptions,email',
         ]);
 
         $service = new NewsletterService();
