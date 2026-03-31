@@ -29,4 +29,17 @@ class NewsletterService
 
         return true;
     }
+
+    public function unsubscribe(string $email): bool
+    {
+        $sub = Subscription::where('email', strtolower($email))->first();
+        if (! $sub) return false;
+        try {
+            $sub->delete();
+            return true;
+        } catch (\Exception $e) {
+            Log::error('Failed to unsubscribe', ['error' => $e->getMessage(), 'email' => $email]);
+            return false;
+        }
+    }
 }
