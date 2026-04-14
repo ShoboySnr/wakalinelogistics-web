@@ -45,25 +45,25 @@
 
     <!-- Statistics Cards -->
     <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-            <div class="text-xs font-medium text-yellow-800 uppercase">Pending</div>
-            <div class="text-2xl font-bold text-yellow-900">{{ $applications->where('status', 'pending')->count() }}</div>
+        <div class="bg-white border border-gray-200 rounded-lg shadow p-4">
+            <div class="text-xs font-medium text-gray-500 uppercase">Pending</div>
+            <div class="text-2xl font-bold text-gray-900">{{ $applications->where('status', 'pending')->count() }}</div>
         </div>
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div class="text-xs font-medium text-blue-800 uppercase">Reviewing</div>
-            <div class="text-2xl font-bold text-blue-900">{{ $applications->where('status', 'reviewing')->count() }}</div>
+        <div class="bg-white border border-gray-200 rounded-lg shadow p-4">
+            <div class="text-xs font-medium text-gray-500 uppercase">Reviewing</div>
+            <div class="text-2xl font-bold text-gray-900">{{ $applications->where('status', 'reviewing')->count() }}</div>
         </div>
-        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-            <div class="text-xs font-medium text-green-800 uppercase">Shortlisted</div>
-            <div class="text-2xl font-bold text-green-900">{{ $applications->where('status', 'shortlisted')->count() }}</div>
+        <div class="bg-white border border-gray-200 rounded-lg shadow p-4">
+            <div class="text-xs font-medium text-gray-500 uppercase">Shortlisted</div>
+            <div class="text-2xl font-bold text-gray-900">{{ $applications->where('status', 'shortlisted')->count() }}</div>
         </div>
-        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div class="text-xs font-medium text-red-800 uppercase">Rejected</div>
-            <div class="text-2xl font-bold text-red-900">{{ $applications->where('status', 'rejected')->count() }}</div>
+        <div class="bg-white border border-gray-200 rounded-lg shadow p-4">
+            <div class="text-xs font-medium text-gray-500 uppercase">Rejected</div>
+            <div class="text-2xl font-bold text-gray-900">{{ $applications->where('status', 'rejected')->count() }}</div>
         </div>
-        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <div class="text-xs font-medium text-purple-800 uppercase">Hired</div>
-            <div class="text-2xl font-bold text-purple-900">{{ $applications->where('status', 'hired')->count() }}</div>
+        <div class="bg-white border border-gray-200 rounded-lg shadow p-4">
+            <div class="text-xs font-medium text-gray-500 uppercase">Hired</div>
+            <div class="text-2xl font-bold text-gray-900">{{ $applications->where('status', 'hired')->count() }}</div>
         </div>
     </div>
 

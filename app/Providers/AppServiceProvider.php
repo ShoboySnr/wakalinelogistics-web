@@ -28,5 +28,11 @@ class AppServiceProvider extends ServiceProvider
             app_path('Modules/LandingPage/Views'),
             'landing-page'
         );
+
+        // Admin module views
+        $this->loadViewsFrom(
+            app_path('Modules/Admin/Views'),
+            'Admin'
+        );
     }
 }

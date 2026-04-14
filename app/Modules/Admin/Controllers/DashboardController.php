@@ -1434,14 +1434,14 @@ class DashboardController extends Controller
 
         $applications = $query->latest()->paginate(20);
 
-        return view('admin::job-applications.index', compact('applications'));
+        return view('Admin::job-applications.index', compact('applications'));
     }
 
     public function showJobApplication($id)
     {
         $application = JobApplication::with('reviewer')->findOrFail($id);
 
-        return view('admin::job-applications.show', compact('application'));
+        return view('Admin::job-applications.show', compact('application'));
     }
 
     public function updateJobApplicationStatus(Request $request, $id)

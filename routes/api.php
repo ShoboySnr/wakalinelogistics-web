@@ -22,7 +22,7 @@ Route::prefix('route-share')->group(function () {
 // Public order submission endpoint
 Route::post('orders/submit-public', [\App\Http\Controllers\Api\OrderController::class, 'submitOrder'])->middleware('api.token');
 
-// Job application submission endpoint
+// Job application submission endpoint (with API token)
 Route::post('jobs/apply', [JobApplicationController::class, 'submit'])->middleware('api.token');
 
 // Metter API Routes
