@@ -10,6 +10,7 @@ use App\Modules\Admin\Models\Rider;
 use App\Modules\Admin\Models\Expense;
 use App\Modules\Admin\Models\RouteShare;
 use App\Modules\Admin\Models\Client;
+use App\Modules\Admin\Models\JobApplication;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -1404,5 +1405,75 @@ class DashboardController extends Controller
             'email' => $client->email,
             'pickup_address' => $client->pickup_address,
         ]);
+    }
+
+    // Job Applications Management
+    public function jobApplications(Request $request)
+    {
+        $query = JobApplication::query()->with('reviewer');
+
+        // Filter by job type
+        if ($request->filled('job_type')) {
+            $query->where('job_type', $request->job_type);
+        }
+
+        // Filter by status
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Search by name, phone, or email
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        $applications = $query->latest()->paginate(20);
+
+        return view('admin::job-applications.index', compact('applications'));
+    }
+
+    public function showJobApplication($id)
+    {
+        $application = JobApplication::with('reviewer')->findOrFail($id);
+
+        return view('admin::job-applications.show', compact('application'));
+    }
+
+    public function updateJobApplicationStatus(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'status' => 'required|in:pending,reviewing,shortlisted,rejected,hired',
+            'admin_notes' => 'nullable|string|max:2000',
+        ]);
+
+        $application = JobApplication::findOrFail($id);
+        
+        $application->update([
+            'status' => $validated['status'],
+            'admin_notes' => $validated['admin_notes'] ?? $application->admin_notes,
+            'reviewed_at' => now(),
+            'reviewed_by' => auth()->id(),
+        ]);
+
+        ActivityLog::log('job_application_updated', "Updated job application status for {$application->full_name} to {$validated['status']}", $application);
+
+        return redirect()->back()->with('success', 'Application status updated successfully');
+    }
+
+    public function deleteJobApplication($id)
+    {
+        $application = JobApplication::findOrFail($id);
+        $applicantName = $application->full_name;
+
+        $application->delete();
+
+        ActivityLog::log('job_application_deleted', "Deleted job application from {$applicantName}");
+
+        return redirect()->route('admin.job-applications')->with('success', 'Application deleted successfully');
     }
 }

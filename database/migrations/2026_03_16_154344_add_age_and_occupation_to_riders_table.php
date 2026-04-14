@@ -13,11 +13,17 @@ return new class extends Migration
     {
         Schema::table('riders', function (Blueprint $table) {
             // Add age field for rider (after date_of_birth if it exists, otherwise after phone)
-            $table->integer('age')->nullable()->after('phone');
+            if (!Schema::hasColumn('riders', 'age')) {
+                $table->integer('age')->nullable()->after('phone');
+            }
             
             // Add occupation fields for guarantors
-            $table->string('guarantor1_occupation')->nullable()->after('guarantor1_nationality');
-            $table->string('guarantor2_occupation')->nullable()->after('guarantor2_nationality');
+            if (!Schema::hasColumn('riders', 'guarantor1_occupation')) {
+                $table->string('guarantor1_occupation')->nullable()->after('guarantor1_nationality');
+            }
+            if (!Schema::hasColumn('riders', 'guarantor2_occupation')) {
+                $table->string('guarantor2_occupation')->nullable()->after('guarantor2_nationality');
+            }
         });
     }
 

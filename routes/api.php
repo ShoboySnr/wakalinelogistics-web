@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\RouteShareApiController;
+use App\Http\Controllers\Api\JobApplicationController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -20,6 +21,9 @@ Route::prefix('route-share')->group(function () {
 
 // Public order submission endpoint
 Route::post('orders/submit-public', [\App\Http\Controllers\Api\OrderController::class, 'submitOrder'])->middleware('api.token');
+
+// Job application submission endpoint
+Route::post('jobs/apply', [JobApplicationController::class, 'submit'])->middleware('api.token');
 
 // Metter API Routes
 Route::prefix('wakalinelogistics/v1')->group(function () {

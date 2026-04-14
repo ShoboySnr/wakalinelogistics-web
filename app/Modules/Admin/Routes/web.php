@@ -69,5 +69,11 @@ Route::prefix('super-admin')->group(function () {
         // Contact messages
         Route::put('/communications/messages/{id}', [CommunicationsController::class, 'updateMessage'])->name('admin.communications.messages.update');
         Route::delete('/communications/messages/{id}', [CommunicationsController::class, 'deleteMessage'])->name('admin.communications.messages.delete');
+        
+        // Job Applications Routes
+        Route::get('/job-applications', [DashboardController::class, 'jobApplications'])->name('admin.job-applications');
+        Route::get('/job-applications/{id}', [DashboardController::class, 'showJobApplication'])->name('admin.job-applications.show');
+        Route::post('/job-applications/{id}/status', [DashboardController::class, 'updateJobApplicationStatus'])->name('admin.job-applications.update-status');
+        Route::delete('/job-applications/{id}', [DashboardController::class, 'deleteJobApplication'])->name('admin.job-applications.delete');
     });
 });

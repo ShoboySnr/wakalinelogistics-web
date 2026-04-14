@@ -11,19 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('route_shares', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('rider_id')->constrained('riders')->onDelete('cascade');
-            $table->string('token', 64)->unique();
-            $table->timestamp('expires_at')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->integer('view_count')->default(0);
-            $table->timestamp('last_viewed_at')->nullable();
-            $table->timestamps();
-            
-            $table->index('token');
-            $table->index(['rider_id', 'is_active']);
-        });
+        if (!Schema::hasTable('route_shares')) {
+            Schema::create('route_shares', function (Blueprint $table) {
+                $table->id();
+                $table->foreignId('rider_id')->constrained('riders')->onDelete('cascade');
+                $table->string('token', 64)->unique();
+                $table->timestamp('expires_at')->nullable();
+                $table->boolean('is_active')->default(true);
+                $table->integer('view_count')->default(0);
+                $table->timestamp('last_viewed_at')->nullable();
+                $table->timestamps();
+                
+                $table->index('token');
+                $table->index(['rider_id', 'is_active']);
+            });
+        }
     }
 
     /**

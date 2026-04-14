@@ -11,19 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('expenses', function (Blueprint $table) {
-            $table->id();
-            $table->string('category'); // fuel, maintenance, salaries, rent, utilities, etc.
-            $table->string('description');
-            $table->decimal('amount', 10, 2);
-            $table->date('expense_date');
-            $table->string('payment_method')->nullable(); // cash, bank transfer, etc.
-            $table->string('receipt_number')->nullable();
-            $table->string('vendor_name')->nullable();
-            $table->text('notes')->nullable();
-            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
-            $table->timestamps();
-        });
+        if (!Schema::hasTable('expenses')) {
+            Schema::create('expenses', function (Blueprint $table) {
+                $table->id();
+                $table->string('category'); // fuel, maintenance, salaries, rent, utilities, etc.
+                $table->string('description');
+                $table->decimal('amount', 10, 2);
+                $table->date('expense_date');
+                $table->string('payment_method')->nullable(); // cash, bank transfer, etc.
+                $table->string('receipt_number')->nullable();
+                $table->string('vendor_name')->nullable();
+                $table->text('notes')->nullable();
+                $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
+                $table->timestamps();
+            });
+        }
     }
 
     /**

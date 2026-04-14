@@ -12,8 +12,12 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('riders', function (Blueprint $table) {
-            $table->string('daily_code', 6)->nullable()->after('last_location_update');
-            $table->date('daily_code_date')->nullable()->after('daily_code');
+            if (!Schema::hasColumn('riders', 'daily_code')) {
+                $table->string('daily_code', 6)->nullable()->after('last_location_update');
+            }
+            if (!Schema::hasColumn('riders', 'daily_code_date')) {
+                $table->date('daily_code_date')->nullable()->after('daily_code');
+            }
         });
     }
 

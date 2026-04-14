@@ -12,9 +12,15 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('riders', function (Blueprint $table) {
-            $table->decimal('current_latitude', 10, 8)->nullable()->after('status');
-            $table->decimal('current_longitude', 11, 8)->nullable()->after('current_latitude');
-            $table->timestamp('last_location_update')->nullable()->after('current_longitude');
+            if (!Schema::hasColumn('riders', 'current_latitude')) {
+                $table->decimal('current_latitude', 10, 8)->nullable()->after('status');
+            }
+            if (!Schema::hasColumn('riders', 'current_longitude')) {
+                $table->decimal('current_longitude', 11, 8)->nullable()->after('current_latitude');
+            }
+            if (!Schema::hasColumn('riders', 'last_location_update')) {
+                $table->timestamp('last_location_update')->nullable()->after('current_longitude');
+            }
         });
     }
 
