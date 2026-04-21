@@ -32,8 +32,9 @@ class DashboardController extends Controller
             
             // Today's stats
             'today_orders' => Order::whereDate('created_at', today())->count(),
-            'today_revenue' => Order::whereDate('created_at', today())
+            'today_revenue' => Order::whereDate('delivery_date', today())
                                     ->where('status', 'delivered')
+                                    ->whereNotNull('delivery_date')
                                     ->sum('price'),
             'today_pending' => Order::whereDate('created_at', today())
                                     ->where('status', 'pending')
@@ -44,17 +45,19 @@ class DashboardController extends Controller
             
             // This week stats
             'week_orders' => Order::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
-            'week_revenue' => Order::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
+            'week_revenue' => Order::whereBetween('delivery_date', [now()->startOfWeek(), now()->endOfWeek()])
                                    ->where('status', 'delivered')
+                                   ->whereNotNull('delivery_date')
                                    ->sum('price'),
             
             // This month stats
             'month_orders' => Order::whereMonth('created_at', now()->month)
                                    ->whereYear('created_at', now()->year)
                                    ->count(),
-            'month_revenue' => Order::whereMonth('created_at', now()->month)
-                                    ->whereYear('created_at', now()->year)
+            'month_revenue' => Order::whereMonth('delivery_date', now()->month)
+                                    ->whereYear('delivery_date', now()->year)
                                     ->where('status', 'delivered')
+                                    ->whereNotNull('delivery_date')
                                     ->sum('price'),
             
             // Rider stats
@@ -140,16 +143,19 @@ class DashboardController extends Controller
             'in_transit' => Order::where('status', 'in_transit')->count(),
             'delivered' => Order::where('status', 'delivered')->count(),
             'cancelled' => Order::where('status', 'cancelled')->count(),
-            // Revenue statistics - only count delivered orders
-            'revenue_today' => Order::whereDate('created_at', today())
+            // Revenue statistics - only count delivered orders (based on delivery date)
+            'revenue_today' => Order::whereDate('delivery_date', today())
                                     ->where('status', 'delivered')
+                                    ->whereNotNull('delivery_date')
                                     ->sum('price'),
-            'revenue_week' => Order::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
+            'revenue_week' => Order::whereBetween('delivery_date', [now()->startOfWeek(), now()->endOfWeek()])
                                    ->where('status', 'delivered')
+                                   ->whereNotNull('delivery_date')
                                    ->sum('price'),
-            'revenue_month' => Order::whereMonth('created_at', now()->month)
-                                    ->whereYear('created_at', now()->year)
+            'revenue_month' => Order::whereMonth('delivery_date', now()->month)
+                                    ->whereYear('delivery_date', now()->year)
                                     ->where('status', 'delivered')
+                                    ->whereNotNull('delivery_date')
                                     ->sum('price'),
         ];
 
@@ -878,17 +884,20 @@ class DashboardController extends Controller
                                        ->whereYear('expense_date', now()->year)
                                        ->sum('amount'),
             
-            // Revenue stats for profit calculation
+            // Revenue stats for profit calculation (based on delivery date, not creation date)
             'total_revenue' => Order::where('status', 'delivered')->sum('price'),
-            'today_revenue' => Order::whereDate('created_at', today())
+            'today_revenue' => Order::whereDate('delivery_date', today())
                                     ->where('status', 'delivered')
+                                    ->whereNotNull('delivery_date')
                                     ->sum('price'),
-            'week_revenue' => Order::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
+            'week_revenue' => Order::whereBetween('delivery_date', [now()->startOfWeek(), now()->endOfWeek()])
                                    ->where('status', 'delivered')
+                                   ->whereNotNull('delivery_date')
                                    ->sum('price'),
-            'month_revenue' => Order::whereMonth('created_at', now()->month)
-                                    ->whereYear('created_at', now()->year)
+            'month_revenue' => Order::whereMonth('delivery_date', now()->month)
+                                    ->whereYear('delivery_date', now()->year)
                                     ->where('status', 'delivered')
+                                    ->whereNotNull('delivery_date')
                                     ->sum('price'),
         ];
 

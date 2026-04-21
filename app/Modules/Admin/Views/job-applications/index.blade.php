@@ -14,16 +14,14 @@
     <!-- Search and Filter -->
     <div class="mb-4 bg-white shadow rounded-lg p-4">
         <form method="GET" action="{{ route('admin.job-applications') }}" class="flex flex-col sm:flex-row gap-3">
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by name, phone, or email..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+            <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by name, phone, or email..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#C1666B] focus:border-[#C1666B]">
             
-            <select name="job_type" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+            <select name="job_type" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#C1666B] focus:border-[#C1666B]">
                 <option value="">All Job Types</option>
                 <option value="dispatch_rider" {{ request('job_type') === 'dispatch_rider' ? 'selected' : '' }}>Dispatch Rider</option>
-                <option value="warehouse_staff" {{ request('job_type') === 'warehouse_staff' ? 'selected' : '' }}>Warehouse Staff</option>
-                <option value="customer_service" {{ request('job_type') === 'customer_service' ? 'selected' : '' }}>Customer Service</option>
             </select>
             
-            <select name="status" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+            <select name="status" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#C1666B] focus:border-[#C1666B]">
                 <option value="">All Status</option>
                 <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>Pending</option>
                 <option value="reviewing" {{ request('status') === 'reviewing' ? 'selected' : '' }}>Reviewing</option>
@@ -113,7 +111,7 @@
                         <div class="text-xs text-gray-500">{{ $application->created_at->format('h:i A') }}</div>
                     </td>
                     <td class="px-6 py-4 text-right text-sm font-medium">
-                        <a href="{{ route('admin.job-applications.show', $application->id) }}" class="text-pink-600 hover:text-pink-900 mr-3">
+                        <a href="{{ route('admin.job-applications.show', $application->id) }}" class="brand-accent-text hover:underline mr-3" style="transition: color 0.2s ease;" onmouseover="this.style.color='#a8555a';" onmouseout="this.style.color='#C1666B';">
                             View
                         </a>
                     </td>

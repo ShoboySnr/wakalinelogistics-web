@@ -78,7 +78,7 @@ class DeliveryCalculatorApiController extends Controller
                     'formatted_address' => $result['delivery_formatted'] ?? $result['delivery'],
                     'zone' => $result['delivery_zone']
                 ],
-                'distance_km' => $result['distance_km'],
+                'distance_km' => round($result['distance_km'], 2),
                 'delivery_fee' => $result['delivery_fee'],
                 'currency' => 'NGN'
             ]

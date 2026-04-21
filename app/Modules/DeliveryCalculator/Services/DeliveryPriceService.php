@@ -240,7 +240,7 @@ class DeliveryPriceService
             'pickup_formatted' => $pickupGeo['formatted_address'], // Keep formatted for reference
             'delivery' => $deliveryAddress, // Show original input to user
             'delivery_formatted' => $deliveryGeo['formatted_address'], // Keep formatted for reference
-            'distance_km' => $distance,
+            'distance_km' => round($distance, 2),
             'pickup_zone' => $pickupZone,
             'delivery_zone' => $deliveryZone,
             'delivery_fee' => $priceData['delivery_fee'],
@@ -301,7 +301,7 @@ class DeliveryPriceService
                 'address' => $pickupAddress,
                 'formatted_address' => $pickupGeo['formatted_address'],
                 'zone' => $pickupZone,
-                'distance_km' => $distance,
+                'distance_km' => round($distance, 2),
                 'delivery_fee' => $priceData['delivery_fee']
             ];
 

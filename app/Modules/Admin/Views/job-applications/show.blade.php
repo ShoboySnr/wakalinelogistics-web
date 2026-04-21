@@ -27,7 +27,7 @@
             <!-- Personal Information -->
             <div class="bg-white shadow rounded-lg p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 mr-2 brand-accent-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                     </svg>
                     Personal Information
@@ -44,14 +44,14 @@
                     <div>
                         <label class="text-xs font-medium text-gray-500 uppercase">Phone</label>
                         <p class="mt-1 text-sm text-gray-900">
-                            <a href="tel:{{ $application->phone }}" class="text-pink-600 hover:text-pink-800">{{ $application->phone }}</a>
+                            <a href="tel:{{ $application->phone }}" class="brand-accent-text hover:underline">{{ $application->phone }}</a>
                         </p>
                     </div>
                     <div>
                         <label class="text-xs font-medium text-gray-500 uppercase">Email</label>
                         <p class="mt-1 text-sm text-gray-900">
                             @if($application->email)
-                            <a href="mailto:{{ $application->email }}" class="text-pink-600 hover:text-pink-800">{{ $application->email }}</a>
+                            <a href="mailto:{{ $application->email }}" class="brand-accent-text hover:underline">{{ $application->email }}</a>
                             @else
                             <span class="text-gray-400">Not provided</span>
                             @endif
@@ -68,7 +68,7 @@
             @if($application->job_type === 'dispatch_rider' && $application->license_number)
             <div class="bg-white shadow rounded-lg p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 mr-2 brand-accent-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
                     License Information
@@ -83,7 +83,7 @@
             <!-- Experience -->
             <div class="bg-white shadow rounded-lg p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 mr-2 brand-accent-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                     </svg>
                     Experience
@@ -105,7 +105,7 @@
             <!-- Availability & Motivation -->
             <div class="bg-white shadow rounded-lg p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg class="w-5 h-5 mr-2 brand-accent-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path>
                     </svg>
                     Additional Information
@@ -135,7 +135,7 @@
                     <div class="space-y-4">
                         <div>
                             <label for="status" class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                            <select name="status" id="status" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500" required>
+                            <select name="status" id="status" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#C1666B] focus:border-[#C1666B]" required>
                                 <option value="pending" {{ $application->status === 'pending' ? 'selected' : '' }}>Pending</option>
                                 <option value="reviewing" {{ $application->status === 'reviewing' ? 'selected' : '' }}>Reviewing</option>
                                 <option value="shortlisted" {{ $application->status === 'shortlisted' ? 'selected' : '' }}>Shortlisted</option>
@@ -145,7 +145,7 @@
                         </div>
                         <div>
                             <label for="admin_notes" class="block text-sm font-medium text-gray-700 mb-2">Admin Notes</label>
-                            <textarea name="admin_notes" id="admin_notes" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500" placeholder="Add notes about this application...">{{ $application->admin_notes }}</textarea>
+                            <textarea name="admin_notes" id="admin_notes" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#C1666B] focus:border-[#C1666B]" placeholder="Add notes about this application...">{{ $application->admin_notes }}</textarea>
                         </div>
                         <button type="submit" class="w-full px-4 py-2 text-white rounded-md brand-accent-bg brand-accent-hover">
                             Update Status
