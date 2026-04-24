@@ -4,14 +4,22 @@
 
 @section('content')
 <div class="px-4 sm:px-6 lg:px-0">
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Expenses & Accounting</h1>
-        <button onclick="document.getElementById('addExpenseModal').classList.remove('hidden')" class="px-4 py-2 text-white rounded-md brand-accent-bg brand-accent-hover transition-colors flex items-center">
-            <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            Add Expense
-        </button>
+        <div class="flex flex-wrap gap-2">
+            <button onclick="document.getElementById('exportModal').classList.remove('hidden')" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center">
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                Export Statement
+            </button>
+            <button onclick="document.getElementById('addExpenseModal').classList.remove('hidden')" class="px-4 py-2 text-white rounded-md brand-accent-bg brand-accent-hover transition-colors flex items-center">
+                <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Add Expense
+            </button>
+        </div>
     </div>
 
     <!-- Profit Overview -->
@@ -184,7 +192,7 @@
                             ₦{{ number_format($expense->amount, 2) }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ $expense->payment_method ?? 'N/A' }}
+                            {{ $expense->formatted_payment_method }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                             <form method="POST" action="{{ route('admin.expenses.delete', $expense->id) }}" onsubmit="return confirm('Are you sure you want to delete this expense?');" class="inline">
@@ -301,4 +309,104 @@
         </form>
     </div>
 </div>
+
+<!-- Export Statement Modal -->
+<div id="exportModal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Export Statement of Accounts</h3>
+            <button onclick="document.getElementById('exportModal').classList.add('hidden')" class="text-gray-400 hover:text-gray-600">
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        
+        <form id="exportForm" method="GET" action="{{ route('admin.expenses.export') }}">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Period</label>
+                <select id="exportPeriod" name="period" onchange="toggleCustomDates()" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="this_week">This Week</option>
+                    <option value="last_week">Last Week</option>
+                    <option value="this_month">This Month</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="custom">Custom Range</option>
+                </select>
+            </div>
+
+            <div id="customDateRange" class="hidden mb-4 space-y-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                    <input type="date" name="start_date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                    <input type="date" name="end_date" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Actions</label>
+                <div class="grid grid-cols-3 gap-3">
+                    <button type="button" onclick="previewStatement()" class="px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center">
+                        <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                        </svg>
+                        Preview
+                    </button>
+                    <button type="submit" name="format" value="pdf" class="px-4 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors flex items-center justify-center">
+                        <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                        </svg>
+                        PDF
+                    </button>
+                    <button type="submit" name="format" value="excel" class="px-4 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center justify-center">
+                        <svg class="h-5 w-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Excel
+                    </button>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" onclick="document.getElementById('exportModal').classList.add('hidden')" 
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function toggleCustomDates() {
+    const period = document.getElementById('exportPeriod').value;
+    const customRange = document.getElementById('customDateRange');
+    if (period === 'custom') {
+        customRange.classList.remove('hidden');
+    } else {
+        customRange.classList.add('hidden');
+    }
+}
+
+function previewStatement() {
+    const form = document.getElementById('exportForm');
+    const period = document.getElementById('exportPeriod').value;
+    const startDate = form.querySelector('[name="start_date"]').value;
+    const endDate = form.querySelector('[name="end_date"]').value;
+    
+    // Build URL with parameters
+    let url = '{{ route("admin.expenses.preview") }}?period=' + period;
+    if (period === 'custom') {
+        url += '&start_date=' + startDate + '&end_date=' + endDate;
+    }
+    
+    // Open in new tab
+    window.open(url, '_blank');
+}
+</script>
 @endsection

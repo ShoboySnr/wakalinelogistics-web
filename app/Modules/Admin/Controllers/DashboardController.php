@@ -944,6 +944,261 @@ class DashboardController extends Controller
 
         return redirect()->route('admin.expenses')->with('success', 'Expense deleted successfully');
     }
+
+    public function previewStatement(Request $request)
+    {
+        $period = $request->get('period', 'today');
+        
+        // Determine date range based on period
+        $dateData = $this->getDateRangeForPeriod($period, $request);
+        
+        // Get revenue and expense data
+        $statementData = $this->getStatementData($dateData['startDate'], $dateData['endDate'], $dateData['periodLabel']);
+        
+        // Return HTML view for preview
+        return view('Admin::exports.statement-preview', $statementData);
+    }
+
+    public function exportStatement(Request $request)
+    {
+        $period = $request->get('period', 'today');
+        $format = $request->get('format', 'pdf');
+        
+        // Get date range and statement data
+        $dateData = $this->getDateRangeForPeriod($period, $request);
+        $data = $this->getStatementData($dateData['startDate'], $dateData['endDate'], $dateData['periodLabel']);
+
+        if ($format === 'excel') {
+            return $this->exportToExcel($data);
+        } else {
+            return $this->exportToPDF($data);
+        }
+    }
+
+    private function getDateRangeForPeriod($period, $request)
+    {
+        switch ($period) {
+            case 'today':
+                $startDate = now()->startOfDay();
+                $endDate = now()->endOfDay();
+                $periodLabel = 'Today - ' . now()->format('M d, Y');
+                break;
+            case 'yesterday':
+                $startDate = now()->subDay()->startOfDay();
+                $endDate = now()->subDay()->endOfDay();
+                $periodLabel = 'Yesterday - ' . now()->subDay()->format('M d, Y');
+                break;
+            case 'this_week':
+                $startDate = now()->startOfWeek();
+                $endDate = now()->endOfWeek();
+                $periodLabel = 'This Week - ' . $startDate->format('M d') . ' to ' . $endDate->format('M d, Y');
+                break;
+            case 'last_week':
+                $startDate = now()->subWeek()->startOfWeek();
+                $endDate = now()->subWeek()->endOfWeek();
+                $periodLabel = 'Last Week - ' . $startDate->format('M d') . ' to ' . $endDate->format('M d, Y');
+                break;
+            case 'this_month':
+                $startDate = now()->startOfMonth();
+                $endDate = now()->endOfMonth();
+                $periodLabel = 'This Month - ' . now()->format('F Y');
+                break;
+            case 'last_month':
+                $startDate = now()->subMonth()->startOfMonth();
+                $endDate = now()->subMonth()->endOfMonth();
+                $periodLabel = 'Last Month - ' . now()->subMonth()->format('F Y');
+                break;
+            case 'custom':
+                $startDate = $request->start_date ? \Carbon\Carbon::parse($request->start_date)->startOfDay() : now()->startOfMonth();
+                $endDate = $request->end_date ? \Carbon\Carbon::parse($request->end_date)->endOfDay() : now()->endOfDay();
+                $periodLabel = 'Custom - ' . $startDate->format('M d, Y') . ' to ' . $endDate->format('M d, Y');
+                break;
+            default:
+                $startDate = now()->startOfDay();
+                $endDate = now()->endOfDay();
+                $periodLabel = 'Today - ' . now()->format('M d, Y');
+        }
+
+        return [
+            'startDate' => $startDate,
+            'endDate' => $endDate,
+            'periodLabel' => $periodLabel,
+        ];
+    }
+
+    private function getStatementData($startDate, $endDate, $periodLabel)
+    {
+        // Get revenue data
+        $revenue = Order::whereBetween('delivery_date', [$startDate, $endDate])
+            ->where('status', 'delivered')
+            ->whereNotNull('delivery_date')
+            ->select('delivery_date', 'customer_name', 'customer_phone', 'price', 'order_number')
+            ->orderBy('delivery_date', 'desc')
+            ->get();
+
+        $totalRevenue = $revenue->sum('price');
+
+        // Get expense data
+        $expenses = Expense::whereBetween('expense_date', [$startDate, $endDate])
+            ->select('expense_date', 'category', 'description', 'amount', 'vendor_name', 'payment_method')
+            ->orderBy('expense_date', 'desc')
+            ->get();
+
+        $totalExpenses = $expenses->sum('amount');
+
+        // Calculate profit
+        $profit = $totalRevenue - $totalExpenses;
+
+        return [
+            'period' => $periodLabel,
+            'start_date' => $startDate->format('M d, Y'),
+            'end_date' => $endDate->format('M d, Y'),
+            'revenue' => $revenue,
+            'expenses' => $expenses,
+            'total_revenue' => $totalRevenue,
+            'total_expenses' => $totalExpenses,
+            'profit' => $profit,
+            'generated_at' => now()->format('M d, Y h:i A'),
+        ];
+    }
+
+    private function exportToPDF($data)
+    {
+        $html = view('Admin::exports.statement-pdf', $data)->render();
+        
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadHTML($html);
+        $pdf->setPaper('A4', 'portrait');
+        
+        $filename = 'statement-' . str_replace(' ', '-', strtolower($data['period'])) . '.pdf';
+        
+        return $pdf->download($filename);
+    }
+
+    private function exportToExcel($data)
+    {
+        $filename = 'statement-' . str_replace(' ', '-', strtolower($data['period'])) . '.csv';
+        
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function() use ($data) {
+            $file = fopen('php://output', 'w');
+            
+            // Header
+            fputcsv($file, ['STATEMENT OF ACCOUNTS']);
+            fputcsv($file, ['Period: ' . $data['period']]);
+            fputcsv($file, ['Generated: ' . $data['generated_at']]);
+            fputcsv($file, []);
+            
+            // Revenue Section
+            fputcsv($file, ['REVENUE']);
+            fputcsv($file, ['Date', 'Order Number', 'Customer', 'Phone', 'Amount']);
+            foreach ($data['revenue'] as $item) {
+                fputcsv($file, [
+                    \Carbon\Carbon::parse($item->delivery_date)->format('M d, Y'),
+                    $item->order_number ?? 'N/A',
+                    $item->customer_name,
+                    $item->customer_phone,
+                    number_format($item->price, 2)
+                ]);
+            }
+            fputcsv($file, []);
+            fputcsv($file, ['Total Revenue', '', '', '', number_format($data['total_revenue'], 2)]);
+            fputcsv($file, []);
+            
+            // Expenses Section
+            fputcsv($file, ['EXPENSES']);
+            fputcsv($file, ['Date', 'Category', 'Description', 'Vendor', 'Payment Method', 'Amount']);
+            foreach ($data['expenses'] as $item) {
+                fputcsv($file, [
+                    \Carbon\Carbon::parse($item->expense_date)->format('M d, Y'),
+                    ucfirst($item->category),
+                    $item->description,
+                    $item->vendor_name ?? 'N/A',
+                    $item->payment_method ?? 'N/A',
+                    number_format($item->amount, 2)
+                ]);
+            }
+            fputcsv($file, []);
+            fputcsv($file, ['Total Expenses', '', '', '', '', number_format($data['total_expenses'], 2)]);
+            fputcsv($file, []);
+            
+            // Summary
+            fputcsv($file, ['SUMMARY']);
+            fputcsv($file, ['Total Revenue', number_format($data['total_revenue'], 2)]);
+            fputcsv($file, ['Total Expenses', number_format($data['total_expenses'], 2)]);
+            fputcsv($file, ['Net Profit/Loss', number_format($data['profit'], 2)]);
+            
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    // Business Intelligence & Analytics
+    public function businessIntelligence(Request $request)
+    {
+        // Get date range from request
+        $dateRange = $request->get('date_range', 'this_month');
+        $startDate = null;
+        $endDate = null;
+
+        // Handle predefined ranges
+        switch ($dateRange) {
+            case 'today':
+                $startDate = now()->startOfDay();
+                $endDate = now()->endOfDay();
+                break;
+            case 'yesterday':
+                $startDate = now()->subDay()->startOfDay();
+                $endDate = now()->subDay()->endOfDay();
+                break;
+            case 'this_week':
+                $startDate = now()->startOfWeek();
+                $endDate = now()->endOfWeek();
+                break;
+            case 'last_week':
+                $startDate = now()->subWeek()->startOfWeek();
+                $endDate = now()->subWeek()->endOfWeek();
+                break;
+            case 'this_month':
+                $startDate = now()->startOfMonth();
+                $endDate = now()->endOfMonth();
+                break;
+            case 'last_month':
+                $startDate = now()->subMonth()->startOfMonth();
+                $endDate = now()->subMonth()->endOfMonth();
+                break;
+            case 'this_year':
+                $startDate = now()->startOfYear();
+                $endDate = now()->endOfYear();
+                break;
+            case 'custom':
+                if ($request->has('start_date') && $request->has('end_date')) {
+                    $startDate = \Carbon\Carbon::parse($request->start_date)->startOfDay();
+                    $endDate = \Carbon\Carbon::parse($request->end_date)->endOfDay();
+                } else {
+                    // Default to this month if custom dates not provided
+                    $startDate = now()->startOfMonth();
+                    $endDate = now()->endOfMonth();
+                }
+                break;
+            default:
+                $startDate = now()->startOfMonth();
+                $endDate = now()->endOfMonth();
+        }
+
+        $biService = new \App\Services\BusinessIntelligenceService();
+        $analytics = $biService->getBusinessAnalytics($startDate, $endDate);
+
+        // Advanced analytics
+        $advancedService = new \App\Services\AdvancedAnalyticsService($startDate, $endDate);
+        $advancedAnalytics = $advancedService->getAdvancedAnalytics();
+
+        return view('Admin::business-intelligence.index', compact('analytics', 'advancedAnalytics', 'dateRange', 'startDate', 'endDate'));
+    }
     
     /**
      * Optimize route using smart hybrid approach with priority handling:

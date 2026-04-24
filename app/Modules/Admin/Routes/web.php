@@ -38,6 +38,11 @@ Route::prefix('super-admin')->group(function () {
         Route::get('/expenses', [DashboardController::class, 'expenses'])->name('admin.expenses');
         Route::post('/expenses', [DashboardController::class, 'storeExpense'])->name('admin.expenses.store');
         Route::delete('/expenses/{id}', [DashboardController::class, 'deleteExpense'])->name('admin.expenses.delete');
+        Route::get('/expenses/export', [DashboardController::class, 'exportStatement'])->name('admin.expenses.export');
+        Route::get('/expenses/preview', [DashboardController::class, 'previewStatement'])->name('admin.expenses.preview');
+        
+        // Business Intelligence & Analytics
+        Route::get('/business-intelligence', [DashboardController::class, 'businessIntelligence'])->name('admin.business-intelligence');
         
         // Rider Routes
         Route::get('/riders', [DashboardController::class, 'riders'])->name('admin.riders');
