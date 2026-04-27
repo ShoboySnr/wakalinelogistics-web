@@ -7,13 +7,17 @@ use Illuminate\Http\Request;
 
 class RouteShareController extends Controller
 {
-    public function show($token)
+    public function show($riderId)
     {
-        $routeShare = RouteShare::where('token', $token)->firstOrFail();
+        // Find route share by rider ID
+        $routeShare = RouteShare::where('rider_id', $riderId)->firstOrFail();
         
         if (!$routeShare->isValid()) {
             abort(404, 'This route link has expired or is no longer valid.');
         }
+        
+        // Check if user is authenticated as admin
+        $isAdmin = auth()->check() && auth()->user()->is_admin;
         
         // Increment view count
         $routeShare->incrementViewCount();
@@ -117,7 +121,81 @@ class RouteShareController extends Controller
         // Generate Google Maps URL
         $googleMapsUrl = $this->generateGoogleMapsUrl($startingPoint, $waypoints);
         
-        return view('route-share', compact('rider', 'waypoints', 'startingPoint', 'routeShare', 'dailyCode', 'googleMapsUrl'));
+        // Group orders by pickup address for better display
+        $groupedOrders = $this->groupOrdersByPickup($waypoints);
+        
+        return view('route-share', compact('rider', 'waypoints', 'startingPoint', 'routeShare', 'dailyCode', 'googleMapsUrl', 'groupedOrders', 'isAdmin'));
+    }
+    
+    public function prepareRouteData($rider)
+    {
+        $pendingOrders = $rider->orders()
+            ->where(function($query) {
+                $query->whereNull('pickup_date')
+                      ->orWhere(function($q) {
+                          $q->whereNotNull('pickup_date')
+                            ->whereNull('delivery_date');
+                      });
+            })
+            ->whereIn('status', ['pending', 'confirmed', 'in_transit'])
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'asc')
+            ->get();
+        
+        $startingPoint = 'Iju Ishaga, Lagos, Nigeria';
+        $allStops = [];
+        
+        foreach ($pendingOrders as $order) {
+            if (!$order->pickup_date) {
+                if ($order->pickup_address) {
+                    $allStops[] = [
+                        'address' => $order->pickup_address,
+                        'type' => 'pickup',
+                        'order_number' => $order->order_number,
+                        'order_id' => $order->id,
+                        'sender' => $order->sender_name ?? $order->customer_name,
+                        'phone' => $order->sender_phone ?? $order->customer_phone,
+                        'priority' => 1,
+                        'paired_order_id' => $order->id,
+                        'status' => $order->status,
+                        'priority_level' => $order->priority_level ?? 'normal',
+                        'item_description' => $order->item_description ?? 'N/A',
+                    ];
+                }
+                
+                if ($order->delivery_address) {
+                    $allStops[] = [
+                        'address' => $order->delivery_address,
+                        'type' => 'dropoff',
+                        'order_number' => $order->order_number,
+                        'order_id' => $order->id,
+                        'receiver' => $order->receiver_name ?? 'N/A',
+                        'phone' => $order->receiver_phone ?? 'N/A',
+                        'priority' => 2,
+                        'paired_order_id' => $order->id,
+                        'status' => $order->status,
+                        'priority_level' => $order->priority_level ?? 'normal',
+                        'item_description' => $order->item_description ?? 'N/A',
+                    ];
+                }
+            }
+        }
+        
+        $waypoints = $this->optimizeRoute($allStops, $startingPoint);
+        
+        $cumulativeTime = 0;
+        foreach ($waypoints as &$waypoint) {
+            $estimatedTravelTime = 15;
+            $cumulativeTime += $estimatedTravelTime + 5;
+            
+            $waypoint['estimated_time'] = $cumulativeTime;
+            $waypoint['eta'] = now()->addMinutes($cumulativeTime)->format('g:i A');
+        }
+        
+        $googleMapsUrl = $this->generateGoogleMapsUrl($startingPoint, $waypoints);
+        $groupedOrders = $this->groupOrdersByPickup($waypoints);
+        
+        return compact('waypoints', 'startingPoint', 'googleMapsUrl', 'groupedOrders');
     }
     
     /**
@@ -237,6 +315,63 @@ class RouteShareController extends Controller
             'normal' => 1,
             default => 1,
         };
+    }
+    
+    /**
+     * Group orders by pickup phone to show multiple deliveries from same sender
+     */
+    private function groupOrdersByPickup($waypoints)
+    {
+        $grouped = [];
+        $pickupPhones = [];
+        
+        // First, collect all pickups with their phone numbers
+        foreach ($waypoints as $waypoint) {
+            if ($waypoint['type'] === 'pickup') {
+                $pickupKey = md5(strtolower(trim($waypoint['phone'])));
+                
+                if (!isset($pickupPhones[$pickupKey])) {
+                    $pickupPhones[$pickupKey] = [
+                        'address' => $waypoint['address'],
+                        'sender' => $waypoint['sender'],
+                        'phone' => $waypoint['phone'],
+                        'pickup_orders' => [],
+                        'dropoffs' => []
+                    ];
+                }
+                
+                $pickupPhones[$pickupKey]['pickup_orders'][] = $waypoint;
+            }
+        }
+        
+        // Then, associate dropoffs with their pickups
+        foreach ($waypoints as $waypoint) {
+            if ($waypoint['type'] === 'dropoff') {
+                // Find the corresponding pickup for this dropoff
+                $orderId = $waypoint['paired_order_id'];
+                
+                // Search for the pickup with this order ID
+                foreach ($waypoints as $pickup) {
+                    if ($pickup['type'] === 'pickup' && $pickup['paired_order_id'] === $orderId) {
+                        $pickupKey = md5(strtolower(trim($pickup['phone'])));
+                        
+                        if (isset($pickupPhones[$pickupKey])) {
+                            $pickupPhones[$pickupKey]['dropoffs'][] = $waypoint;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Filter to only show pickups with multiple dropoffs
+        foreach ($pickupPhones as $key => $data) {
+            if (count($data['dropoffs']) > 1) {
+                $grouped[] = $data;
+            }
+        }
+        
+        return $grouped;
     }
     
     /**

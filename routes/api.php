@@ -11,35 +11,29 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
-// Route Share API (Public - no auth required)
 Route::prefix('route-share')->group(function () {
-    Route::get('{token}/data', [RouteShareApiController::class, 'getRouteData']);
-    Route::post('{token}/location', [RouteShareApiController::class, 'updateRiderLocation']);
-    Route::post('{token}/orders/{orderId}/status', [RouteShareApiController::class, 'updateOrderStatus']);
-    Route::post('{token}/validate-code', [RouteShareApiController::class, 'validateDailyCode']);
+    Route::get('{riderId}/data', [RouteShareApiController::class, 'getRouteData']);
+    Route::get('{riderId}/grouped-orders', [RouteShareApiController::class, 'getGroupedOrdersHtml']);
+    Route::post('{riderId}/location', [RouteShareApiController::class, 'updateRiderLocation']);
+    Route::post('{riderId}/orders/{orderId}/status', [RouteShareApiController::class, 'updateOrderStatus']);
+    Route::post('{riderId}/validate-code', [RouteShareApiController::class, 'validateDailyCode']);
 });
 
-// Public order submission endpoint
 Route::post('orders/submit-public', [\App\Http\Controllers\Api\OrderController::class, 'submitOrder'])->middleware('api.token');
 
-// Job application submission endpoint (with API token)
 Route::post('jobs/apply', [JobApplicationController::class, 'submit'])->middleware('api.token');
 
-// Metter API Routes
 Route::prefix('wakalinelogistics/v1')->group(function () {
-    // Public authentication routes
     Route::post('auth/register', [AuthController::class, 'register']);
     Route::post('auth/login', [AuthController::class, 'login']);
     Route::post('auth/social-login', [AuthController::class, 'socialLogin']);
     Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('auth/reset-password', [AuthController::class, 'resetPassword']);
     
-    // Protected routes
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/user', [AuthController::class, 'user']);
     });
     
-    // Order submission endpoint (with API token)
     Route::post('orders/submit', [OrderController::class, 'submitOrder'])->middleware('api.token');
 });

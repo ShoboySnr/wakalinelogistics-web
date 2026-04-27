@@ -107,6 +107,11 @@ class Rider extends Model
         return $this->hasMany(Order::class)->whereIn('status', ['confirmed', 'in_transit']);
     }
 
+    public function routeShare()
+    {
+        return $this->hasOne(RouteShare::class, 'rider_id');
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';

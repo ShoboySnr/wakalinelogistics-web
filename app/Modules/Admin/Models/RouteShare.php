@@ -54,6 +54,6 @@ class RouteShare extends Model
 
     public function getShareUrl(): string
     {
-        return url("/route/{$this->token}");
+        return url("/route/{$this->rider_id}");
     }
 }

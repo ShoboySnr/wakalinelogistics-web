@@ -39,8 +39,18 @@
 </head>
 <body class="bg-gray-50">
     <div class="flex h-screen overflow-hidden">
+        <!-- Mobile Menu Button -->
+        <button id="mobile-menu-btn" class="md:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-gray-800 text-white hover:bg-gray-700 transition-colors">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+            </svg>
+        </button>
+
+        <!-- Mobile Sidebar Overlay -->
+        <div id="mobile-sidebar-overlay" class="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40 hidden"></div>
+
         <!-- Sidebar -->
-        <aside class="brand-bg w-64 flex-shrink-0 hidden md:flex md:flex-col">
+        <aside id="sidebar" class="brand-bg w-64 flex-shrink-0 fixed md:static inset-y-0 left-0 z-40 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out md:flex md:flex-col">
             <div class="flex flex-col flex-1 overflow-y-auto">
                 <!-- Logo -->
                 <div class="flex items-center justify-center h-20 border-b border-gray-700">
@@ -163,7 +173,7 @@
         </aside>
 
         <!-- Main Content Area -->
-        <div class="flex-1 flex flex-col overflow-hidden">
+        <div class="flex-1 flex flex-col overflow-hidden md:ml-0">
             <!-- Main Content -->
             <main class="flex-1 overflow-y-auto bg-gray-50 p-6">
                 @if(session('success'))
@@ -192,5 +202,18 @@
             </main>
         </div>
     </div>
+<script>
+const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+const sidebar = document.getElementById('sidebar');
+const overlay = document.getElementById('mobile-sidebar-overlay');
+
+function toggleMobileMenu() {
+    sidebar.classList.toggle('-translate-x-full');
+    overlay.classList.toggle('hidden');
+}
+
+mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+overlay.addEventListener('click', toggleMobileMenu);
+</script>
 </body>
 </html>

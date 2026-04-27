@@ -8,9 +8,9 @@ use Illuminate\Http\Request;
 
 class RouteShareApiController extends Controller
 {
-    public function getRouteData($token)
+    public function getRouteData($riderId)
     {
-        $routeShare = RouteShare::where('token', $token)->firstOrFail();
+        $routeShare = RouteShare::where('rider_id', $riderId)->firstOrFail();
         
         if (!$routeShare->isValid()) {
             return response()->json(['error' => 'Invalid or expired route link'], 404);
@@ -92,9 +92,30 @@ class RouteShareApiController extends Controller
         ]);
     }
     
-    public function updateRiderLocation(Request $request, $token)
+    public function getGroupedOrdersHtml($riderId)
     {
-        $routeShare = RouteShare::where('token', $token)->firstOrFail();
+        $routeShare = RouteShare::where('rider_id', $riderId)->firstOrFail();
+        
+        if (!$routeShare->isValid()) {
+            return response()->json(['error' => 'Invalid or expired route link'], 404);
+        }
+        
+        $rider = $routeShare->rider;
+        $controller = app(\App\Http\Controllers\RouteShareController::class);
+        $data = $controller->prepareRouteData($rider);
+        
+        $html = view('partials.grouped-orders', $data)->render();
+        
+        return response()->json([
+            'success' => true,
+            'html' => $html,
+            'order_count' => count($data['waypoints'])
+        ]);
+    }
+    
+    public function updateRiderLocation(Request $request, $riderId)
+    {
+        $routeShare = RouteShare::where('rider_id', $riderId)->firstOrFail();
         
         if (!$routeShare->isValid()) {
             return response()->json(['error' => 'Invalid or expired route link'], 404);
@@ -121,9 +142,9 @@ class RouteShareApiController extends Controller
         ]);
     }
     
-    public function updateOrderStatus(Request $request, $token, $orderId)
+    public function updateOrderStatus(Request $request, $riderId, $orderId)
     {
-        $routeShare = RouteShare::where('token', $token)->firstOrFail();
+        $routeShare = RouteShare::where('rider_id', $riderId)->firstOrFail();
         
         if (!$routeShare->isValid()) {
             return response()->json(['error' => 'Invalid or expired route link'], 404);
@@ -154,9 +175,9 @@ class RouteShareApiController extends Controller
         ]);
     }
 
-    public function validateDailyCode(Request $request, $token)
+    public function validateDailyCode(Request $request, $riderId)
     {
-        $routeShare = RouteShare::where('token', $token)->firstOrFail();
+        $routeShare = RouteShare::where('rider_id', $riderId)->firstOrFail();
         
         if (!$routeShare->isValid()) {
             return response()->json(['error' => 'Invalid or expired route link'], 404);

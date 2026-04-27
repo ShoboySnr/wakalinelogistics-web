@@ -833,25 +833,62 @@ class DashboardController extends Controller
     {
         $rider = Rider::findOrFail($id);
         
-        // Deactivate any existing active shares for this rider
-        RouteShare::where('rider_id', $rider->id)
-            ->where('is_active', true)
-            ->update(['is_active' => false]);
+        RouteShare::where('rider_id', $rider->id)->delete();
         
-        // Create new share link (expires in 7 days)
         $routeShare = RouteShare::create([
             'rider_id' => $rider->id,
             'token' => RouteShare::generateToken(),
-            'expires_at' => now()->addDays(7),
+            'expires_at' => now()->addYears(10),
             'is_active' => true,
         ]);
         
-        ActivityLog::log('route_share_created', "Generated route share link for rider: {$rider->name}", $routeShare);
+        ActivityLog::log('route_share_created', "Enabled route sharing for rider: {$rider->name}", $routeShare);
         
         return response()->json([
             'success' => true,
             'url' => $routeShare->getShareUrl(),
-            'expires_at' => $routeShare->expires_at->format('M d, Y g:i A'),
+        ]);
+    }
+
+    public function disableRouteShareLink($id)
+    {
+        $rider = Rider::findOrFail($id);
+        
+        RouteShare::where('rider_id', $rider->id)
+            ->update(['is_active' => false]);
+        
+        ActivityLog::log('route_share_disabled', "Disabled route sharing for rider: {$rider->name}");
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Route sharing disabled successfully',
+        ]);
+    }
+
+    public function regenerateAccessCode($id)
+    {
+        $rider = Rider::findOrFail($id);
+        
+        $newCode = $rider->generateDailyCode();
+        
+        ActivityLog::log('access_code_regenerated', "Regenerated access code for rider: {$rider->name}");
+        
+        return response()->json([
+            'success' => true,
+            'code' => $newCode,
+            'message' => 'Access code regenerated successfully',
+        ]);
+    }
+
+    public function getRiderLocation($id)
+    {
+        $rider = Rider::findOrFail($id);
+        
+        return response()->json([
+            'success' => true,
+            'current_latitude' => $rider->current_latitude,
+            'current_longitude' => $rider->current_longitude,
+            'last_location_update' => $rider->last_location_update,
         ]);
     }
 

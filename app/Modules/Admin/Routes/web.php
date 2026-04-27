@@ -53,6 +53,9 @@ Route::prefix('super-admin')->group(function () {
         Route::put('/riders/{id}', [DashboardController::class, 'updateRider'])->name('admin.riders.update');
         Route::delete('/riders/{id}', [DashboardController::class, 'deleteRider'])->name('admin.riders.delete');
         Route::post('/riders/{id}/generate-share-link', [DashboardController::class, 'generateRouteShareLink'])->name('admin.riders.generate-share-link');
+        Route::post('/riders/{id}/disable-share-link', [DashboardController::class, 'disableRouteShareLink'])->name('admin.riders.disable-share-link');
+        Route::post('/riders/{id}/regenerate-code', [DashboardController::class, 'regenerateAccessCode'])->name('admin.riders.regenerate-code');
+        Route::get('/riders/{id}/location', [DashboardController::class, 'getRiderLocation'])->name('admin.riders.location');
         Route::post('/orders/{id}/assign-rider', [DashboardController::class, 'assignRider'])->name('admin.orders.assign-rider');
         
         // Client Routes
