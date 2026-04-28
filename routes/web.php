@@ -13,6 +13,6 @@ Route::get('/login', function () {
 })->name('login');
 
 Route::get('/route/{riderId}', [RouteShareController::class, 'show'])->name('route.share');
-Route::get('/client/{token}', [ClientShareController::class, 'show'])->name('client.share');
+Route::get('/client-share/{token}', [ClientShareController::class, 'show'])->name('client.share');
 
 require __DIR__.'/../app/Modules/Rider/Routes/web.php';

@@ -1763,7 +1763,7 @@ class DashboardController extends Controller
         
         ActivityLog::log('client_share_created', "Enabled order tracking for client: {$client->name}", $clientShare);
         
-        $shareUrl = url("/client/{$clientShare->token}");
+        $shareUrl = url("/client-share/{$clientShare->token}");
         
         return response()->json([
             'success' => true,

@@ -260,7 +260,7 @@
                 <div class="px-6 py-4 space-y-3">
                     @php
                         $clientShare = $client->clientShare()->where('is_active', true)->first();
-                        $shareUrl = $clientShare ? url("/client/{$clientShare->token}") : null;
+                        $shareUrl = $clientShare ? url("/client-share/{$clientShare->token}") : null;
                     @endphp
                     
                     @if($shareUrl)
