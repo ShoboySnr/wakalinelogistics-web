@@ -5,10 +5,11 @@ namespace App\Modules\Admin\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Auth\Authenticatable as AuthenticatableTrait;
 
 class Client extends Authenticatable
 {
-    use Notifiable;
+    use Notifiable, AuthenticatableTrait;
 
     protected $fillable = [
         'name',
