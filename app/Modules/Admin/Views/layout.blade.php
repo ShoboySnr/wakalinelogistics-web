@@ -7,6 +7,7 @@
     <title>@yield('title') - Waka Line Logistics Admin</title>
     <link rel="icon" type="image/png" href="{{ asset('assets/img/favicon.png') }}">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         :root {
             --brand-dark: #2F3437;
@@ -109,22 +110,40 @@
                         <span class="font-medium">Business Intelligence</span>
                     </a>
                     
-                    <a href="{{ route('metter.settings') }}" 
-                       class="sidebar-link flex items-center px-4 py-3 text-gray-300 rounded-lg border-l-4 border-transparent {{ request()->routeIs('metter*') ? 'active' : '' }}">
-                        <svg class="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
-                        </svg>
-                        <span class="font-medium">Metter Settings</span>
-                    </a>
-                    
-                    <a href="{{ route('admin.settings') }}" 
-                       class="sidebar-link flex items-center px-4 py-3 text-gray-300 rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.settings*') ? 'active' : '' }}">
-                        <svg class="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                        </svg>
-                        <span class="font-medium">Settings</span>
-                    </a>
+                    <!-- Settings Dropdown -->
+                    <div x-data="{ open: {{ request()->routeIs('admin.settings*') || request()->routeIs('metter*') ? 'true' : 'false' }} }">
+                        <button @click="open = !open" 
+                                class="sidebar-link w-full flex items-center justify-between px-4 py-3 text-gray-300 rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.settings*') || request()->routeIs('metter*') ? 'active' : '' }}">
+                            <div class="flex items-center">
+                                <svg class="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                                <span class="font-medium">Settings</span>
+                            </div>
+                            <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        
+                        <div x-show="open" x-collapse class="ml-4 mt-2 space-y-1">
+                            <a href="{{ route('admin.settings') }}" 
+                               class="sidebar-link flex items-center px-4 py-2 text-gray-400 text-sm rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.settings*') && !request()->routeIs('metter*') ? 'active' : '' }}">
+                                <svg class="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+                                </svg>
+                                <span class="font-medium">General Settings</span>
+                            </a>
+                            
+                            <a href="{{ route('metter.settings') }}" 
+                               class="sidebar-link flex items-center px-4 py-2 text-gray-400 text-sm rounded-lg border-l-4 border-transparent {{ request()->routeIs('metter*') ? 'active' : '' }}">
+                                <svg class="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                                </svg>
+                                <span class="font-medium">Metter Settings</span>
+                            </a>
+                        </div>
+                    </div>
                     
                     <a href="{{ route('admin.communications') }}" 
                        class="sidebar-link flex items-center px-4 py-3 text-gray-300 rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.communications*') ? 'active' : '' }}">

@@ -62,10 +62,19 @@ Route::prefix('super-admin')->group(function () {
         Route::get('/clients', [DashboardController::class, 'clients'])->name('admin.clients');
         Route::get('/clients/create', [DashboardController::class, 'createClient'])->name('admin.clients.create');
         Route::post('/clients', [DashboardController::class, 'storeClient'])->name('admin.clients.store');
+        Route::get('/clients/{id}', [DashboardController::class, 'showClient'])->name('admin.clients.show');
         Route::get('/clients/{id}/edit', [DashboardController::class, 'editClient'])->name('admin.clients.edit');
         Route::put('/clients/{id}', [DashboardController::class, 'updateClient'])->name('admin.clients.update');
         Route::delete('/clients/{id}', [DashboardController::class, 'deleteClient'])->name('admin.clients.delete');
         Route::get('/clients/{id}/data', [DashboardController::class, 'getClientData'])->name('admin.clients.data');
+        Route::post('/clients/{id}/toggle-dashboard', [DashboardController::class, 'toggleClientDashboard'])->name('admin.clients.toggle-dashboard');
+        Route::post('/clients/{id}/set-password', [DashboardController::class, 'setClientPassword'])->name('admin.clients.set-password');
+        Route::post('/clients/{id}/generate-share-link', [DashboardController::class, 'generateClientShareLink'])->name('admin.clients.generate-share-link');
+        Route::post('/clients/{id}/disable-share-link', [DashboardController::class, 'disableClientShareLink'])->name('admin.clients.disable-share-link');
+        Route::post('/clients/{id}/generate-api-key', [DashboardController::class, 'generateApiKey'])->name('admin.clients.generate-api-key');
+        Route::post('/clients/{id}/regenerate-api-key', [DashboardController::class, 'regenerateApiKey'])->name('admin.clients.regenerate-api-key');
+        Route::post('/clients/{id}/enable-api-access', [DashboardController::class, 'enableApiAccess'])->name('admin.clients.enable-api-access');
+        Route::post('/clients/{id}/disable-api-access', [DashboardController::class, 'disableApiAccess'])->name('admin.clients.disable-api-access');
         
         // Communications (subscriptions & contact messages)
         Route::get('/communications', [CommunicationsController::class, 'index'])->name('admin.communications');

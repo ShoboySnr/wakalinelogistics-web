@@ -359,7 +359,7 @@
                     <form method="POST" action="{{ route('admin.orders.delete', $order->id) }}" onsubmit="return confirm('Are you sure you want to delete this order? This action cannot be undone.');">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="w-full px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                        <button type="submit" class="w-full px-4 py-2 brand-accent-bg text-white rounded-md brand-accent-hover transition-colors">
                             Delete Order
                         </button>
                     </form>

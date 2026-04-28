@@ -4,60 +4,60 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Admin\Models\Order;
+use App\Modules\DeliveryCalculator\Services\DeliveryPriceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 
 class OrderController extends Controller
 {
+    private DeliveryPriceService $priceService;
+
+    public function __construct(DeliveryPriceService $priceService)
+    {
+        $this->priceService = $priceService;
+    }
+
     public function submitOrder(Request $request)
     {
         // Validate the incoming request
         $validator = Validator::make($request->all(), [
-            'sender_name' => 'required|string|min:2|max:255|regex:/^[a-zA-Z\s\-\.]+$/',
-            'sender_phone' => 'required|string|min:10|max:20|regex:/^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/',
-            'sender_email' => 'required|email:rfc,dns|max:255',
-            'pickup_address' => 'required|string|min:10|max:500',
+            'sender_name' => 'required|string|max:255',
+            'sender_phone' => 'required|string|max:20',
+            'sender_email' => 'nullable|email|max:255',
+            'pickup_address' => 'required|string',
             'pickup_area' => 'nullable|string|max:255',
-            'recipient_name' => 'required|string|min:2|max:255|regex:/^[a-zA-Z\s\-\.]+$/',
-            'recipient_phone' => 'required|string|min:10|max:20|regex:/^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/',
-            'delivery_address' => 'required|string|min:10|max:500',
+            'receiver_name' => 'required|string|max:255',
+            'receiver_phone' => 'required|string|max:20',
+            'receiver_email' => 'nullable|email|max:255',
+            'delivery_address' => 'required|string',
             'delivery_area' => 'nullable|string|max:255',
-            'delivery_notes' => 'nullable|string|max:1000',
-            'package_description' => 'required|string|min:3|max:255',
-            'package_size' => 'required|string|in:Small,Medium,Large,Extra Large',
-            'preferred_time' => 'required|string|in:Morning (8AM-12PM),Afternoon (12PM-4PM),Evening (4PM-8PM),Anytime',
-            'additional_notes' => 'nullable|string|max:1000',
-            'price' => 'nullable|numeric|min:0|max:999999.99',
-            'distance' => 'nullable|numeric|min:0|max:9999.99',
-            'form_source' => 'nullable|string|max:100',
+            'delivery_notes' => 'nullable|string',
+            'item_description' => 'required|string',
+            'item_size' => 'nullable|string|max:255',
+            'weight' => 'nullable|numeric|min:0',
+            'quantity' => 'nullable|integer|min:1',
+            'distance' => 'nullable|numeric|min:0',
+            'price' => 'nullable|numeric|min:0',
+            'notes' => 'nullable|string',
+            'source_contact' => 'nullable|string|max:255',
+            'source_notes' => 'nullable|string',
         ], [
             'sender_name.required' => 'Sender name is required',
-            'sender_name.min' => 'Sender name must be at least 2 characters',
-            'sender_name.regex' => 'Sender name can only contain letters, spaces, hyphens, and periods',
             'sender_phone.required' => 'Sender phone number is required',
-            'sender_phone.min' => 'Phone number must be at least 10 digits',
-            'sender_phone.regex' => 'Please enter a valid phone number',
-            'sender_email.required' => 'Sender email is required',
-            'sender_email.email' => 'Please enter a valid email address',
+            'sender_email.email' => 'Please enter a valid sender email address',
             'pickup_address.required' => 'Pickup address is required',
-            'pickup_address.min' => 'Pickup address must be at least 10 characters',
-            'recipient_name.required' => 'Recipient name is required',
-            'recipient_name.min' => 'Recipient name must be at least 2 characters',
-            'recipient_name.regex' => 'Recipient name can only contain letters, spaces, hyphens, and periods',
-            'recipient_phone.required' => 'Recipient phone number is required',
-            'recipient_phone.min' => 'Recipient phone number must be at least 10 digits',
-            'recipient_phone.regex' => 'Please enter a valid recipient phone number',
+            'receiver_name.required' => 'Receiver name is required',
+            'receiver_phone.required' => 'Receiver phone number is required',
+            'receiver_email.email' => 'Please enter a valid receiver email address',
             'delivery_address.required' => 'Delivery address is required',
-            'delivery_address.min' => 'Delivery address must be at least 10 characters',
-            'package_description.required' => 'Package description is required',
-            'package_description.min' => 'Package description must be at least 3 characters',
-            'package_size.required' => 'Package size is required',
-            'package_size.in' => 'Package size must be one of: Small, Medium, Large, Extra Large',
-            'preferred_time.required' => 'Preferred pickup time is required',
-            'preferred_time.in' => 'Please select a valid preferred time slot',
+            'item_description.required' => 'Item description is required',
             'price.numeric' => 'Price must be a valid number',
             'price.min' => 'Price cannot be negative',
+            'weight.numeric' => 'Weight must be a valid number',
+            'weight.min' => 'Weight cannot be negative',
+            'quantity.integer' => 'Quantity must be a valid number',
+            'quantity.min' => 'Quantity must be at least 1',
             'distance.numeric' => 'Distance must be a valid number',
             'distance.min' => 'Distance cannot be negative',
         ]);
@@ -72,50 +72,120 @@ class OrderController extends Controller
 
         $orderData = $validator->validated();
         
+        // Get authenticated client from middleware
+        $client = $request->attributes->get('client');
+        
         try {
-            // Create order in database with confirmed status
-            $order = Order::create([
-                'source' => 'Website Form',
-                'source_contact' => $orderData['sender_phone'],
-                'source_notes' => 'Submitted via ' . ($request->input('form_source', 'Landing Page')),
-                'customer_name' => $orderData['sender_name'],
-                'customer_email' => $orderData['sender_email'],
-                'customer_phone' => $orderData['sender_phone'],
+            // Calculate price using delivery calculator service
+            $pickupAddress = $orderData['pickup_address'] . ($orderData['pickup_area'] ? ', ' . $orderData['pickup_area'] : '');
+            $deliveryAddress = $orderData['delivery_address'] . ($orderData['delivery_area'] ? ', ' . $orderData['delivery_area'] : '');
+            
+            $priceCalculation = $this->priceService->processDeliveryCalculation(
+                $pickupAddress,
+                $deliveryAddress
+            );
+            
+            if (isset($priceCalculation['error'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to calculate delivery price',
+                    'error' => $priceCalculation['error']
+                ], 400);
+            }
+            
+            $calculatedPrice = $priceCalculation['delivery_fee'];
+            $calculatedDistance = $priceCalculation['distance_km'];
+            
+            // Use calculated price or override if provided
+            $finalPrice = $orderData['price'] ?? $calculatedPrice;
+            $finalDistance = $orderData['distance'] ?? $calculatedDistance;
+            // Prepare order data
+            $orderCreateData = [
+                'client_id' => $client ? $client->id : null,
+                'source' => 'API',
+                'source_contact' => $orderData['source_contact'] ?? ($client ? $client->phone : $orderData['sender_phone']),
+                'source_notes' => $orderData['source_notes'] ?? 'Submitted via ' . ($client ? $client->name : 'API'),
                 'sender_name' => $orderData['sender_name'],
                 'sender_phone' => $orderData['sender_phone'],
-                'sender_email' => $orderData['sender_email'],
-                'pickup_address' => $orderData['pickup_address'] . ($orderData['pickup_area'] ? ', ' . $orderData['pickup_area'] : ''),
-                'delivery_address' => $orderData['delivery_address'] . ($orderData['delivery_area'] ? ', ' . $orderData['delivery_area'] : ''),
-                'receiver_name' => $orderData['recipient_name'],
-                'receiver_phone' => $orderData['recipient_phone'],
-                'item_description' => $orderData['package_description'],
-                'item_size' => $orderData['package_size'],
-                'price' => $orderData['price'] ?? 0,
-                'distance' => $orderData['distance'] ?? 0,
+                'sender_email' => $orderData['sender_email'] ?? null,
+                'pickup_address' => $pickupAddress,
+                'receiver_name' => $orderData['receiver_name'],
+                'receiver_phone' => $orderData['receiver_phone'],
+                'receiver_email' => $orderData['receiver_email'] ?? null,
+                'delivery_address' => $deliveryAddress,
+                'item_description' => $orderData['item_description'],
+                'item_size' => $orderData['item_size'] ?? null,
+                'weight' => $orderData['weight'] ?? null,
+                'quantity' => $orderData['quantity'] ?? null,
+                'distance' => $finalDistance,
+                'price' => $finalPrice,
                 'status' => 'confirmed',
-                'notes' => trim(
-                    "Preferred Pickup Time: {$orderData['preferred_time']}\n" .
-                    "Delivery Notes: " . ($orderData['delivery_notes'] ?? 'None') . "\n" .
-                    "Additional Notes: " . ($orderData['additional_notes'] ?? 'None')
-                ),
-            ]);
+                'priority_level' => 'normal',
+                'notes' => $orderData['notes'] ?? ($orderData['delivery_notes'] ?? null),
+            ];
 
-            Log::info('Order Created from Website Form', [
+            // Set customer fields for backward compatibility
+            $orderCreateData['customer_name'] = $orderData['sender_name'];
+            $orderCreateData['customer_phone'] = $orderData['sender_phone'];
+            $orderCreateData['customer_email'] = $orderData['sender_email'] ?? null;
+
+            // Create order in database with confirmed status
+            $order = Order::create($orderCreateData);
+
+            Log::info('Order Created via API', [
                 'order_id' => $order->id,
                 'order_number' => $order->order_number,
+                'client_id' => $client ? $client->id : null,
+                'client_name' => $client ? $client->name : 'N/A',
                 'sender' => $orderData['sender_name'],
-                'pickup' => $orderData['pickup_area'] ?? $orderData['pickup_address'],
-                'delivery' => $orderData['delivery_area'] ?? $orderData['delivery_address'],
-                'package' => $orderData['package_description'],
+                'receiver' => $orderData['receiver_name'],
+                'pickup' => $pickupAddress,
+                'delivery' => $deliveryAddress,
+                'item' => $orderData['item_description'],
+                'price' => $finalPrice,
+                'distance_km' => $finalDistance,
+                'calculated_price' => $calculatedPrice,
                 'status' => 'confirmed',
                 'timestamp' => now()
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Order submitted successfully! We will contact you shortly.',
-                'order_id' => $order->id,
-                'order_number' => $order->order_number
+                'message' => 'Order created successfully!',
+                'data' => [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'status' => $order->status,
+                    'status_label' => ucfirst(str_replace('_', ' ', $order->status)),
+                    'client_id' => $order->client_id,
+                    'source' => $order->source,
+                    'source_contact' => $order->source_contact,
+                    'source_notes' => $order->source_notes,
+                    'sender' => [
+                        'name' => $order->sender_name,
+                        'phone' => $order->sender_phone,
+                        'email' => $order->sender_email,
+                    ],
+                    'receiver' => [
+                        'name' => $order->receiver_name,
+                        'phone' => $order->receiver_phone,
+                        'email' => $order->receiver_email,
+                    ],
+                    'pickup_address' => $order->pickup_address,
+                    'delivery_address' => $order->delivery_address,
+                    'item_description' => $order->item_description,
+                    'item_size' => $order->item_size,
+                    'weight' => $order->weight,
+                    'quantity' => $order->quantity,
+                    'price' => $order->price,
+                    'currency' => 'NGN',
+                    'priority_level' => $order->priority_level,
+                    'pickup_date' => $order->pickup_date,
+                    'delivery_date' => $order->delivery_date,
+                    'notes' => $order->notes,
+                    'created_at' => $order->created_at->toIso8601String(),
+                    'updated_at' => $order->updated_at->toIso8601String(),
+                ]
             ], 200);
 
         } catch (\Exception $e) {
@@ -129,5 +199,63 @@ class OrderController extends Controller
                 'message' => 'An error occurred while processing your order. Please try again.'
             ], 500);
         }
+    }
+
+    public function getOrderStatus(Request $request, $orderNumber)
+    {
+        // Get authenticated client from middleware
+        $client = $request->attributes->get('client');
+
+        // Find order by order number and ensure it belongs to the authenticated client
+        $order = Order::where('order_number', $orderNumber)
+            ->where('client_id', $client->id)
+            ->first();
+
+        if (!$order) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Order not found or you do not have permission to view this order.',
+                'error' => 'order_not_found'
+            ], 404);
+        }
+
+        // Prepare order status response
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'order_number' => $order->order_number,
+                'status' => $order->status,
+                'status_label' => ucfirst(str_replace('_', ' ', $order->status)),
+                'created_at' => $order->created_at->toIso8601String(),
+                'updated_at' => $order->updated_at->toIso8601String(),
+                'sender' => [
+                    'name' => $order->sender_name,
+                    'phone' => $order->sender_phone,
+                    'email' => $order->sender_email,
+                ],
+                'receiver' => [
+                    'name' => $order->receiver_name,
+                    'phone' => $order->receiver_phone,
+                    'email' => $order->receiver_email,
+                ],
+                'pickup_address' => $order->pickup_address,
+                'delivery_address' => $order->delivery_address,
+                'item_description' => $order->item_description,
+                'item_size' => $order->item_size,
+                'weight' => $order->weight,
+                'quantity' => $order->quantity,
+                'price' => $order->price,
+                'currency' => 'NGN',
+                'priority_level' => $order->priority_level,
+                'pickup_date' => $order->pickup_date,
+                'delivery_date' => $order->delivery_date,
+                'notes' => $order->notes,
+                'rider' => $order->rider ? [
+                    'id' => $order->rider->id,
+                    'name' => $order->rider->name,
+                    'phone' => $order->rider->phone,
+                ] : null,
+            ]
+        ], 200);
     }
 }

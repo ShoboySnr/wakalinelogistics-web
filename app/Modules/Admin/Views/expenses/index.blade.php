@@ -25,55 +25,41 @@
     <!-- Profit Overview -->
     <div class="mb-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-3">Profit Overview</h2>
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <div class="bg-white rounded-lg shadow border-l-4 border-pink-600 p-5">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-600">Total Profit</p>
-                        <p class="text-2xl font-bold {{ $stats['total_profit'] >= 0 ? 'text-green-600' : 'text-red-600' }} mt-1">
-                            ₦{{ number_format(abs($stats['total_profit']), 2) }}
-                        </p>
-                        <p class="text-xs text-gray-500 mt-1">Revenue - Expenses</p>
-                    </div>
-                    <div class="p-3 bg-pink-50 rounded-lg">
-                        <svg class="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
-                        </svg>
-                    </div>
-                </div>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <div class="bg-white rounded-lg shadow p-5">
+                <p class="text-sm font-medium text-gray-600">Total Profit</p>
+                <p class="text-2xl font-bold {{ $stats['total_profit'] >= 0 ? 'text-green-600' : 'text-red-600' }} mt-1">
+                    ₦{{ number_format(abs($stats['total_profit']), 2) }}
+                </p>
+                <p class="text-xs text-gray-500 mt-1">Revenue - Expenses</p>
             </div>
 
-            <div class="bg-white rounded-lg shadow border-l-4 border-pink-600 p-5">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-600">Today's Profit</p>
-                        <p class="text-2xl font-bold {{ $stats['today_profit'] >= 0 ? 'text-green-600' : 'text-red-600' }} mt-1">
-                            ₦{{ number_format(abs($stats['today_profit']), 2) }}
-                        </p>
-                    </div>
-                </div>
+            <div class="bg-white rounded-lg shadow p-5">
+                <p class="text-sm font-medium text-gray-600">Today's Profit</p>
+                <p class="text-2xl font-bold {{ $stats['today_profit'] >= 0 ? 'text-green-600' : 'text-red-600' }} mt-1">
+                    ₦{{ number_format(abs($stats['today_profit']), 2) }}
+                </p>
             </div>
 
-            <div class="bg-white rounded-lg shadow border-l-4 border-pink-600 p-5">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-600">This Week's Profit</p>
-                        <p class="text-2xl font-bold {{ $stats['week_profit'] >= 0 ? 'text-green-600' : 'text-red-600' }} mt-1">
-                            ₦{{ number_format(abs($stats['week_profit']), 2) }}
-                        </p>
-                    </div>
-                </div>
+            <div class="bg-white rounded-lg shadow p-5">
+                <p class="text-sm font-medium text-gray-600">Today's Delivered</p>
+                <p class="text-2xl font-bold text-gray-900 mt-1">
+                    {{ $stats['today_delivered'] ?? 0 }}
+                </p>
             </div>
 
-            <div class="bg-white rounded-lg shadow border-l-4 border-pink-600 p-5">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-sm font-medium text-gray-600">This Month's Profit</p>
-                        <p class="text-2xl font-bold {{ $stats['month_profit'] >= 0 ? 'text-green-600' : 'text-red-600' }} mt-1">
-                            ₦{{ number_format(abs($stats['month_profit']), 2) }}
-                        </p>
-                    </div>
-                </div>
+            <div class="bg-white rounded-lg shadow p-5">
+                <p class="text-sm font-medium text-gray-600">This Week's Profit</p>
+                <p class="text-2xl font-bold {{ $stats['week_profit'] >= 0 ? 'text-green-600' : 'text-red-600' }} mt-1">
+                    ₦{{ number_format(abs($stats['week_profit']), 2) }}
+                </p>
+            </div>
+
+            <div class="bg-white rounded-lg shadow p-5">
+                <p class="text-sm font-medium text-gray-600">This Month's Profit</p>
+                <p class="text-2xl font-bold {{ $stats['month_profit'] >= 0 ? 'text-green-600' : 'text-red-600' }} mt-1">
+                    ₦{{ number_format(abs($stats['month_profit']), 2) }}
+                </p>
             </div>
         </div>
     </div>

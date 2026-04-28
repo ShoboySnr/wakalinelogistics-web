@@ -15,50 +15,29 @@
     </div>
 
     <!-- Revenue Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <!-- Today's Revenue -->
         <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600 mb-1">Today's Revenue</p>
-                    <p class="text-2xl font-bold text-gray-900">₦{{ number_format($stats['revenue_today'], 2) }}</p>
-                </div>
-                <div class="p-3 bg-pink-50 rounded-lg">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                    </svg>
-                </div>
-            </div>
+            <p class="text-sm font-medium text-gray-600 mb-1">Today's Revenue</p>
+            <p class="text-2xl font-bold text-gray-900">₦{{ number_format($stats['revenue_today'], 2) }}</p>
+        </div>
+
+        <!-- Today's Delivered Orders -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <p class="text-sm font-medium text-gray-600 mb-1">Today's Delivered</p>
+            <p class="text-2xl font-bold text-gray-900">{{ $stats['today_delivered'] ?? 0 }}</p>
         </div>
 
         <!-- This Week's Revenue -->
         <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600 mb-1">This Week's Revenue</p>
-                    <p class="text-2xl font-bold text-gray-900">₦{{ number_format($stats['revenue_week'], 2) }}</p>
-                </div>
-                <div class="p-3 bg-pink-50 rounded-lg">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
-                    </svg>
-                </div>
-            </div>
+            <p class="text-sm font-medium text-gray-600 mb-1">This Week's Revenue</p>
+            <p class="text-2xl font-bold text-gray-900">₦{{ number_format($stats['revenue_week'], 2) }}</p>
         </div>
 
         <!-- This Month's Revenue -->
         <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm font-medium text-gray-600 mb-1">This Month's Revenue</p>
-                    <p class="text-2xl font-bold text-gray-900">₦{{ number_format($stats['revenue_month'], 2) }}</p>
-                </div>
-                <div class="p-3 bg-pink-50 rounded-lg">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
-                    </svg>
-                </div>
-            </div>
+            <p class="text-sm font-medium text-gray-600 mb-1">This Month's Revenue</p>
+            <p class="text-2xl font-bold text-gray-900">₦{{ number_format($stats['revenue_month'], 2) }}</p>
         </div>
     </div>
 
@@ -178,7 +157,6 @@
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order #</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Route</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -194,9 +172,9 @@
                                 {{ $order->order_number }}
                             </a>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $order->customer_name }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <div>{{ $order->customer_phone }}</div>
+                        <td class="px-6 py-4 text-sm text-gray-900">
+                            <div class="font-medium">{{ $order->customer_name }}</div>
+                            <div class="text-xs text-gray-500">{{ $order->customer_phone }}</div>
                             @if($order->customer_email)
                             <div class="text-xs text-gray-400">{{ $order->customer_email }}</div>
                             @endif
@@ -209,15 +187,21 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">₦{{ number_format($order->price, 2) }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                            <select class="status-dropdown px-2 py-1 text-xs font-semibold rounded-full border-0 focus:ring-2 focus:ring-pink-500 cursor-pointer
                                 @if($order->status == 'pending') bg-yellow-100 text-yellow-800
                                 @elseif($order->status == 'confirmed') bg-blue-100 text-blue-800
                                 @elseif($order->status == 'in_transit') bg-purple-100 text-purple-800
                                 @elseif($order->status == 'delivered') bg-green-100 text-green-800
                                 @else bg-red-100 text-red-800
-                                @endif">
-                                {{ ucfirst(str_replace('_', ' ', $order->status)) }}
-                            </span>
+                                @endif"
+                                data-order-id="{{ $order->id }}"
+                                data-current-status="{{ $order->status }}">
+                                <option value="pending" {{ $order->status == 'pending' ? 'selected' : '' }}>Pending</option>
+                                <option value="confirmed" {{ $order->status == 'confirmed' ? 'selected' : '' }}>Confirmed</option>
+                                <option value="in_transit" {{ $order->status == 'in_transit' ? 'selected' : '' }}>In Transit</option>
+                                <option value="delivered" {{ $order->status == 'delivered' ? 'selected' : '' }}>Delivered</option>
+                                <option value="cancelled" {{ $order->status == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                            </select>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $order->created_at->format('M d, Y') }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -226,7 +210,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500">
+                        <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">
                             <div class="flex flex-col items-center">
                                 <svg class="h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -247,4 +231,94 @@
         @endif
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const statusDropdowns = document.querySelectorAll('.status-dropdown');
+    
+    statusDropdowns.forEach(dropdown => {
+        dropdown.addEventListener('change', function() {
+            const orderId = this.dataset.orderId;
+            const newStatus = this.value;
+            const currentStatus = this.dataset.currentStatus;
+            const selectElement = this;
+            
+            // Confirm status change
+            if (!confirm(`Change order status to "${newStatus.replace('_', ' ')}"?`)) {
+                // Revert to previous status
+                this.value = currentStatus;
+                return;
+            }
+            
+            // Disable dropdown during update
+            selectElement.disabled = true;
+            
+            // Send AJAX request
+            fetch(`/super-admin/orders/${orderId}/status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    status: newStatus
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update current status
+                    selectElement.dataset.currentStatus = newStatus;
+                    
+                    // Update dropdown styling based on new status
+                    selectElement.className = 'status-dropdown px-2 py-1 text-xs font-semibold rounded-full border-0 focus:ring-2 focus:ring-pink-500 cursor-pointer';
+                    
+                    if (newStatus === 'pending') {
+                        selectElement.classList.add('bg-yellow-100', 'text-yellow-800');
+                    } else if (newStatus === 'confirmed') {
+                        selectElement.classList.add('bg-blue-100', 'text-blue-800');
+                    } else if (newStatus === 'in_transit') {
+                        selectElement.classList.add('bg-purple-100', 'text-purple-800');
+                    } else if (newStatus === 'delivered') {
+                        selectElement.classList.add('bg-green-100', 'text-green-800');
+                    } else if (newStatus === 'cancelled') {
+                        selectElement.classList.add('bg-red-100', 'text-red-800');
+                    }
+                    
+                    // Show success message
+                    showNotification('Order status updated successfully!', 'success');
+                } else {
+                    // Revert to previous status
+                    selectElement.value = currentStatus;
+                    showNotification(data.message || 'Failed to update order status', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Revert to previous status
+                selectElement.value = currentStatus;
+                showNotification('An error occurred while updating order status', 'error');
+            })
+            .finally(() => {
+                // Re-enable dropdown
+                selectElement.disabled = false;
+            });
+        });
+    });
+    
+    // Notification function
+    function showNotification(message, type = 'success') {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 px-6 py-3 rounded-lg shadow-lg text-white z-50 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+});
+</script>
 @endsection

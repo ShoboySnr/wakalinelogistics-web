@@ -146,38 +146,40 @@ class RouteShareController extends Controller
         $allStops = [];
         
         foreach ($pendingOrders as $order) {
-            if (!$order->pickup_date) {
-                if ($order->pickup_address) {
-                    $allStops[] = [
-                        'address' => $order->pickup_address,
-                        'type' => 'pickup',
-                        'order_number' => $order->order_number,
-                        'order_id' => $order->id,
-                        'sender' => $order->sender_name ?? $order->customer_name,
-                        'phone' => $order->sender_phone ?? $order->customer_phone,
-                        'priority' => 1,
-                        'paired_order_id' => $order->id,
-                        'status' => $order->status,
-                        'priority_level' => $order->priority_level ?? 'normal',
-                        'item_description' => $order->item_description ?? 'N/A',
-                    ];
-                }
-                
-                if ($order->delivery_address) {
-                    $allStops[] = [
-                        'address' => $order->delivery_address,
-                        'type' => 'dropoff',
-                        'order_number' => $order->order_number,
-                        'order_id' => $order->id,
-                        'receiver' => $order->receiver_name ?? 'N/A',
-                        'phone' => $order->receiver_phone ?? 'N/A',
-                        'priority' => 2,
-                        'paired_order_id' => $order->id,
-                        'status' => $order->status,
-                        'priority_level' => $order->priority_level ?? 'normal',
-                        'item_description' => $order->item_description ?? 'N/A',
-                    ];
-                }
+            // Always show pickup if not delivered yet
+            if (!$order->delivery_date && $order->pickup_address) {
+                $allStops[] = [
+                    'address' => $order->pickup_address,
+                    'type' => 'pickup',
+                    'order_number' => $order->order_number,
+                    'order_id' => $order->id,
+                    'sender' => $order->sender_name ?? $order->customer_name,
+                    'phone' => $order->sender_phone ?? $order->customer_phone,
+                    'priority' => 1,
+                    'paired_order_id' => $order->id,
+                    'status' => $order->status,
+                    'priority_level' => $order->priority_level ?? 'normal',
+                    'item_description' => $order->item_description ?? 'N/A',
+                    'is_picked_up' => !empty($order->pickup_date),
+                ];
+            }
+            
+            // Show delivery if not delivered yet
+            if (!$order->delivery_date && $order->delivery_address) {
+                $allStops[] = [
+                    'address' => $order->delivery_address,
+                    'type' => 'dropoff',
+                    'order_number' => $order->order_number,
+                    'order_id' => $order->id,
+                    'receiver' => $order->receiver_name ?? 'N/A',
+                    'phone' => $order->receiver_phone ?? 'N/A',
+                    'priority' => 2,
+                    'paired_order_id' => $order->id,
+                    'status' => $order->status,
+                    'priority_level' => $order->priority_level ?? 'normal',
+                    'item_description' => $order->item_description ?? 'N/A',
+                    'is_picked_up' => !empty($order->pickup_date),
+                ];
             }
         }
         

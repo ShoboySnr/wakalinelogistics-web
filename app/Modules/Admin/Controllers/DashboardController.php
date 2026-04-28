@@ -157,6 +157,11 @@ class DashboardController extends Controller
                                     ->where('status', 'delivered')
                                     ->whereNotNull('delivery_date')
                                     ->sum('price'),
+            // Today's delivered count
+            'today_delivered' => Order::whereDate('delivery_date', today())
+                                      ->where('status', 'delivered')
+                                      ->whereNotNull('delivery_date')
+                                      ->count(),
         ];
 
         return view('Admin::orders.index', compact('orders', 'stats'));
@@ -195,6 +200,21 @@ class DashboardController extends Controller
             'old_status' => $oldStatus,
             'new_status' => $request->status,
         ]);
+
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Order status updated successfully',
+                'data' => [
+                    'order_id' => $order->id,
+                    'order_number' => $order->order_number,
+                    'old_status' => $oldStatus,
+                    'new_status' => $order->status,
+                    'pickup_date' => $order->pickup_date,
+                    'delivery_date' => $order->delivery_date,
+                ]
+            ]);
+        }
 
         return redirect()->back()->with('success', 'Order status updated successfully');
     }
@@ -936,6 +956,12 @@ class DashboardController extends Controller
                                     ->where('status', 'delivered')
                                     ->whereNotNull('delivery_date')
                                     ->sum('price'),
+            
+            // Today's delivered count
+            'today_delivered' => Order::whereDate('delivery_date', today())
+                                      ->where('status', 'delivered')
+                                      ->whereNotNull('delivery_date')
+                                      ->count(),
         ];
 
         // Calculate profit
@@ -1638,6 +1664,20 @@ class DashboardController extends Controller
         return redirect()->route('admin.clients')->with('success', 'Client created successfully');
     }
 
+    public function showClient($id)
+    {
+        $client = Client::with(['orders' => function($query) {
+            $query->latest()->take(10);
+        }])->findOrFail($id);
+        
+        $totalOrders = $client->orders()->count();
+        $completedOrders = $client->orders()->where('status', 'delivered')->count();
+        $pendingOrders = $client->orders()->whereIn('status', ['pending', 'picked_up', 'in_transit'])->count();
+        $totalRevenue = $client->orders()->where('status', 'delivered')->sum('price');
+        
+        return view('Admin::clients.show', compact('client', 'totalOrders', 'completedOrders', 'pendingOrders', 'totalRevenue'));
+    }
+
     public function editClient($id)
     {
         $client = Client::findOrFail($id);
@@ -1705,6 +1745,106 @@ class DashboardController extends Controller
             'phone' => $client->phone,
             'email' => $client->email,
             'pickup_address' => $client->pickup_address,
+        ]);
+    }
+
+    public function generateClientShareLink($id)
+    {
+        $client = Client::findOrFail($id);
+        
+        \App\Models\ClientShare::where('client_id', $client->id)->delete();
+        
+        $clientShare = \App\Models\ClientShare::create([
+            'client_id' => $client->id,
+            'token' => \App\Models\ClientShare::generateToken(),
+            'expires_at' => now()->addYears(10),
+            'is_active' => true,
+        ]);
+        
+        ActivityLog::log('client_share_created', "Enabled order tracking for client: {$client->name}", $clientShare);
+        
+        $shareUrl = url("/client/{$clientShare->token}");
+        
+        return response()->json([
+            'success' => true,
+            'url' => $shareUrl,
+        ]);
+    }
+
+    public function disableClientShareLink($id)
+    {
+        $client = Client::findOrFail($id);
+        
+        \App\Models\ClientShare::where('client_id', $client->id)
+            ->update(['is_active' => false]);
+        
+        ActivityLog::log('client_share_disabled', "Disabled order tracking for client: {$client->name}");
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Order tracking link disabled successfully',
+        ]);
+    }
+
+    public function generateApiKey($id)
+    {
+        $client = Client::findOrFail($id);
+        
+        $apiKey = $client->generateApiKey();
+        
+        ActivityLog::log('api_key_generated', "Generated API key for client: {$client->name}", $client);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'API key generated successfully',
+            'api_key' => $apiKey,
+            'generated_at' => $client->api_key_generated_at->format('M d, Y h:i A'),
+        ]);
+    }
+
+    public function regenerateApiKey($id)
+    {
+        $client = Client::findOrFail($id);
+        
+        $apiKey = $client->regenerateApiKey();
+        
+        ActivityLog::log('api_key_regenerated', "Regenerated API key for client: {$client->name}", $client);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'API key regenerated successfully',
+            'api_key' => $apiKey,
+            'generated_at' => $client->api_key_generated_at->format('M d, Y h:i A'),
+        ]);
+    }
+
+    public function disableApiAccess($id)
+    {
+        $client = Client::findOrFail($id);
+        
+        $client->disableApiAccess();
+        
+        ActivityLog::log('api_access_disabled', "Disabled API access for client: {$client->name}", $client);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'API access disabled successfully',
+        ]);
+    }
+
+    public function enableApiAccess($id)
+    {
+        $client = Client::findOrFail($id);
+        
+        $apiKey = $client->enableApiAccess();
+        
+        ActivityLog::log('api_access_enabled', "Enabled API access for client: {$client->name}", $client);
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'API access enabled successfully',
+            'api_key' => $apiKey,
+            'generated_at' => $client->api_key_generated_at->format('M d, Y h:i A'),
         ]);
     }
 
@@ -1776,5 +1916,33 @@ class DashboardController extends Controller
         ActivityLog::log('job_application_deleted', "Deleted job application from {$applicantName}");
 
         return redirect()->route('admin.job-applications')->with('success', 'Application deleted successfully');
+    }
+
+    // Client Dashboard Management
+    public function toggleClientDashboard($id)
+    {
+        $client = Client::findOrFail($id);
+        $client->dashboard_enabled = !$client->dashboard_enabled;
+        $client->save();
+
+        $status = $client->dashboard_enabled ? 'enabled' : 'disabled';
+        ActivityLog::log('client_dashboard_toggled', "Dashboard access {$status} for client: {$client->name}", $client);
+
+        return redirect()->back()->with('success', "Dashboard access {$status} successfully");
+    }
+
+    public function setClientPassword(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $client = Client::findOrFail($id);
+        $client->password = Hash::make($validated['password']);
+        $client->save();
+
+        ActivityLog::log('client_password_set', "Password set for client: {$client->name}", $client);
+
+        return redirect()->back()->with('success', 'Password set successfully');
     }
 }

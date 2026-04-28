@@ -21,6 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware('web')
                 ->group(base_path('app/Modules/Admin/Routes/web.php'));
             
+            Route::middleware('web')
+                ->group(base_path('app/Modules/Client/Routes/web.php'));
+            
             Route::prefix('api')
                 ->middleware('api')
                 ->group(base_path('app/Modules/DeliveryCalculator/Routes/api.php'));
@@ -33,7 +36,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'api.token' => \App\Http\Middleware\ValidateApiToken::class,
+            'client.api' => \App\Http\Middleware\ValidateClientApiKey::class,
             'admin' => \App\Modules\Admin\Middleware\AdminMiddleware::class,
+            'client.auth' => \App\Modules\Client\Middleware\ClientAuth::class,
         ]);
         
         // Enable CORS for API routes
@@ -41,10 +46,13 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
         
-        // Redirect unauthenticated users to admin login for admin routes
+        // Redirect unauthenticated users to appropriate login pages
         $middleware->redirectGuestsTo(function ($request) {
             if ($request->is('super-admin') || $request->is('super-admin/*')) {
                 return route('admin.login');
+            }
+            if ($request->is('client') || $request->is('client/*')) {
+                return route('client.login');
             }
             return route('login');
         });

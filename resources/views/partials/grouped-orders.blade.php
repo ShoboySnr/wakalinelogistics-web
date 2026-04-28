@@ -29,12 +29,24 @@
                     Call
                 </a>
                 @if(isset($group['pickup_orders'][0]['order_id']))
-                <button onclick="markAsPickedUp('{{ $group['pickup_orders'][0]['order_id'] }}')" class="inline-flex items-center gap-1 px-3 py-1 brand-accent-bg hover:opacity-90 text-white text-xs font-medium rounded transition-colors">
-                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                    </svg>
-                    Mark Picked Up
-                </button>
+                    @php
+                        $allPickedUp = collect($group['pickup_orders'])->every(fn($order) => $order['is_picked_up'] ?? false);
+                    @endphp
+                    @if(!$allPickedUp)
+                    <button onclick="markGroupAsPickedUp([{{ implode(',', array_column($group['pickup_orders'], 'order_id')) }}])" class="inline-flex items-center gap-1 px-3 py-1 brand-accent-bg hover:opacity-90 text-white text-xs font-medium rounded transition-colors">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                        Mark Picked Up ({{ count($group['pickup_orders']) }})
+                    </button>
+                    @else
+                    <span class="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                        <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                        </svg>
+                        Picked Up ✓
+                    </span>
+                    @endif
                 @endif
             </div>
         </div>
@@ -176,12 +188,21 @@
                     </svg>
                     Call
                 </a>
+                @if(!($group['pickup']['is_picked_up'] ?? false))
                 <button onclick="markAsPickedUp('{{ $group['pickup']['order_id'] }}')" class="inline-flex items-center gap-1 px-3 py-1 brand-accent-bg hover:opacity-90 text-white text-xs font-medium rounded transition-colors">
                     <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
                     </svg>
                     Mark Picked Up
                 </button>
+                @else
+                <span class="inline-flex items-center gap-1 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">
+                    <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+                    </svg>
+                    Picked Up ✓
+                </span>
+                @endif
             </div>
         </div>
     </div>

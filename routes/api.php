@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\RouteShareApiController;
 use App\Http\Controllers\Api\JobApplicationController;
+use App\Http\Controllers\ClientShareController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -19,11 +20,15 @@ Route::prefix('route-share')->group(function () {
     Route::post('{riderId}/validate-code', [RouteShareApiController::class, 'validateDailyCode']);
 });
 
-Route::post('orders/submit-public', [\App\Http\Controllers\Api\OrderController::class, 'submitOrder'])->middleware('api.token');
+Route::prefix('client-share')->group(function () {
+    Route::get('{token}/orders', [ClientShareController::class, 'getOrders']);
+});
 
-Route::post('jobs/apply', [JobApplicationController::class, 'submit'])->middleware('api.token');
+Route::post('jobs/apply', [JobApplicationController::class, 'submit'])->middleware('client.api');
 
 Route::prefix('wakalinelogistics/v1')->group(function () {
+    Route::post('orders/submit-public', [\App\Http\Controllers\Api\OrderController::class, 'submitOrder'])->middleware('client.api');
+    
     Route::post('auth/register', [AuthController::class, 'register']);
     Route::post('auth/login', [AuthController::class, 'login']);
     Route::post('auth/social-login', [AuthController::class, 'socialLogin']);
@@ -35,5 +40,6 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
         Route::get('auth/user', [AuthController::class, 'user']);
     });
     
-    Route::post('orders/submit', [OrderController::class, 'submitOrder'])->middleware('api.token');
+    Route::post('orders/submit', [OrderController::class, 'submitOrder'])->middleware('client.api');
+    Route::get('orders/{orderNumber}/status', [OrderController::class, 'getOrderStatus'])->middleware('client.api');
 });

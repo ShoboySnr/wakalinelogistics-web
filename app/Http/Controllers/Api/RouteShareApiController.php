@@ -154,10 +154,39 @@ class RouteShareApiController extends Controller
             'status' => 'required|in:pending,confirmed,in_transit,delivered,cancelled',
             'pickup_date' => 'nullable|date',
             'delivery_date' => 'nullable|date',
-            'notes' => 'nullable|string'
+            'notes' => 'nullable|string',
+            'order_ids' => 'nullable|array'
         ]);
         
         $rider = $routeShare->rider;
+        
+        // Check if multiple order IDs are provided (for grouped pickups)
+        if (isset($validated['order_ids']) && is_array($validated['order_ids'])) {
+            $orderIds = $validated['order_ids'];
+            $orders = $rider->orders()->whereIn('id', $orderIds)->get();
+            
+            if ($orders->isEmpty()) {
+                return response()->json(['error' => 'No valid orders found'], 404);
+            }
+            
+            // Update all orders in the group
+            foreach ($orders as $order) {
+                $order->update([
+                    'status' => $validated['status'],
+                    'pickup_date' => $validated['pickup_date'] ?? $order->pickup_date,
+                    'delivery_date' => $validated['delivery_date'] ?? $order->delivery_date,
+                    'notes' => $validated['notes'] ?? $order->notes
+                ]);
+            }
+            
+            return response()->json([
+                'success' => true,
+                'message' => count($orders) . ' orders updated successfully',
+                'orders_updated' => $orders->pluck('id')->toArray()
+            ]);
+        }
+        
+        // Single order update (backward compatibility)
         $order = $rider->orders()->findOrFail($orderId);
         
         $order->update($validated);

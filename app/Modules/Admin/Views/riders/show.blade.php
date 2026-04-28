@@ -277,7 +277,7 @@
                     <form action="{{ route('admin.riders.delete', $rider->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this rider?');">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="block w-full px-4 py-2 text-center bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors">
+                        <button type="submit" class="block w-full px-4 py-2 text-center brand-accent-bg text-white rounded-md brand-accent-hover transition-colors">
                             Delete Rider
                         </button>
                     </form>
