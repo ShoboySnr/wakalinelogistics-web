@@ -162,6 +162,14 @@ class DashboardController extends Controller
                                       ->where('status', 'delivered')
                                       ->whereNotNull('delivery_date')
                                       ->count(),
+            // Today's incoming revenue (confirmed and in_transit orders created today)
+            'incoming_revenue_today' => Order::whereDate('created_at', today())
+                                             ->whereIn('status', ['confirmed', 'in_transit'])
+                                             ->sum('price'),
+            // This week's incoming revenue (confirmed and in_transit orders created this week)
+            'incoming_revenue_week' => Order::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])
+                                            ->whereIn('status', ['confirmed', 'in_transit'])
+                                            ->sum('price'),
         ];
 
         return view('Admin::orders.index', compact('orders', 'stats'));

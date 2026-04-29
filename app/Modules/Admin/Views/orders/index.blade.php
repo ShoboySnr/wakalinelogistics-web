@@ -15,29 +15,41 @@
     </div>
 
     <!-- Revenue Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <!-- Today's Revenue -->
         <div class="bg-white rounded-lg shadow p-6">
             <p class="text-sm font-medium text-gray-600 mb-1">Today's Revenue</p>
-            <p class="text-2xl font-bold text-gray-900">₦{{ number_format($stats['revenue_today'], 2) }}</p>
+            <p class="text-lg font-bold text-gray-900">₦{{ number_format($stats['revenue_today'], 2) }}</p>
+        </div>
+
+        <!-- Today's Incoming Revenue -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <p class="text-sm font-medium text-gray-600 mb-1">Today's Incoming Revenue</p>
+            <p class="text-lg font-bold text-gray-900">₦{{ number_format($stats['incoming_revenue_today'], 2) }}</p>
         </div>
 
         <!-- Today's Delivered Orders -->
         <div class="bg-white rounded-lg shadow p-6">
             <p class="text-sm font-medium text-gray-600 mb-1">Today's Delivered</p>
-            <p class="text-2xl font-bold text-gray-900">{{ $stats['today_delivered'] ?? 0 }}</p>
+            <p class="text-lg font-bold text-gray-900">{{ $stats['today_delivered'] ?? 0 }}</p>
         </div>
 
         <!-- This Week's Revenue -->
         <div class="bg-white rounded-lg shadow p-6">
             <p class="text-sm font-medium text-gray-600 mb-1">This Week's Revenue</p>
-            <p class="text-2xl font-bold text-gray-900">₦{{ number_format($stats['revenue_week'], 2) }}</p>
+            <p class="text-lg font-bold text-gray-900">₦{{ number_format($stats['revenue_week'], 2) }}</p>
+        </div>
+
+        <!-- This Week's Incoming Revenue -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <p class="text-sm font-medium text-gray-600 mb-1">This Week's Incoming Revenue</p>
+            <p class="text-lg font-bold text-gray-900">₦{{ number_format($stats['incoming_revenue_week'], 2) }}</p>
         </div>
 
         <!-- This Month's Revenue -->
         <div class="bg-white rounded-lg shadow p-6">
             <p class="text-sm font-medium text-gray-600 mb-1">This Month's Revenue</p>
-            <p class="text-2xl font-bold text-gray-900">₦{{ number_format($stats['revenue_month'], 2) }}</p>
+            <p class="text-lg font-bold text-gray-900">₦{{ number_format($stats['revenue_month'], 2) }}</p>
         </div>
     </div>
 

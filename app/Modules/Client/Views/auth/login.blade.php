@@ -103,7 +103,7 @@
                     Welcome Back
                 </h2>
                 <p class="text-gray-300 text-sm">
-                    Client Dashboard
+                    Sign in to access client dashboard
                 </p>
             </div>
 

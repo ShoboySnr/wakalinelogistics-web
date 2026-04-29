@@ -4,11 +4,13 @@ use Illuminate\Support\Facades\Route;
 use App\Modules\Client\Controllers\ClientAuthController;
 use App\Modules\Client\Controllers\ClientDashboardController;
 
+// Client Authentication Routes
+Route::get('/login', [ClientAuthController::class, 'showLoginForm'])->name('client.login');
+Route::post('/login', [ClientAuthController::class, 'login'])->name('client.login.submit');
+
 // Client Routes
 Route::prefix('client')->group(function () {
-    // Authentication Routes
-    Route::get('/', [ClientAuthController::class, 'showLoginForm'])->name('client.login');
-    Route::post('/login', [ClientAuthController::class, 'login'])->name('client.login.submit');
+    // Logout
     Route::post('/logout', [ClientAuthController::class, 'logout'])->name('client.logout');
 
     // Protected Client Routes

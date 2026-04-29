@@ -96,9 +96,9 @@
                                 <span class="text-white font-semibold text-sm">{{ substr(Auth::guard('client')->user()->name, 0, 1) }}</span>
                             </div>
                         </div>
-                        <div class="ml-3 flex-1">
-                            <p class="text-sm font-medium text-white">{{ Auth::guard('client')->user()->name }}</p>
-                            <p class="text-xs text-gray-400">{{ Auth::guard('client')->user()->email }}</p>
+                        <div class="ml-3 flex-1 min-w-0">
+                            <p class="text-sm font-medium text-white truncate">{{ Auth::guard('client')->user()->name }}</p>
+                            <p class="text-xs text-gray-400 truncate">{{ Auth::guard('client')->user()->email }}</p>
                         </div>
                     </a>
                     <form method="POST" action="{{ route('client.logout') }}">
@@ -118,7 +118,7 @@
         <div class="flex-1 flex flex-col overflow-hidden">
             <!-- Top Bar -->
             <header class="bg-white shadow-sm border-b border-gray-200 h-16 flex items-center px-4 md:px-6">
-                <h1 class="text-xl font-semibold text-gray-800">@yield('title', 'Dashboard')</h1>
+               
             </header>
 
             <!-- Main Content -->

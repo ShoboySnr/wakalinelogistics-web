@@ -22,37 +22,37 @@
     <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="px-4 py-5 sm:p-6">
-                <dt class="text-xs font-medium text-gray-500 truncate">Total</dt>
+                <dt class="text-xs font-medium text-gray-900 truncate">Total</dt>
                 <dd class="mt-1 text-2xl font-semibold text-gray-900">{{ $stats['total'] }}</dd>
             </div>
         </div>
         <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="px-4 py-5 sm:p-6">
-                <dt class="text-xs font-medium text-yellow-600 truncate">Pending</dt>
+                <dt class="text-xs font-medium text-gray-900 truncate">Pending</dt>
                 <dd class="mt-1 text-2xl font-semibold text-gray-900">{{ $stats['pending'] }}</dd>
             </div>
         </div>
         <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="px-4 py-5 sm:p-6">
-                <dt class="text-xs font-medium text-blue-600 truncate">Confirmed</dt>
+                <dt class="text-xs font-medium text-gray-900 truncate">Confirmed</dt>
                 <dd class="mt-1 text-2xl font-semibold text-gray-900">{{ $stats['confirmed'] }}</dd>
             </div>
         </div>
         <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="px-4 py-5 sm:p-6">
-                <dt class="text-xs font-medium text-purple-600 truncate">In Transit</dt>
+                <dt class="text-xs font-medium text-gray-900 truncate">In Transit</dt>
                 <dd class="mt-1 text-2xl font-semibold text-gray-900">{{ $stats['in_transit'] }}</dd>
             </div>
         </div>
         <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="px-4 py-5 sm:p-6">
-                <dt class="text-xs font-medium text-green-600 truncate">Delivered</dt>
+                <dt class="text-xs font-medium text-gray-900 truncate">Delivered</dt>
                 <dd class="mt-1 text-2xl font-semibold text-gray-900">{{ $stats['delivered'] }}</dd>
             </div>
         </div>
         <div class="bg-white overflow-hidden shadow rounded-lg">
             <div class="px-4 py-5 sm:p-6">
-                <dt class="text-xs font-medium text-red-600 truncate">Cancelled</dt>
+                <dt class="text-xs font-medium text-gray-900 truncate">Cancelled</dt>
                 <dd class="mt-1 text-2xl font-semibold text-gray-900">{{ $stats['cancelled'] }}</dd>
             </div>
         </div>
