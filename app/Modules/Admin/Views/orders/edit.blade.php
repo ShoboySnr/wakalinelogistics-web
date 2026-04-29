@@ -189,76 +189,100 @@
                               placeholder="Describe the item(s) to be delivered">{{ old('item_description', $order->item_description) }}</textarea>
                 </div>
 
-                <div>
-                    <label for="item_size" class="block text-sm font-medium text-gray-700 mb-2">
-                        Size
-                    </label>
-                    <input type="text" name="item_size" id="item_size"
-                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                           value="{{ old('item_size', $order->item_size) }}" placeholder="Small, Medium, Large, or dimensions">
+                <!-- Quantity, Size, Weight Row -->
+                <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div>
+                        <label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">
+                            Quantity
+                        </label>
+                        <input type="number" name="quantity" id="quantity" min="1"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                               value="{{ old('quantity', $order->quantity) }}" placeholder="1">
+                    </div>
+
+                    <div>
+                        <label for="item_size" class="block text-sm font-medium text-gray-700 mb-2">
+                            Size
+                        </label>
+                        <input type="text" name="item_size" id="item_size"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                               value="{{ old('item_size', $order->item_size) }}" placeholder="e.g., Small, Medium, Large">
+                    </div>
+
+                    <div>
+                        <label for="weight" class="block text-sm font-medium text-gray-700 mb-2">
+                            Weight (kg)
+                        </label>
+                        <input type="number" name="weight" id="weight" step="0.01" min="0"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                               value="{{ old('weight', $order->weight) }}" placeholder="5.00">
+                    </div>
                 </div>
 
-                <div>
-                    <label for="weight" class="block text-sm font-medium text-gray-700 mb-2">
-                        Weight (kg)
-                    </label>
-                    <input type="number" name="weight" id="weight" step="0.01" min="0"
-                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                           value="{{ old('weight', $order->weight) }}" placeholder="e.g., 5.5">
+                <div class="md:col-span-2 bg-pink-50 rounded-lg p-4">
+                    <h4 class="text-sm font-semibold mb-3 brand-accent-text">Price Calculator</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label for="calc_pickup" class="block text-sm font-medium text-gray-700 mb-2">
+                                Pickup Location
+                            </label>
+                            <input type="text" id="calc_pickup" autocomplete="off"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                                   placeholder="">
+                        </div>
+                        <div>
+                            <label for="calc_dropoff" class="block text-sm font-medium text-gray-700 mb-2">
+                                Drop-off Location
+                            </label>
+                            <input type="text" id="calc_dropoff" autocomplete="off"
+                                   class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                                   placeholder="">
+                        </div>
+                        <div>
+                            <label for="price" class="block text-sm font-medium text-gray-700 mb-2">
+                                Price (₦) <span class="text-red-500">*</span>
+                            </label>
+                            <div class="relative">
+                                <input type="number" name="price" id="price" step="0.01" min="0" required
+                                       class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                                       value="{{ old('price', $order->price) }}" placeholder="Auto-calculated">
+                                <button type="button" id="calculate-price-btn" class="absolute right-2 top-1/2 transform -translate-y-1/2 px-3 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                                    Calculate
+                                </button>
+                            </div>
+                            <p class="mt-1 text-xs text-gray-500">Auto-calculated or editable</p>
+                        </div>
+                    </div>
                 </div>
 
-                <div>
-                    <label for="quantity" class="block text-sm font-medium text-gray-700 mb-2">
-                        Quantity
-                    </label>
-                    <input type="number" name="quantity" id="quantity" min="1"
-                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                           value="{{ old('quantity', $order->quantity) }}" placeholder="1">
-                </div>
+                <!-- Status & Priority Row -->
+                <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="status" class="block text-sm font-medium text-gray-700 mb-2">
+                            Status <span class="text-red-500">*</span>
+                        </label>
+                        <select name="status" id="status" required
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                            <option value="pending" {{ old('status', $order->status) == 'pending' ? 'selected' : '' }}>Pending</option>
+                            <option value="confirmed" {{ old('status', $order->status) == 'confirmed' ? 'selected' : '' }}>Confirmed</option>
+                            <option value="in_transit" {{ old('status', $order->status) == 'in_transit' ? 'selected' : '' }}>In Transit</option>
+                            <option value="delivered" {{ old('status', $order->status) == 'delivered' ? 'selected' : '' }}>Delivered</option>
+                            <option value="cancelled" {{ old('status', $order->status) == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+                        </select>
+                    </div>
 
-                <div>
-                    <label for="distance" class="block text-sm font-medium text-gray-700 mb-2">
-                        Distance (km)
-                    </label>
-                    <input type="number" name="distance" id="distance" step="0.01" min="0"
-                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                           value="{{ old('distance', $order->distance) }}" placeholder="25.00">
-                </div>
-
-                <div>
-                    <label for="price" class="block text-sm font-medium text-gray-700 mb-2">
-                        Price (₦) <span class="text-red-500">*</span>
-                    </label>
-                    <input type="number" name="price" id="price" step="0.01" min="0" required
-                           class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                           value="{{ old('price', $order->price) }}" placeholder="e.g., 5000.00">
-                </div>
-
-                <div>
-                    <label for="status" class="block text-sm font-medium text-gray-700 mb-2">
-                        Status <span class="text-red-500">*</span>
-                    </label>
-                    <select name="status" id="status" required
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        <option value="pending" {{ old('status', $order->status) == 'pending' ? 'selected' : '' }}>Pending</option>
-                        <option value="confirmed" {{ old('status', $order->status) == 'confirmed' ? 'selected' : '' }}>Confirmed</option>
-                        <option value="in_transit" {{ old('status', $order->status) == 'in_transit' ? 'selected' : '' }}>In Transit</option>
-                        <option value="delivered" {{ old('status', $order->status) == 'delivered' ? 'selected' : '' }}>Delivered</option>
-                        <option value="cancelled" {{ old('status', $order->status) == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label for="priority_level" class="block text-sm font-medium text-gray-700 mb-2">
-                        Priority Level <span class="text-red-500">*</span>
-                    </label>
-                    <select name="priority_level" id="priority_level" required
-                            class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent">
-                        <option value="normal" {{ old('priority_level', $order->priority_level ?? 'normal') == 'normal' ? 'selected' : '' }}>Normal</option>
-                        <option value="high" {{ old('priority_level', $order->priority_level) == 'high' ? 'selected' : '' }}>High Priority</option>
-                        <option value="urgent" {{ old('priority_level', $order->priority_level) == 'urgent' ? 'selected' : '' }}>Urgent</option>
-                    </select>
-                    <p class="mt-1 text-xs text-gray-500">High priority and urgent orders will be visited first in the route</p>
+                    <div>
+                        <label for="priority_level" class="block text-sm font-medium text-gray-700 mb-2">
+                            Priority Level <span class="text-red-500">*</span>
+                        </label>
+                        <select name="priority_level" id="priority_level" required
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 focus:border-transparent">
+                            <option value="normal" {{ old('priority_level', $order->priority_level) == 'normal' ? 'selected' : '' }}>Normal</option>
+                            <option value="high" {{ old('priority_level', $order->priority_level) == 'high' ? 'selected' : '' }}>High Priority</option>
+                            <option value="urgent" {{ old('priority_level', $order->priority_level) == 'urgent' ? 'selected' : '' }}>Urgent</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">High priority and urgent orders will be visited first in the route</p>
+                    </div>
                 </div>
 
                 <div class="md:col-span-2">
@@ -389,10 +413,93 @@
     </div>
 </div>
 
+<script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.api_key') }}&libraries=places"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const clientSelect = document.getElementById('client_id');
-    
+    const pickupAddressInput = document.getElementById('pickup_address');
+    const deliveryAddressInput = document.getElementById('delivery_address');
+    const calcPickupInput = document.getElementById('calc_pickup');
+    const calcDropoffInput = document.getElementById('calc_dropoff');
+    const priceInput = document.getElementById('price');
+    const calculateBtn = document.getElementById('calculate-price-btn');
+
+    // Initialize Google Maps Autocomplete for Calculator Pickup
+    const calcPickupAutocomplete = new google.maps.places.Autocomplete(calcPickupInput, {
+        componentRestrictions: { country: 'ng' },
+        fields: ['formatted_address', 'geometry', 'name']
+    });
+
+    // Initialize Google Maps Autocomplete for Calculator Dropoff
+    const calcDropoffAutocomplete = new google.maps.places.Autocomplete(calcDropoffInput, {
+        componentRestrictions: { country: 'ng' },
+        fields: ['formatted_address', 'geometry', 'name']
+    });
+
+    // Auto-calculate when both calculator addresses are selected
+    calcPickupAutocomplete.addListener('place_changed', function() {
+        if (calcPickupInput.value && calcDropoffInput.value) {
+            calculatePrice();
+        }
+    });
+
+    calcDropoffAutocomplete.addListener('place_changed', function() {
+        if (calcPickupInput.value && calcDropoffInput.value) {
+            calculatePrice();
+        }
+    });
+
+    // Manual calculate button
+    calculateBtn.addEventListener('click', function() {
+        if (!calcPickupInput.value || !calcDropoffInput.value) {
+            alert('Please enter both pickup and dropoff locations in the calculator fields first');
+            return;
+        }
+        calculatePrice();
+    });
+
+    // Calculate price function
+    async function calculatePrice() {
+        calculateBtn.disabled = true;
+        calculateBtn.textContent = 'Calculating...';
+
+        try {
+            const response = await fetch('/metter/calculate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                },
+                body: JSON.stringify({
+                    pickup_address: calcPickupInput.value,
+                    dropoff_address: calcDropoffInput.value
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success && result.data) {
+                // Update price only
+                priceInput.value = result.data.delivery_fee;
+                
+                // Flash success
+                priceInput.classList.add('bg-green-50', 'border-green-500');
+                setTimeout(() => {
+                    priceInput.classList.remove('bg-green-50', 'border-green-500');
+                }, 2000);
+            } else {
+                alert(result.message || 'Could not calculate price. Please try again.');
+            }
+        } catch (error) {
+            console.error('Price calculation error:', error);
+            alert('Error calculating price. Please try again.');
+        } finally {
+            calculateBtn.disabled = false;
+            calculateBtn.textContent = 'Calculate';
+        }
+    }
+
+    // Client auto-fill
     if (clientSelect) {
         clientSelect.addEventListener('change', function() {
             const clientId = this.value;
@@ -401,11 +508,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
-            // Fetch client data
             fetch(`/admin/clients/${clientId}/data`)
                 .then(response => response.json())
                 .then(data => {
-                    // Auto-fill pickup information
                     const fields = {
                         'sender_name': data.name,
                         'sender_phone': data.phone,
@@ -413,13 +518,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         'pickup_address': data.pickup_address
                     };
                     
-                    // Fill fields and add visual feedback
                     Object.keys(fields).forEach(fieldId => {
                         const field = document.getElementById(fieldId);
                         if (field && fields[fieldId]) {
                             field.value = fields[fieldId];
-                            
-                            // Add green flash effect
                             field.classList.add('bg-green-50', 'border-green-300');
                             setTimeout(() => {
                                 field.classList.remove('bg-green-50', 'border-green-300');
