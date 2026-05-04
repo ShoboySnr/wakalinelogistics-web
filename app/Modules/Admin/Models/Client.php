@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Auth\Authenticatable as AuthenticatableTrait;
+use Laravel\Sanctum\HasApiTokens;
 
 class Client extends Authenticatable
 {
-    use Notifiable, AuthenticatableTrait;
+    use Notifiable, AuthenticatableTrait, HasApiTokens;
 
     protected $fillable = [
         'name',
@@ -40,18 +41,26 @@ class Client extends Authenticatable
         'api_enabled',
         'api_key_generated_at',
         'api_last_used_at',
+        'theme_preference',
+        'default_pickup_address',
+        'default_pickup_contact_name',
+        'default_pickup_contact_phone',
+        'notification_preferences',
+        'two_factor_enabled',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'dashboard_enabled' => 'boolean',
         'api_enabled' => 'boolean',
+        'two_factor_enabled' => 'boolean',
         'credit_limit' => 'decimal:2',
         'onboarded_date' => 'date',
         'last_login_at' => 'datetime',
         'email_verified_at' => 'datetime',
         'api_key_generated_at' => 'datetime',
         'api_last_used_at' => 'datetime',
+        'notification_preferences' => 'array',
     ];
 
     protected $hidden = [

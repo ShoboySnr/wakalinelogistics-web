@@ -13,9 +13,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function () {
             Route::middleware('web')
-                ->group(base_path('app/Modules/LandingPage/Routes/web.php'));
-
-            Route::middleware('web')
                 ->group(base_path('app/Modules/DeliveryCalculator/Routes/web.php'));
             
             Route::middleware('web')
@@ -46,15 +43,21 @@ return Application::configure(basePath: dirname(__DIR__))
             \Illuminate\Http\Middleware\HandleCors::class,
         ]);
         
+        $middleware->web(append: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+        
         // Redirect unauthenticated users to appropriate login pages
         $middleware->redirectGuestsTo(function ($request) {
-            if ($request->is('super-admin') || $request->is('super-admin/*')) {
-                return route('admin.login');
+            // For API requests, don't redirect - let Sanctum handle it
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return null;
             }
+            
             if ($request->is('client') || $request->is('client/*')) {
                 return route('client.login');
             }
-            return route('login');
+            return route('admin.login');
         });
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -4,12 +4,15 @@ use Illuminate\Support\Facades\Route;
 use App\Modules\Admin\Controllers\AdminAuthController;
 use App\Modules\Admin\Controllers\DashboardController;
 use App\Modules\Admin\Controllers\CommunicationsController;
+use App\Modules\Admin\Controllers\UserController;
+
+// Admin Login at root
+Route::get('/', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
+Route::post('/login', [AdminAuthController::class, 'login'])->name('admin.login.submit');
 
 // Admin Routes
 Route::prefix('super-admin')->group(function () {
-    // Authentication Routes
-    Route::get('/', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
-    Route::post('/login', [AdminAuthController::class, 'login'])->name('admin.login.submit');
+    // Logout Route
     Route::post('/logout', [AdminAuthController::class, 'logout'])->name('admin.logout');
 
     // Protected Admin Routes
@@ -92,5 +95,16 @@ Route::prefix('super-admin')->group(function () {
         Route::get('/job-applications/{id}', [DashboardController::class, 'showJobApplication'])->name('admin.job-applications.show');
         Route::post('/job-applications/{id}/status', [DashboardController::class, 'updateJobApplicationStatus'])->name('admin.job-applications.update-status');
         Route::delete('/job-applications/{id}', [DashboardController::class, 'deleteJobApplication'])->name('admin.job-applications.delete');
+        
+        // User Management Routes
+        Route::get('/users', [UserController::class, 'index'])->name('admin.users.index');
+        Route::get('/users/create', [UserController::class, 'create'])->name('admin.users.create');
+        Route::post('/users', [UserController::class, 'store'])->name('admin.users.store');
+        Route::get('/users/{id}', [UserController::class, 'show'])->name('admin.users.show');
+        Route::get('/users/{id}/edit', [UserController::class, 'edit'])->name('admin.users.edit');
+        Route::put('/users/{id}', [UserController::class, 'update'])->name('admin.users.update');
+        Route::put('/users/{id}/password', [UserController::class, 'updatePassword'])->name('admin.users.update-password');
+        Route::post('/users/{id}/toggle-admin', [UserController::class, 'toggleAdmin'])->name('admin.users.toggle-admin');
+        Route::delete('/users/{id}', [UserController::class, 'destroy'])->name('admin.users.destroy');
     });
 });

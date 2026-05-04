@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Modules\Admin\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
@@ -46,13 +47,16 @@ class AuthController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Registration successful',
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'phone' => $user->phone,
-                ],
-                'token' => $token
+                'data' => [
+                    'user' => [
+                        'id' => $user->id,
+                        'name' => $user->name,
+                        'email' => $user->email,
+                        'phone' => $user->phone,
+                        'role' => 'user',
+                    ],
+                    'token' => $token
+                ]
             ], 201);
 
         } catch (\Exception $e) {
@@ -81,27 +85,78 @@ class AuthController extends Controller
             ], 422);
         }
 
+        // Try to find user in users table first
         $user = User::where('email', $request->email)->first();
+        $accountType = 'user';
 
-        if (!$user || !Hash::check($request->password, $user->password)) {
+        // If not found in users table, check clients table
+        if (!$user) {
+            $user = Client::where('email', $request->email)->first();
+            $accountType = 'client';
+        }
+
+        if (!$user) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid credentials'
+                'message' => 'No account found with this email address'
+            ], 401);
+        }
+
+        // For clients, check if they have dashboard access
+        if ($accountType === 'client') {
+            if (!$user->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your account has been deactivated. Please contact support.'
+                ], 401);
+            }
+
+            if (!$user->dashboard_enabled) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dashboard access is not enabled for your account. Please contact support.'
+                ], 401);
+            }
+
+            if (!$user->password) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your account is not set up for dashboard access. Please contact support.'
+                ], 401);
+            }
+        }
+
+        if (!Hash::check($request->password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Incorrect password'
             ], 401);
         }
 
         $token = $user->createToken('metter-app')->plainTextToken;
 
+        // Determine role
+        $role = 'user';
+        if ($accountType === 'client') {
+            $role = 'client';
+        } elseif (isset($user->is_admin) && $user->is_admin) {
+            $role = 'admin';
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Login successful',
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'phone' => $user->phone,
-            ],
-            'token' => $token
+            'data' => [
+                'user' => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'phone' => $user->phone,
+                    'role' => $role,
+                    'account_type' => $accountType,
+                ],
+                'token' => $token
+            ]
         ], 200);
     }
 

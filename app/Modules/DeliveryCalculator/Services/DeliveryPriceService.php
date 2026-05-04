@@ -3,7 +3,7 @@
 namespace App\Modules\DeliveryCalculator\Services;
 
 use App\Modules\DeliveryCalculator\Helpers\ZoneDetector;
-use App\Models\MetterConfiguration;
+use App\Modules\Metter\Models\MetterConfiguration;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
