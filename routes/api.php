@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ClientOrderController;
 use App\Http\Controllers\Api\ClientSettingsController;
+use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\RouteShareApiController;
 use App\Http\Controllers\Api\JobApplicationController;
 use App\Http\Controllers\ClientShareController;
@@ -59,7 +60,33 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
         Route::get('settings/api-access', [ClientSettingsController::class, 'getApiAccess']);
         Route::post('settings/api-key/regenerate', [ClientSettingsController::class, 'regenerateApiKey']);
         Route::post('settings/2fa', [ClientSettingsController::class, 'toggle2FA']);
+        
+        // Wallet Routes
+        Route::prefix('wallet')->group(function () {
+            Route::get('/', [WalletController::class, 'getWallet']);
+            Route::get('/transactions', [WalletController::class, 'getTransactions']);
+            Route::post('/fund/initialize', [WalletController::class, 'initializeFunding']);
+            Route::post('/fund/verify', [WalletController::class, 'verifyPayment']);
+            Route::get('/paystack/public-key', [WalletController::class, 'getPaystackPublicKey']);
+        });
+        
+        // Credits & Subscriptions Routes
+        Route::prefix('credits')->group(function () {
+            Route::get('/balance', [\App\Http\Controllers\Api\CreditController::class, 'getBalance']);
+            Route::get('/plans', [\App\Http\Controllers\Api\CreditController::class, 'getPlans']);
+            Route::get('/packages', [\App\Http\Controllers\Api\CreditController::class, 'getPackages']);
+            Route::post('/plans/purchase', [\App\Http\Controllers\Api\CreditController::class, 'purchasePlan']);
+            Route::post('/packages/purchase', [\App\Http\Controllers\Api\CreditController::class, 'purchasePackage']);
+            Route::post('/verify', [\App\Http\Controllers\Api\CreditController::class, 'verifyPayment']);
+            Route::get('/transactions', [\App\Http\Controllers\Api\CreditController::class, 'getTransactions']);
+            Route::get('/subscriptions', [\App\Http\Controllers\Api\CreditController::class, 'getSubscriptions']);
+            Route::post('/calculate', [\App\Http\Controllers\Api\CreditController::class, 'calculateDeliveryCredits']);
+            Route::get('/zones', [\App\Http\Controllers\Api\CreditController::class, 'getDeliveryZones']);
+        });
     });
+    
+    // Paystack Webhook (no auth required)
+    Route::post('wallet/webhook/paystack', [WalletController::class, 'handleWebhook']);
     
     Route::post('orders/submit', [OrderController::class, 'submitOrder'])->middleware('client.api');
     Route::get('orders/{orderNumber}/status', [OrderController::class, 'getOrderStatus'])->middleware('client.api');

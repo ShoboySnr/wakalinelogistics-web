@@ -46,4 +46,15 @@ return [
         'token' => env('FRONTEND_API_TOKEN', 'your-frontend-api-token-here'),
     ],
 
+    'frontend' => [
+        'url' => env('FRONTEND_URL', 'http://localhost:3000'),
+        'wallet_callback_url' => env('FRONTEND_WALLET_CALLBACK_URL', env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard/client/settings'),
+    ],
+
+    'paystack' => [
+        'public_key' => env('PAYSTACK_PUBLIC_KEY'),
+        'secret_key' => env('PAYSTACK_SECRET_KEY'),
+        'merchant_email' => env('PAYSTACK_MERCHANT_EMAIL'),
+    ],
+
 ];

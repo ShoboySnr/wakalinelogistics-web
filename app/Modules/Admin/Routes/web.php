@@ -5,6 +5,8 @@ use App\Modules\Admin\Controllers\AdminAuthController;
 use App\Modules\Admin\Controllers\DashboardController;
 use App\Modules\Admin\Controllers\CommunicationsController;
 use App\Modules\Admin\Controllers\UserController;
+use App\Modules\Admin\Controllers\TransactionController;
+use App\Modules\Admin\Controllers\CreditsController;
 
 // Admin Login at root
 Route::get('/', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
@@ -43,6 +45,32 @@ Route::prefix('super-admin')->group(function () {
         Route::delete('/expenses/{id}', [DashboardController::class, 'deleteExpense'])->name('admin.expenses.delete');
         Route::get('/expenses/export', [DashboardController::class, 'exportStatement'])->name('admin.expenses.export');
         Route::get('/expenses/preview', [DashboardController::class, 'previewStatement'])->name('admin.expenses.preview');
+        
+        // Transactions
+        Route::get('/transactions', [TransactionController::class, 'index'])->name('admin.transactions');
+        Route::get('/transactions/{id}', [TransactionController::class, 'show'])->name('admin.transactions.show');
+        Route::post('/transactions/{id}/approve', [TransactionController::class, 'approve'])->name('admin.transactions.approve');
+        Route::post('/transactions/{id}/reject', [TransactionController::class, 'reject'])->name('admin.transactions.reject');
+        Route::post('/transactions/{id}/reverse', [TransactionController::class, 'reverse'])->name('admin.transactions.reverse');
+        
+        // Credits & Subscriptions
+        Route::get('/credits', [CreditsController::class, 'index'])->name('admin.credits');
+        Route::get('/credits/plans', [CreditsController::class, 'plans'])->name('admin.credits.plans');
+        Route::get('/credits/plans/create', [CreditsController::class, 'createPlan'])->name('admin.credits.plans.create');
+        Route::post('/credits/plans', [CreditsController::class, 'storePlan'])->name('admin.credits.plans.store');
+        Route::get('/credits/plans/{id}/edit', [CreditsController::class, 'editPlan'])->name('admin.credits.plans.edit');
+        Route::put('/credits/plans/{id}', [CreditsController::class, 'updatePlan'])->name('admin.credits.plans.update');
+        Route::delete('/credits/plans/{id}', [CreditsController::class, 'deletePlan'])->name('admin.credits.plans.delete');
+        Route::get('/credits/packages', [CreditsController::class, 'packages'])->name('admin.credits.packages');
+        Route::get('/credits/packages/create', [CreditsController::class, 'createPackage'])->name('admin.credits.packages.create');
+        Route::post('/credits/packages', [CreditsController::class, 'storePackage'])->name('admin.credits.packages.store');
+        Route::get('/credits/packages/{id}/edit', [CreditsController::class, 'editPackage'])->name('admin.credits.packages.edit');
+        Route::put('/credits/packages/{id}', [CreditsController::class, 'updatePackage'])->name('admin.credits.packages.update');
+        Route::delete('/credits/packages/{id}', [CreditsController::class, 'deletePackage'])->name('admin.credits.packages.delete');
+        Route::get('/credits/settings', [CreditsController::class, 'settings'])->name('admin.credits.settings');
+        Route::put('/credits/settings', [CreditsController::class, 'updateSettings'])->name('admin.credits.settings.update');
+        Route::post('/credits/clients/{id}/adjust', [CreditsController::class, 'adjustCredits'])->name('admin.credits.adjust');
+        Route::get('/credits/clients/{id}/history', [CreditsController::class, 'clientHistory'])->name('admin.credits.client-history');
         
         // Business Intelligence & Analytics
         Route::get('/business-intelligence', [DashboardController::class, 'businessIntelligence'])->name('admin.business-intelligence');

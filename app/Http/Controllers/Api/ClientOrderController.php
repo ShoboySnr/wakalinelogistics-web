@@ -55,6 +55,8 @@ class ClientOrderController extends Controller
         $order = Order::create([
             'order_number' => $orderNumber,
             'client_id' => $user->id,
+            'customer_name' => $user->name ?? $request->sender_name,
+            'customer_phone' => $user->phone ?? $request->sender_phone,
             'sender_name' => $request->sender_name,
             'sender_phone' => $request->sender_phone,
             'sender_email' => $request->sender_email,
@@ -88,23 +90,23 @@ class ClientOrderController extends Controller
     {
         try {
             $client = new \GuzzleHttp\Client();
-            $response = $client->post(env('NEXT_PUBLIC_METTER_BASE_URL') . '/calculate-delivery', [
+            $response = $client->post(env('NEXT_PUBLIC_METTER_BASE_URL') . '/calculate', [
                 'headers' => [
                     'Content-Type' => 'application/json',
                     'Authorization' => 'Bearer ' . env('NEXT_PUBLIC_API_TOKEN'),
                 ],
                 'json' => [
                     'pickup_address' => $pickupAddress,
-                    'delivery_address' => $deliveryAddress,
+                    'dropoff_address' => $deliveryAddress,
                 ]
             ]);
 
             $data = json_decode($response->getBody(), true);
-            
+
             if ($data['success']) {
                 return [
-                    'price' => $data['data']['price'],
-                    'distance' => $data['data']['distance'],
+                    'price' => $data['data']['delivery_fee'] ?? $data['data']['price'] ?? 0,
+                    'distance' => $data['data']['distance_km'] ?? $data['data']['distance'] ?? 0,
                 ];
             }
         } catch (\Exception $e) {

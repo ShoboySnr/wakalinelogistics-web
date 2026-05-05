@@ -32,7 +32,7 @@
     </div>
 
     <!-- Statistics Cards -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <div class="bg-white rounded-lg shadow p-6">
             <p class="text-sm text-gray-500 mb-1">Total Orders</p>
             <p class="text-2xl font-bold text-gray-900">{{ $totalOrders }}</p>
@@ -51,6 +51,16 @@
         <div class="bg-white rounded-lg shadow p-6">
             <p class="text-sm text-gray-500 mb-1">Total Revenue</p>
             <p class="text-2xl font-bold text-gray-900">₦{{ number_format($totalRevenue, 2) }}</p>
+        </div>
+
+        <div class="rounded-lg shadow p-6 text-white" style="background: linear-gradient(to bottom right, #C1666B, #A85559);">
+            <div class="flex items-center justify-between mb-1">
+                <p class="text-sm opacity-90">Wallet Balance</p>
+                <svg class="w-5 h-5 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+            </div>
+            <p class="text-2xl font-bold">{{ $client->wallet ? '₦' . number_format($client->wallet->balance, 2) : '₦0.00' }}</p>
         </div>
     </div>
 
@@ -178,6 +188,28 @@
 
         <!-- Sidebar -->
         <div class="space-y-6">
+            <!-- Quick Actions -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Quick Actions</h2>
+                </div>
+                <div class="px-6 py-4 space-y-2">
+                    <a href="{{ route('admin.orders.create') }}?client_id={{ $client->id }}" class="block w-full px-4 py-2 text-center text-white rounded-md brand-accent-bg brand-accent-hover">
+                        Create Order
+                    </a>
+                    <a href="{{ route('admin.clients.edit', $client->id) }}" class="block w-full px-4 py-2 text-center text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
+                        Edit Client
+                    </a>
+                    <form action="{{ route('admin.clients.delete', $client->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this client? This action cannot be undone.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="block w-full px-4 py-2 text-center brand-accent-bg text-white rounded-md brand-accent-hover">
+                            Delete Client
+                        </button>
+                    </form>
+                </div>
+            </div>
+
             <!-- Business Information -->
             <div class="bg-white rounded-lg shadow">
                 <div class="px-6 py-4 border-b border-gray-200">
@@ -249,6 +281,75 @@
                         </div>
                         @endif
                     </dl>
+                </div>
+            </div>
+
+            <!-- Wallet Information -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Wallet Information</h2>
+                </div>
+                <div class="px-6 py-4">
+                    @php
+                        $wallet = $client->wallet;
+                        $recentTransactions = $wallet ? $wallet->transactions()->latest()->take(5)->get() : collect();
+                    @endphp
+                    
+                    @if($wallet)
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-3 gap-4">
+                                <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+                                    <p class="text-xs text-green-700 font-medium mb-1">Current Balance</p>
+                                    <p class="text-2xl font-bold text-green-900">₦{{ number_format($wallet->balance, 2) }}</p>
+                                </div>
+                                <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+                                    <p class="text-xs text-blue-700 font-medium mb-1">Total Credited</p>
+                                    <p class="text-xl font-semibold text-blue-900">₦{{ number_format($wallet->total_credited, 2) }}</p>
+                                </div>
+                                <div class="bg-red-50 rounded-lg p-4 border border-red-200">
+                                    <p class="text-xs text-red-700 font-medium mb-1">Total Debited</p>
+                                    <p class="text-xl font-semibold text-red-900">₦{{ number_format($wallet->total_debited, 2) }}</p>
+                                </div>
+                            </div>
+
+                            @if($recentTransactions->count() > 0)
+                                <div class="mt-4">
+                                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Recent Transactions</h3>
+                                    <div class="space-y-2">
+                                        @foreach($recentTransactions as $transaction)
+                                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                                <div class="flex-1">
+                                                    <p class="text-sm font-medium text-gray-900">{{ $transaction->description }}</p>
+                                                    <p class="text-xs text-gray-500">{{ $transaction->created_at->format('M d, Y H:i') }}</p>
+                                                </div>
+                                                <div class="text-right">
+                                                    <p class="text-sm font-bold {{ $transaction->type === 'credit' ? 'text-green-600' : 'text-red-600' }}">
+                                                        {{ $transaction->type === 'credit' ? '+' : '-' }}₦{{ number_format($transaction->amount, 2) }}
+                                                    </p>
+                                                    <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full 
+                                                        {{ $transaction->status === 'completed' ? 'bg-green-100 text-green-800' : '' }}
+                                                        {{ $transaction->status === 'pending' ? 'bg-yellow-100 text-yellow-800' : '' }}
+                                                        {{ $transaction->status === 'failed' ? 'bg-red-100 text-red-800' : '' }}">
+                                                        {{ ucfirst($transaction->status) }}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @else
+                                <p class="text-sm text-gray-500 text-center py-4">No transactions yet</p>
+                            @endif
+                        </div>
+                    @else
+                        <div class="text-center py-6">
+                            <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
+                            <p class="text-sm text-gray-500">No wallet created yet</p>
+                            <p class="text-xs text-gray-400 mt-1">Wallet will be created automatically when client funds it</p>
+                        </div>
+                    @endif
                 </div>
             </div>
 
@@ -406,28 +507,6 @@
                             </button>
                         </div>
                     @endif
-                </div>
-            </div>
-
-            <!-- Quick Actions -->
-            <div class="bg-white rounded-lg shadow">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-semibold text-gray-900">Quick Actions</h2>
-                </div>
-                <div class="px-6 py-4 space-y-2">
-                    <a href="{{ route('admin.orders.create') }}?client_id={{ $client->id }}" class="block w-full px-4 py-2 text-center text-white rounded-md brand-accent-bg brand-accent-hover">
-                        Create Order
-                    </a>
-                    <a href="{{ route('admin.clients.edit', $client->id) }}" class="block w-full px-4 py-2 text-center text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
-                        Edit Client
-                    </a>
-                    <form action="{{ route('admin.clients.delete', $client->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this client? This action cannot be undone.');">
-                        @csrf
-                        @method('DELETE')
-                        <button type="submit" class="block w-full px-4 py-2 text-center brand-accent-bg text-white rounded-md brand-accent-hover">
-                            Delete Client
-                        </button>
-                    </form>
                 </div>
             </div>
         </div>

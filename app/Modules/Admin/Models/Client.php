@@ -7,10 +7,11 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Auth\Authenticatable as AuthenticatableTrait;
 use Laravel\Sanctum\HasApiTokens;
+use App\Traits\HasWallet;
 
 class Client extends Authenticatable
 {
-    use Notifiable, AuthenticatableTrait, HasApiTokens;
+    use Notifiable, AuthenticatableTrait, HasApiTokens, HasWallet;
 
     protected $fillable = [
         'name',
@@ -188,5 +189,75 @@ class Client extends Authenticatable
     public function getAuthPassword(): string
     {
         return $this->password;
+    }
+
+    /**
+     * Get client's credit account
+     */
+    public function credits()
+    {
+        return $this->hasOne(ClientCredit::class);
+    }
+
+    /**
+     * Get or create client's credit account
+     */
+    public function getOrCreateCredits()
+    {
+        return $this->credits()->firstOrCreate(
+            ['client_id' => $this->id],
+            [
+                'total_credits' => 0,
+                'used_credits' => 0,
+                'available_credits' => 0,
+            ]
+        );
+    }
+
+    /**
+     * Get client's credit transactions
+     */
+    public function creditTransactions()
+    {
+        return $this->hasMany(CreditTransaction::class);
+    }
+
+    /**
+     * Get client's subscriptions
+     */
+    public function subscriptions()
+    {
+        return $this->hasMany(ClientSubscription::class);
+    }
+
+    /**
+     * Get active subscription
+     */
+    public function activeSubscription()
+    {
+        return $this->hasOne(ClientSubscription::class)
+            ->where('status', 'active')
+            ->where('starts_at', '<=', now())
+            ->where(function ($q) {
+                $q->whereNull('expires_at')
+                  ->orWhere('expires_at', '>', now());
+            });
+    }
+
+    /**
+     * Check if client has enough credits
+     */
+    public function hasEnoughCredits(int $required = 1): bool
+    {
+        $credits = $this->getOrCreateCredits();
+        return $credits->hasEnoughCredits($required);
+    }
+
+    /**
+     * Get available credits count
+     */
+    public function getAvailableCreditsAttribute(): int
+    {
+        return $this->getOrCreateCredits()->available_credits;
     }
 }
