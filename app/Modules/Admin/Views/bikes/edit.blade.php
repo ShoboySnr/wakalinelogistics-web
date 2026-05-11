@@ -109,10 +109,14 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Registration Document</label>
                         @if($bike->registration_document)
-                            <div class="mb-2">
+                            <div class="mb-2 flex items-center justify-between">
                                 <a href="{{ asset($bike->registration_document) }}" target="_blank" class="text-sm brand-accent-text hover:underline">
                                     View Current Document
                                 </a>
+                                <label class="flex items-center text-xs text-red-600 cursor-pointer">
+                                    <input type="checkbox" name="remove_registration_document" value="1" class="mr-1">
+                                    Remove
+                                </label>
                             </div>
                         @endif
                         <input type="file" name="registration_document" accept=".pdf,.jpg,.jpeg,.png" 
@@ -131,10 +135,14 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Insurance Document</label>
                         @if($bike->insurance_document)
-                            <div class="mb-2">
+                            <div class="mb-2 flex items-center justify-between">
                                 <a href="{{ asset($bike->insurance_document) }}" target="_blank" class="text-sm brand-accent-text hover:underline">
                                     View Current Document
                                 </a>
+                                <label class="flex items-center text-xs text-red-600 cursor-pointer">
+                                    <input type="checkbox" name="remove_insurance_document" value="1" class="mr-1">
+                                    Remove
+                                </label>
                             </div>
                         @endif
                         <input type="file" name="insurance_document" accept=".pdf,.jpg,.jpeg,.png" 
@@ -153,10 +161,14 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Roadworthiness Certificate</label>
                         @if($bike->roadworthiness_document)
-                            <div class="mb-2">
+                            <div class="mb-2 flex items-center justify-between">
                                 <a href="{{ asset($bike->roadworthiness_document) }}" target="_blank" class="text-sm brand-accent-text hover:underline">
                                     View Current Document
                                 </a>
+                                <label class="flex items-center text-xs text-red-600 cursor-pointer">
+                                    <input type="checkbox" name="remove_roadworthiness_document" value="1" class="mr-1">
+                                    Remove
+                                </label>
                             </div>
                         @endif
                         <input type="file" name="roadworthiness_document" accept=".pdf,.jpg,.jpeg,.png" 
@@ -175,10 +187,14 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Hackney Permit</label>
                         @if($bike->hackney_permit_document)
-                            <div class="mb-2">
+                            <div class="mb-2 flex items-center justify-between">
                                 <a href="{{ asset($bike->hackney_permit_document) }}" target="_blank" class="text-sm brand-accent-text hover:underline">
                                     View Current Document
                                 </a>
+                                <label class="flex items-center text-xs text-red-600 cursor-pointer">
+                                    <input type="checkbox" name="remove_hackney_permit_document" value="1" class="mr-1">
+                                    Remove
+                                </label>
                             </div>
                         @endif
                         <input type="file" name="hackney_permit_document" accept=".pdf,.jpg,.jpeg,.png" 
@@ -197,10 +213,14 @@
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Vehicle License</label>
                         @if($bike->vehicle_license_document)
-                            <div class="mb-2">
+                            <div class="mb-2 flex items-center justify-between">
                                 <a href="{{ asset($bike->vehicle_license_document) }}" target="_blank" class="text-sm brand-accent-text hover:underline">
                                     View Current Document
                                 </a>
+                                <label class="flex items-center text-xs text-red-600 cursor-pointer">
+                                    <input type="checkbox" name="remove_vehicle_license_document" value="1" class="mr-1">
+                                    Remove
+                                </label>
                             </div>
                         @endif
                         <input type="file" name="vehicle_license_document" accept=".pdf,.jpg,.jpeg,.png" 
@@ -270,10 +290,14 @@
                                     <div>
                                         <label class="block text-sm font-medium text-gray-700 mb-1">Document</label>
                                         @if(isset($sticker['document']) && $sticker['document'])
-                                            <div class="mb-2">
+                                            <div class="mb-2 flex items-center justify-between">
                                                 <a href="{{ asset($sticker['document']) }}" target="_blank" class="text-sm brand-accent-text hover:underline">
                                                     View Current Document
                                                 </a>
+                                                <label class="flex items-center text-xs text-red-600 cursor-pointer">
+                                                    <input type="checkbox" name="stickers[{{ $index }}][remove_document]" value="1" class="mr-1">
+                                                    Remove
+                                                </label>
                                             </div>
                                         @endif
                                         <input type="file" name="stickers[{{ $index }}][document]" accept=".pdf,.jpg,.jpeg,.png" 

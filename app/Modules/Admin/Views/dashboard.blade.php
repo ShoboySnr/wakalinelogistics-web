@@ -6,9 +6,50 @@
 <div class="px-4 sm:px-6 lg:px-0">
     <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">Dashboard</h1>
 
-    <!-- Bike Document Alerts -->
-    @if($expired_bike_docs->count() > 0 || $expiring_bike_docs->count() > 0)
+    <!-- Bike Alerts -->
+    @if($expired_bike_docs->count() > 0 || $expiring_bike_docs->count() > 0 || $upcoming_maintenance->count() > 0)
     <div class="mb-6 space-y-4">
+        <!-- Upcoming Maintenance Alert -->
+        @if($upcoming_maintenance->count() > 0)
+        <div class="p-4" style="background-color: rgba(193, 102, 107, 0.05); border-left: 4px solid #C1666B;">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 brand-accent-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-3 flex-1">
+                    <h3 class="text-sm font-medium brand-accent-text">Upcoming Bike Maintenance</h3>
+                    <div class="mt-2 text-sm text-gray-700">
+                        <p class="mb-2">{{ $upcoming_maintenance->count() }} bike(s) due for maintenance within the next 7 days:</p>
+                        <ul class="list-disc list-inside space-y-1">
+                            @foreach($upcoming_maintenance->take(5) as $bike)
+                            <li>
+                                <a href="{{ route('admin.bikes.show', $bike->id) }}" class="font-semibold hover:underline">
+                                    {{ $bike->bike_number }}
+                                </a>
+                                @if($bike->assignedRider)
+                                    ({{ $bike->assignedRider->name }})
+                                @endif
+                                - Due: {{ $bike->next_maintenance_date->format('M d, Y') }}
+                                ({{ $bike->next_maintenance_date->diffForHumans() }})
+                            </li>
+                            @endforeach
+                            @if($upcoming_maintenance->count() > 5)
+                            <li class="text-xs">
+                                <a href="{{ route('admin.bikes') }}" class="font-semibold hover:underline">
+                                    View all {{ $upcoming_maintenance->count() }} bikes →
+                                </a>
+                            </li>
+                            @endif
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
         <!-- Expired Documents Alert -->
         @if($expired_bike_docs->count() > 0)
         <div class="bg-red-50 border-l-4 border-red-400 p-4">
@@ -237,8 +278,11 @@
 
     <!-- Recent Orders -->
     <div class="bg-white shadow rounded-lg">
-        <div class="px-4 py-5 sm:px-6 border-b border-gray-200">
+        <div class="px-4 py-5 sm:px-6 border-b border-gray-200 flex justify-between items-center">
             <h3 class="text-lg leading-6 font-medium text-gray-900">Recent Orders</h3>
+            <a href="{{ route('admin.orders') }}" class="text-sm brand-accent-text hover:underline font-medium">
+                View All Orders
+            </a>
         </div>
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
@@ -289,7 +333,7 @@
         @if($recent_orders->count() > 0)
         <div class="px-4 py-3 bg-gray-50 text-right sm:px-6">
             <a href="{{ route('admin.orders') }}" class="brand-accent-text text-sm font-medium" style="transition: color 0.2s ease;" onmouseover="this.style.color='#a8555a';" onmouseout="this.style.color='#C1666B';">
-                View all orders →
+                View all orders
             </a>
         </div>
         @endif

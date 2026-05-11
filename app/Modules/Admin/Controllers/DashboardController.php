@@ -90,6 +90,13 @@ class DashboardController extends Controller
                 return count($item['expiring_docs']) > 0;
             });
 
+        // Get bikes due for maintenance within 7 days
+        $upcoming_maintenance = \App\Modules\Admin\Models\Bike::whereNotNull('next_maintenance_date')
+            ->whereBetween('next_maintenance_date', [now(), now()->addDays(7)])
+            ->with('assignedRider')
+            ->orderBy('next_maintenance_date')
+            ->get();
+
         // Get bikes with expired documents
         $expired_bike_docs = \App\Modules\Admin\Models\Bike::withExpiredDocuments()
             ->with('assignedRider')
@@ -104,7 +111,7 @@ class DashboardController extends Controller
                 return count($item['expired_docs']) > 0;
             });
 
-        return view('Admin::dashboard', compact('stats', 'recent_orders', 'expiring_bike_docs', 'expired_bike_docs'));
+        return view('Admin::dashboard', compact('stats', 'recent_orders', 'expiring_bike_docs', 'expired_bike_docs', 'upcoming_maintenance'));
     }
 
     public function orders(Request $request)
@@ -2208,6 +2215,17 @@ class DashboardController extends Controller
         $updateData = $validated;
 
         foreach ($documentFields as $field) {
+            // Check if user wants to remove the document
+            $removeField = 'remove_' . $field;
+            if ($request->has($removeField) && $request->input($removeField) == '1') {
+                // Delete the file from disk
+                if ($bike->$field && file_exists(public_path($bike->$field))) {
+                    unlink(public_path($bike->$field));
+                }
+                $updateData[$field] = null;
+                continue;
+            }
+            
             // Check if file exists in request (even if hasFile returns false)
             $file = $request->file($field);
             
@@ -2216,8 +2234,8 @@ class DashboardController extends Controller
                 if ($file->isValid()) {
                     try {
                         // Delete old file if exists
-                        if ($bike->$field && \Storage::disk('public')->exists($bike->$field)) {
-                            \Storage::disk('public')->delete($bike->$field);
+                        if ($bike->$field && file_exists(public_path($bike->$field))) {
+                            unlink(public_path($bike->$field));
                         }
                         
                         $filename = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
@@ -2248,26 +2266,35 @@ class DashboardController extends Controller
                         $documentPath = $bike->stickers_permits[$index]['document'];
                     }
                     
-                    // Handle new document upload - check if file exists directly
-                    $file = $request->file("stickers.{$index}.document");
-                    if ($file) {
-                        if ($file->isValid()) {
-                            try {
-                                // Delete old document if exists
-                                if ($documentPath && \Storage::disk('public')->exists($documentPath)) {
-                                    \Storage::disk('public')->delete($documentPath);
+                    // Check if user wants to remove the document
+                    if (isset($stickerData['remove_document']) && $stickerData['remove_document'] == '1') {
+                        // Delete the file from disk
+                        if ($documentPath && file_exists(public_path($documentPath))) {
+                            unlink(public_path($documentPath));
+                        }
+                        $documentPath = null;
+                    } else {
+                        // Handle new document upload - check if file exists directly
+                        $file = $request->file("stickers.{$index}.document");
+                        if ($file) {
+                            if ($file->isValid()) {
+                                try {
+                                    // Delete old document if exists
+                                    if ($documentPath && file_exists(public_path($documentPath))) {
+                                        unlink(public_path($documentPath));
+                                    }
+                                    
+                                    $filename = time() . '_' . uniqid() . '_sticker_' . $index . '_' . $file->getClientOriginalName();
+                                    // Save directly to public/uploads instead of storage
+                                    $file->move(public_path('uploads/bikes/stickers'), $filename);
+                                    $documentPath = 'uploads/bikes/stickers/' . $filename;
+                                } catch (\Exception $e) {
+                                    return redirect()->back()->withErrors(["stickers.{$index}.document" => "Failed to upload document: " . $e->getMessage()])->withInput();
                                 }
-                                
-                                $filename = time() . '_' . uniqid() . '_sticker_' . $index . '_' . $file->getClientOriginalName();
-                                // Save directly to public/uploads instead of storage
-                                $file->move(public_path('uploads/bikes/stickers'), $filename);
-                                $documentPath = 'uploads/bikes/stickers/' . $filename;
-                            } catch (\Exception $e) {
-                                return redirect()->back()->withErrors(["stickers.{$index}.document" => "Failed to upload document: " . $e->getMessage()])->withInput();
+                            } else {
+                                $errorMessage = $this->getUploadErrorMessage($file->getError());
+                                return redirect()->back()->withErrors(["stickers.{$index}.document" => $errorMessage])->withInput();
                             }
-                        } else {
-                            $errorMessage = $this->getUploadErrorMessage($file->getError());
-                            return redirect()->back()->withErrors(["stickers.{$index}.document" => $errorMessage])->withInput();
                         }
                     }
 
