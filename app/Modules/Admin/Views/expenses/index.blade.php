@@ -318,6 +318,7 @@
                     <option value="last_week">Last Week</option>
                     <option value="this_month">This Month</option>
                     <option value="last_month">Last Month</option>
+                    <option value="all_time">All Time</option>
                     <option value="custom">Custom Range</option>
                 </select>
             </div>

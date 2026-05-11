@@ -6,6 +6,84 @@
 <div class="px-4 sm:px-6 lg:px-0">
     <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">Dashboard</h1>
 
+    <!-- Bike Document Alerts -->
+    @if($expired_bike_docs->count() > 0 || $expiring_bike_docs->count() > 0)
+    <div class="mb-6 space-y-4">
+        <!-- Expired Documents Alert -->
+        @if($expired_bike_docs->count() > 0)
+        <div class="bg-red-50 border-l-4 border-red-400 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <div class="ml-3 flex-1">
+                    <h3 class="text-sm font-medium text-red-800">Expired Bike Documents</h3>
+                    <div class="mt-2 text-sm text-red-700">
+                        <p class="mb-2">{{ $expired_bike_docs->count() }} bike(s) have expired documents that need immediate attention:</p>
+                        <ul class="list-disc list-inside space-y-1">
+                            @foreach($expired_bike_docs->take(3) as $item)
+                            <li>
+                                <a href="{{ route('admin.bikes.show', $item['bike']->id) }}" class="font-semibold hover:underline">
+                                    {{ $item['bike']->bike_number }}
+                                </a>
+                                - {{ collect($item['expired_docs'])->pluck('name')->join(', ') }}
+                            </li>
+                            @endforeach
+                            @if($expired_bike_docs->count() > 3)
+                            <li class="text-xs">
+                                <a href="{{ route('admin.bikes') }}" class="font-semibold hover:underline">
+                                    View all {{ $expired_bike_docs->count() }} bikes →
+                                </a>
+                            </li>
+                            @endif
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+
+        <!-- Expiring Documents Alert -->
+        @if($expiring_bike_docs->count() > 0)
+        <div class="bg-orange-50 border-l-4 border-orange-400 p-4">
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                <div class="ml-3 flex-1">
+                    <h3 class="text-sm font-medium text-orange-800">Documents Expiring Soon</h3>
+                    <div class="mt-2 text-sm text-orange-700">
+                        <p class="mb-2">{{ $expiring_bike_docs->count() }} bike(s) have documents expiring within 30 days:</p>
+                        <ul class="list-disc list-inside space-y-1">
+                            @foreach($expiring_bike_docs->take(3) as $item)
+                            <li>
+                                <a href="{{ route('admin.bikes.show', $item['bike']->id) }}" class="font-semibold hover:underline">
+                                    {{ $item['bike']->bike_number }}
+                                </a>
+                                - {{ collect($item['expiring_docs'])->pluck('name')->join(', ') }}
+                                ({{ collect($item['expiring_docs'])->min('days_remaining') }} days)
+                            </li>
+                            @endforeach
+                            @if($expiring_bike_docs->count() > 3)
+                            <li class="text-xs">
+                                <a href="{{ route('admin.bikes') }}" class="font-semibold hover:underline">
+                                    View all {{ $expiring_bike_docs->count() }} bikes →
+                                </a>
+                            </li>
+                            @endif
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        @endif
+    </div>
+    @endif
+
     <!-- Today's Overview -->
     <div class="mb-6">
         <h2 class="text-lg font-semibold text-gray-900 mb-3">Today's Overview</h2>

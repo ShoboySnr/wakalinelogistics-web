@@ -89,6 +89,17 @@ Route::prefix('super-admin')->group(function () {
         Route::get('/riders/{id}/location', [DashboardController::class, 'getRiderLocation'])->name('admin.riders.location');
         Route::post('/orders/{id}/assign-rider', [DashboardController::class, 'assignRider'])->name('admin.orders.assign-rider');
         
+        // Bike Routes
+        Route::get('/bikes', [DashboardController::class, 'bikes'])->name('admin.bikes');
+        Route::get('/bikes/create', [DashboardController::class, 'createBike'])->name('admin.bikes.create');
+        Route::post('/bikes', [DashboardController::class, 'storeBike'])->name('admin.bikes.store');
+        Route::get('/bikes/{id}', [DashboardController::class, 'showBike'])->name('admin.bikes.show');
+        Route::get('/bikes/{id}/edit', [DashboardController::class, 'editBike'])->name('admin.bikes.edit');
+        Route::put('/bikes/{id}', [DashboardController::class, 'updateBike'])->name('admin.bikes.update');
+        Route::delete('/bikes/{id}', [DashboardController::class, 'deleteBike'])->name('admin.bikes.delete');
+        Route::post('/bikes/{id}/assign-rider', [DashboardController::class, 'assignBikeToRider'])->name('admin.bikes.assign-rider');
+        Route::post('/bikes/{id}/unassign-rider', [DashboardController::class, 'unassignBikeFromRider'])->name('admin.bikes.unassign-rider');
+        
         // Client Routes
         Route::get('/clients', [DashboardController::class, 'clients'])->name('admin.clients');
         Route::get('/clients/create', [DashboardController::class, 'createClient'])->name('admin.clients.create');
