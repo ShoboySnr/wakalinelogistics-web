@@ -14,6 +14,7 @@ class CreditTransaction extends Model
         'client_id',
         'transaction_reference',
         'type',
+        'status',
         'credits',
         'balance_before',
         'balance_after',

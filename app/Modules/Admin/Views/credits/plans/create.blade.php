@@ -131,20 +131,4 @@
     </form>
 </div>
 
-<script>
-// Convert features textarea to array before submit
-document.querySelector('form').addEventListener('submit', function(e) {
-    const featuresText = document.querySelector('[name="features_text"]').value;
-    if (featuresText.trim()) {
-        const features = featuresText.split('\n').filter(f => f.trim());
-        
-        // Create hidden input for features array
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'features';
-        input.value = JSON.stringify(features);
-        this.appendChild(input);
-    }
-});
-</script>
 @endsection

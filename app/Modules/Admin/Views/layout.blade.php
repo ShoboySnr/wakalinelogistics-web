@@ -228,13 +228,45 @@
                         <span class="font-medium">Communications</span>
                     </a>
                     
-                    <a href="{{ route('admin.job-applications') }}" 
+                    <a href="{{ route('admin.job-applications') }}"
                        class="sidebar-link flex items-center px-4 py-3 text-gray-300 rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.job-applications*') ? 'active' : '' }}">
                         <svg class="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                         </svg>
                         <span class="font-medium">Job Applications</span>
                     </a>
+
+                    <!-- Help Center Dropdown -->
+                    <div x-data="{ open: {{ request()->routeIs('admin.help*') ? 'true' : 'false' }} }">
+                        <button @click="open = !open"
+                                class="sidebar-link w-full flex items-center justify-between px-4 py-3 text-gray-300 rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.help*') ? 'active' : '' }}">
+                            <div class="flex items-center">
+                                <svg class="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span class="font-medium">Help Center</span>
+                            </div>
+                            <svg class="h-4 w-4 transition-transform" :class="{ 'rotate-180': open }" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                            </svg>
+                        </button>
+                        <div x-show="open" x-collapse class="ml-4 mt-2 space-y-1">
+                            <a href="{{ route('admin.help.tickets') }}"
+                               class="sidebar-link flex items-center px-4 py-2 text-gray-400 text-sm rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.help.tickets*') ? 'active' : '' }}">
+                                <svg class="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                                </svg>
+                                <span class="font-medium">Support Tickets</span>
+                            </a>
+                            <a href="{{ route('admin.help.faqs') }}"
+                               class="sidebar-link flex items-center px-4 py-2 text-gray-400 text-sm rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.help.faqs*') ? 'active' : '' }}">
+                                <svg class="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                </svg>
+                                <span class="font-medium">FAQs</span>
+                            </a>
+                        </div>
+                    </div>
                 </nav>
                 
                 <!-- User Section -->

@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             AdminUserSeeder::class,
             SettingsSeeder::class,
             MetterConfigurationSeeder::class,
+            SubscriptionPlansSeeder::class,
         ]);
     }
 }

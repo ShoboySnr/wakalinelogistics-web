@@ -7,6 +7,7 @@ use App\Modules\Admin\Controllers\CommunicationsController;
 use App\Modules\Admin\Controllers\UserController;
 use App\Modules\Admin\Controllers\TransactionController;
 use App\Modules\Admin\Controllers\CreditsController;
+use App\Modules\Admin\Controllers\HelpController;
 
 // Admin Login at root
 Route::get('/', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
@@ -64,6 +65,7 @@ Route::prefix('super-admin')->group(function () {
         Route::get('/credits/packages', [CreditsController::class, 'packages'])->name('admin.credits.packages');
         Route::get('/credits/packages/create', [CreditsController::class, 'createPackage'])->name('admin.credits.packages.create');
         Route::post('/credits/packages', [CreditsController::class, 'storePackage'])->name('admin.credits.packages.store');
+        Route::get('/credits/packages/{id}', [CreditsController::class, 'showPackage'])->name('admin.credits.packages.show');
         Route::get('/credits/packages/{id}/edit', [CreditsController::class, 'editPackage'])->name('admin.credits.packages.edit');
         Route::put('/credits/packages/{id}', [CreditsController::class, 'updatePackage'])->name('admin.credits.packages.update');
         Route::delete('/credits/packages/{id}', [CreditsController::class, 'deletePackage'])->name('admin.credits.packages.delete');
@@ -135,6 +137,21 @@ Route::prefix('super-admin')->group(function () {
         Route::post('/job-applications/{id}/status', [DashboardController::class, 'updateJobApplicationStatus'])->name('admin.job-applications.update-status');
         Route::delete('/job-applications/{id}', [DashboardController::class, 'deleteJobApplication'])->name('admin.job-applications.delete');
         
+        // Help Center Routes
+        Route::get('/help', [HelpController::class, 'tickets'])->name('admin.help');
+        Route::get('/help/faqs', [HelpController::class, 'faqs'])->name('admin.help.faqs');
+        Route::get('/help/faqs/create', [HelpController::class, 'createFaq'])->name('admin.help.faqs.create');
+        Route::post('/help/faqs', [HelpController::class, 'storeFaq'])->name('admin.help.faqs.store');
+        Route::get('/help/faqs/{id}/edit', [HelpController::class, 'editFaq'])->name('admin.help.faqs.edit');
+        Route::put('/help/faqs/{id}', [HelpController::class, 'updateFaq'])->name('admin.help.faqs.update');
+        Route::delete('/help/faqs/{id}', [HelpController::class, 'deleteFaq'])->name('admin.help.faqs.delete');
+        Route::get('/help/tickets', [HelpController::class, 'tickets'])->name('admin.help.tickets');
+        Route::get('/help/tickets/{id}', [HelpController::class, 'showTicket'])->name('admin.help.tickets.show');
+        Route::post('/help/tickets/{id}/reply', [HelpController::class, 'replyTicket'])->name('admin.help.tickets.reply');
+        Route::post('/help/tickets/{id}/status', [HelpController::class, 'updateTicketStatus'])->name('admin.help.tickets.status');
+        Route::post('/help/tickets/{id}/assign', [HelpController::class, 'assignTicket'])->name('admin.help.tickets.assign');
+        Route::delete('/help/tickets/{id}', [HelpController::class, 'deleteTicket'])->name('admin.help.tickets.delete');
+
         // User Management Routes
         Route::get('/users', [UserController::class, 'index'])->name('admin.users.index');
         Route::get('/users/create', [UserController::class, 'create'])->name('admin.users.create');

@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Admin\Models\CreditTransaction;
 use App\Modules\Admin\Models\SubscriptionPlan;
 use App\Modules\Admin\Models\CreditPackage;
+use App\Services\CreditCalculationService;
 use App\Services\CreditPurchaseService;
 use App\Services\PaystackService;
 use Illuminate\Http\Request;
@@ -14,11 +16,16 @@ class CreditController extends Controller
 {
     protected CreditPurchaseService $creditPurchaseService;
     protected PaystackService $paystackService;
+    protected CreditCalculationService $creditCalculationService;
 
-    public function __construct(CreditPurchaseService $creditPurchaseService, PaystackService $paystackService)
-    {
+    public function __construct(
+        CreditPurchaseService $creditPurchaseService,
+        PaystackService $paystackService,
+        CreditCalculationService $creditCalculationService
+    ) {
         $this->creditPurchaseService = $creditPurchaseService;
         $this->paystackService = $paystackService;
+        $this->creditCalculationService = $creditCalculationService;
     }
 
     /**
@@ -42,7 +49,7 @@ class CreditController extends Controller
                     'last_used_at' => $credits->last_used_at,
                 ],
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch credit balance',
@@ -67,7 +74,7 @@ class CreditController extends Controller
                 'success' => true,
                 'data' => $plans,
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch subscription plans',
@@ -92,7 +99,7 @@ class CreditController extends Controller
                 'success' => true,
                 'data' => $packages,
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch credit packages',
@@ -130,19 +137,21 @@ class CreditController extends Controller
             // Handle Paystack payment
             if ($validated['payment_method'] === 'paystack') {
                 $reference = $this->paystackService->generateReference();
+                $currentCredits = $client->getOrCreateCredits();
 
                 // Create pending credit transaction
-                $creditTransaction = \App\Modules\Admin\Models\CreditTransaction::create([
+                $creditTransaction = CreditTransaction::create([
                     'client_id' => $client->id,
-                    'transaction_reference' => \App\Modules\Admin\Models\CreditTransaction::generateReference(),
+                    'transaction_reference' => CreditTransaction::generateReference(),
                     'type' => 'purchase',
                     'credits' => $plan->credits,
-                    'balance_before' => $client->getOrCreateCredits()->balance,
-                    'balance_after' => $client->getOrCreateCredits()->balance,
+                    'balance_before' => $currentCredits->available_credits,
+                    'balance_after' => $currentCredits->available_credits,
                     'subscription_plan_id' => $plan->id,
                     'amount_paid' => $plan->price,
                     'payment_method' => 'paystack',
                     'payment_reference' => $reference,
+                    'status' => 'pending',
                     'description' => "Subscription Plan: {$plan->name}",
                     'metadata' => [
                         'subscription_plan_id' => $plan->id,
@@ -152,8 +161,9 @@ class CreditController extends Controller
                 ]);
 
                 // Initialize Paystack transaction
+                // NOTE: PaystackService::initializeTransaction() converts to kobo internally — do NOT pre-multiply
                 $paystackResponse = $this->paystackService->initializeTransaction([
-                    'amount' => $plan->price * 100, // Paystack expects amount in kobo
+                    'amount' => $plan->price,
                     'email' => $client->email,
                     'reference' => $reference,
                     'metadata' => [
@@ -175,8 +185,6 @@ class CreditController extends Controller
                     ], 400);
                 }
 
-                // Update transaction with Paystack data
-                $creditTransaction->payment_reference = $reference;
                 $creditTransaction->metadata = array_merge($creditTransaction->metadata ?? [], [
                     'paystack_data' => $paystackResponse['data'],
                     'authorization_url' => $paystackResponse['data']['authorization_url'],
@@ -245,19 +253,21 @@ class CreditController extends Controller
             // Handle Paystack payment
             if ($validated['payment_method'] === 'paystack') {
                 $reference = $this->paystackService->generateReference();
+                $currentCredits = $client->getOrCreateCredits();
 
                 // Create pending credit transaction
-                $creditTransaction = \App\Modules\Admin\Models\CreditTransaction::create([
+                $creditTransaction = CreditTransaction::create([
                     'client_id' => $client->id,
-                    'transaction_reference' => \App\Modules\Admin\Models\CreditTransaction::generateReference(),
+                    'transaction_reference' => CreditTransaction::generateReference(),
                     'type' => 'purchase',
                     'credits' => $package->credits + $package->bonus_credits,
-                    'balance_before' => $client->getOrCreateCredits()->balance,
-                    'balance_after' => $client->getOrCreateCredits()->balance,
+                    'balance_before' => $currentCredits->available_credits,
+                    'balance_after' => $currentCredits->available_credits,
                     'credit_package_id' => $package->id,
                     'amount_paid' => $package->price,
                     'payment_method' => 'paystack',
                     'payment_reference' => $reference,
+                    'status' => 'pending',
                     'description' => "Credit Package: {$package->name}",
                     'metadata' => [
                         'package_id' => $package->id,
@@ -268,8 +278,9 @@ class CreditController extends Controller
                 ]);
 
                 // Initialize Paystack transaction
+                // NOTE: PaystackService::initializeTransaction() converts to kobo internally — do NOT pre-multiply
                 $paystackResponse = $this->paystackService->initializeTransaction([
-                    'amount' => $package->price * 100, // Paystack expects amount in kobo
+                    'amount' => $package->price,
                     'email' => $client->email,
                     'reference' => $reference,
                     'metadata' => [
@@ -291,8 +302,6 @@ class CreditController extends Controller
                     ], 400);
                 }
 
-                // Update transaction with Paystack data
-                $creditTransaction->payment_reference = $reference;
                 $creditTransaction->metadata = array_merge($creditTransaction->metadata ?? [], [
                     'paystack_data' => $paystackResponse['data'],
                     'authorization_url' => $paystackResponse['data']['authorization_url'],
@@ -333,6 +342,151 @@ class CreditController extends Controller
     }
 
     /**
+     * Purchase custom amount of credits
+     */
+    public function purchaseCustomAmount(Request $request)
+    {
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:5000',
+            'payment_method' => 'required|in:wallet,card,paystack',
+        ]);
+
+        try {
+            $client = $request->user();
+            $amount = $validated['amount'];
+            $credits = $amount; // 1:1 ratio for custom purchases
+
+            // Convert 'card' to 'paystack' for processing
+            if ($validated['payment_method'] === 'card') {
+                $validated['payment_method'] = 'paystack';
+            }
+
+            // Handle Paystack payment
+            if ($validated['payment_method'] === 'paystack') {
+                $reference = $this->paystackService->generateReference();
+                $currentCredits = $client->getOrCreateCredits();
+
+                // Create pending credit transaction
+                $creditTransaction = CreditTransaction::create([
+                    'client_id' => $client->id,
+                    'transaction_reference' => CreditTransaction::generateReference(),
+                    'type' => 'purchase',
+                    'credits' => $credits,
+                    'balance_before' => $currentCredits->available_credits,
+                    'balance_after' => $currentCredits->available_credits,
+                    'amount_paid' => $amount,
+                    'payment_method' => 'paystack',
+                    'payment_reference' => $reference,
+                    'status' => 'pending',
+                    'description' => "Custom credit purchase: ₦" . number_format($amount),
+                    'metadata' => [
+                        'purchase_type' => 'custom',
+                        'amount' => $amount,
+                        'credits' => $credits,
+                    ],
+                ]);
+
+                // Initialize Paystack transaction
+                // NOTE: PaystackService::initializeTransaction() converts to kobo internally — do NOT pre-multiply
+                $paystackResponse = $this->paystackService->initializeTransaction([
+                    'amount' => $amount,
+                    'email' => $client->email,
+                    'reference' => $reference,
+                    'metadata' => [
+                        'transaction_type' => 'custom_credits',
+                        'client_id' => $client->id,
+                        'credit_transaction_id' => $creditTransaction->id,
+                        'credits' => $credits,
+                    ],
+                    'callback_url' => config('app.frontend_url') . '/dashboard/client/subscriptions/verify?reference=' . $reference,
+                ]);
+
+                if (!$paystackResponse['success']) {
+                    $creditTransaction->status = 'failed';
+                    $creditTransaction->save();
+
+                    return response()->json([
+                        'success' => false,
+                        'message' => $paystackResponse['message'],
+                    ], 400);
+                }
+
+                $creditTransaction->metadata = array_merge($creditTransaction->metadata ?? [], [
+                    'paystack_data' => $paystackResponse['data'],
+                    'authorization_url' => $paystackResponse['data']['authorization_url'],
+                    'access_code' => $paystackResponse['data']['access_code'],
+                ]);
+                $creditTransaction->save();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Payment initialized successfully',
+                    'data' => [
+                        'authorization_url' => $paystackResponse['data']['authorization_url'],
+                        'access_code' => $paystackResponse['data']['access_code'],
+                        'reference' => $reference,
+                        'payment_method' => 'paystack',
+                        'amount' => $amount,
+                        'credits' => $credits,
+                    ],
+                ]);
+            }
+
+            // Handle wallet payment
+            $wallet = $client->wallet;
+
+            if (!$wallet || $wallet->balance < $amount) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Insufficient wallet balance',
+                ], 400);
+            }
+
+            // Deduct from wallet and add credits directly (no package record needed)
+            $wallet->balance -= $amount;
+            $wallet->total_debited += $amount;
+            $wallet->last_transaction_at = now();
+            $wallet->save();
+
+            $clientCredit = $client->getOrCreateCredits();
+            $balanceBefore = $clientCredit->available_credits;
+            $clientCredit->addCredits($credits);
+
+            CreditTransaction::create([
+                'client_id' => $client->id,
+                'transaction_reference' => CreditTransaction::generateReference(),
+                'type' => 'purchase',
+                'credits' => $credits,
+                'balance_before' => $balanceBefore,
+                'balance_after' => $clientCredit->available_credits,
+                'amount_paid' => $amount,
+                'payment_method' => 'wallet',
+                'status' => 'completed',
+                'description' => "Custom credit purchase: ₦" . number_format($amount),
+                'metadata' => [
+                    'purchase_type' => 'custom',
+                    'amount' => $amount,
+                    'credits' => $credits,
+                ],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Credits purchased successfully',
+                'data' => [
+                    'credits_added' => $credits,
+                    'new_balance' => $clientCredit->available_credits,
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 400);
+        }
+    }
+
+    /**
      * Verify Paystack payment for credit purchase
      */
     public function verifyPayment(Request $request)
@@ -344,15 +498,16 @@ class CreditController extends Controller
         try {
             $client = $request->user();
 
-            // Find the credit transaction
-            $creditTransaction = \App\Modules\Admin\Models\CreditTransaction::where('reference', $validated['reference'])
+            // Find the pending credit transaction by payment reference
+            $creditTransaction = CreditTransaction::where('payment_reference', $validated['reference'])
                 ->where('client_id', $client->id)
+                ->where('status', 'pending')
                 ->first();
 
             if (!$creditTransaction) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Transaction not found',
+                    'message' => 'Transaction not found or already processed',
                 ], 404);
             }
 
@@ -371,7 +526,6 @@ class CreditController extends Controller
 
             $paymentData = $paystackResponse['data'];
 
-            // Check if payment was successful
             if ($paymentData['status'] !== 'success') {
                 $creditTransaction->status = 'failed';
                 $creditTransaction->save();
@@ -382,7 +536,7 @@ class CreditController extends Controller
                 ], 400);
             }
 
-            // Update transaction with verification data
+            // Mark transaction as completed
             $creditTransaction->status = 'completed';
             $creditTransaction->metadata = array_merge($creditTransaction->metadata ?? [], [
                 'paystack_verification' => $paymentData,
@@ -390,9 +544,9 @@ class CreditController extends Controller
             ]);
             $creditTransaction->save();
 
-            // Complete the purchase based on transaction type
-            if ($creditTransaction->transaction_type === 'subscription') {
-                $plan = SubscriptionPlan::find($creditTransaction->transactable_id);
+            // Complete the purchase based on what the pending transaction references
+            if ($creditTransaction->subscription_plan_id) {
+                $plan = SubscriptionPlan::find($creditTransaction->subscription_plan_id);
                 if ($plan) {
                     $this->creditPurchaseService->purchaseSubscriptionPlan(
                         $client,
@@ -401,8 +555,8 @@ class CreditController extends Controller
                         $validated['reference']
                     );
                 }
-            } elseif ($creditTransaction->transaction_type === 'purchase') {
-                $package = CreditPackage::find($creditTransaction->transactable_id);
+            } elseif ($creditTransaction->credit_package_id) {
+                $package = CreditPackage::find($creditTransaction->credit_package_id);
                 if ($package) {
                     $this->creditPurchaseService->purchaseCreditPackage(
                         $client,
@@ -411,6 +565,10 @@ class CreditController extends Controller
                         $validated['reference']
                     );
                 }
+            } else {
+                // Custom amount — add credits directly
+                $clientCredit = $client->getOrCreateCredits();
+                $clientCredit->addCredits($creditTransaction->credits);
             }
 
             return response()->json([
@@ -419,7 +577,7 @@ class CreditController extends Controller
                 'data' => [
                     'transaction_id' => $creditTransaction->id,
                     'status' => $creditTransaction->status,
-                    'amount' => $creditTransaction->amount,
+                    'amount' => $creditTransaction->amount_paid,
                     'credits' => $creditTransaction->credits,
                 ],
             ]);
@@ -441,12 +599,11 @@ class CreditController extends Controller
     {
         try {
             $client = $request->user();
-            
+
             $query = CreditTransaction::where('client_id', $client->id)
                 ->with(['subscriptionPlan', 'creditPackage', 'order'])
                 ->orderBy('created_at', 'desc');
 
-            // Filter by type
             if ($request->has('type') && $request->type) {
                 $query->where('type', $request->type);
             }
@@ -457,7 +614,7 @@ class CreditController extends Controller
                 'success' => true,
                 'data' => $transactions,
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch transactions',
@@ -473,9 +630,9 @@ class CreditController extends Controller
     {
         try {
             $client = $request->user();
-            
+
             $subscriptions = $client->subscriptions()
-                ->with('plan')
+                ->with(['plan' => fn($q) => $q->withTrashed()])
                 ->orderBy('created_at', 'desc')
                 ->get();
 
@@ -483,7 +640,7 @@ class CreditController extends Controller
                 'success' => true,
                 'data' => $subscriptions,
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch subscriptions',
@@ -506,7 +663,7 @@ class CreditController extends Controller
 
         try {
             $client = $request->user();
-            
+
             $validation = $this->creditCalculationService->validateCreditsForDelivery(
                 $client,
                 $validated['pickup_address'],
@@ -519,7 +676,7 @@ class CreditController extends Controller
                 'success' => true,
                 'data' => $validation,
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to calculate credits',
@@ -540,7 +697,7 @@ class CreditController extends Controller
                 'success' => true,
                 'data' => $zones,
             ]);
-        } catch (Exception $e) {
+        } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch delivery zones',

@@ -4,7 +4,7 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use App\Models\MetterConfiguration;
+use App\Modules\Metter\Models\MetterConfiguration;
 
 class MetterConfigurationSeeder extends Seeder
 {

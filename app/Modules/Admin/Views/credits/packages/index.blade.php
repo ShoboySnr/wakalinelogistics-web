@@ -14,6 +14,12 @@
         </a>
     </div>
 
+    @if(session('success'))
+    <div class="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
+        {{ session('success') }}
+    </div>
+    @endif
+
     <!-- Packages Table -->
     <div class="bg-white shadow rounded-lg overflow-hidden">
         <div class="overflow-x-auto">
@@ -21,11 +27,10 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Package Name</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bonus</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price/Credit</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">₦ / Credit</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Validity</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -40,24 +45,23 @@
                             <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-[#C1666B] text-white mt-1">Best Value</span>
                             @endif
                         </td>
-                        <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{{ $package->description }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₦{{ number_format($package->price, 2) }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $package->credits }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ number_format($package->credits) }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ $package->bonus_credits > 0 ? '+' . $package->bonus_credits : '-' }}
+                            {{ $package->bonus_credits > 0 ? '+' . number_format($package->bonus_credits) : '—' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₦{{ number_format($package->price_per_credit, 2) }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ $package->validity_days ? $package->validity_days . ' days' : 'Lifetime' }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
-                                {{ $package->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
+                            <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {{ $package->is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' }}">
                                 {{ $package->is_active ? 'Active' : 'Inactive' }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <div class="flex gap-2">
+                            <div class="flex items-center gap-3">
+                                <a href="{{ route('admin.credits.packages.show', $package->id) }}" class="text-blue-600 hover:text-blue-700">View</a>
                                 <a href="{{ route('admin.credits.packages.edit', $package->id) }}" class="text-[#C1666B] hover:text-[#A85559]">Edit</a>
                                 <form action="{{ route('admin.credits.packages.delete', $package->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this package?');" class="inline">
                                     @csrf
@@ -69,7 +73,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500">
+                        <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500">
                             <div class="flex flex-col items-center">
                                 <svg class="h-12 w-12 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>

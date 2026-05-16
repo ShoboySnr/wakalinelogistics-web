@@ -93,7 +93,9 @@
         <div class="mt-6">
             <label class="block text-sm font-medium text-gray-700 mb-2">Features (one per line)</label>
             <textarea name="features_text" rows="5"
-                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500">{{ old('features_text', is_array($plan->features) ? implode("\n", $plan->features) : '') }}</textarea>
+                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                placeholder="Priority support&#10;Free delivery insurance&#10;Dedicated account manager">{{ old('features_text', is_array($plan->features) ? implode("\n", $plan->features) : '') }}</textarea>
+            <p class="text-xs text-gray-500 mt-1">Enter each feature on a new line</p>
         </div>
 
         <!-- Checkboxes -->
@@ -123,17 +125,4 @@
     </form>
 </div>
 
-<script>
-document.querySelector('form').addEventListener('submit', function(e) {
-    const featuresText = document.querySelector('[name="features_text"]').value;
-    if (featuresText.trim()) {
-        const features = featuresText.split('\n').filter(f => f.trim());
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = 'features';
-        input.value = JSON.stringify(features);
-        this.appendChild(input);
-    }
-});
-</script>
 @endsection

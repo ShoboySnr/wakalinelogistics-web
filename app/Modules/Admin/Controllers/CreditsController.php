@@ -75,19 +75,17 @@ class CreditsController extends Controller
             'price' => 'required|numeric|min:0',
             'billing_cycle' => 'required|in:daily,weekly,monthly,quarterly,yearly,one-time',
             'validity_days' => 'nullable|integer|min:1',
-            'features' => 'nullable|string',
             'is_active' => 'boolean',
             'is_featured' => 'boolean',
             'sort_order' => 'nullable|integer',
         ]);
 
         $validated['slug'] = Str::slug($validated['name']);
-        
-        // Decode features JSON string to array
-        if (isset($validated['features'])) {
-            $validated['features'] = json_decode($validated['features'], true);
-        }
-        
+
+        // Read features_text from raw $_POST to bypass TrimStrings/ConvertEmptyStringsToNull middleware
+        $featuresRaw = $_POST['features_text'] ?? $request->input('features_text', '');
+        $validated['features'] = array_values(array_filter(array_map('trim', explode("\n", (string) $featuresRaw))));
+
         SubscriptionPlan::create($validated);
 
         return redirect()->route('admin.credits.plans')->with('success', 'Subscription plan created successfully');
@@ -116,19 +114,17 @@ class CreditsController extends Controller
             'price' => 'required|numeric|min:0',
             'billing_cycle' => 'required|in:daily,weekly,monthly,quarterly,yearly,one-time',
             'validity_days' => 'nullable|integer|min:1',
-            'features' => 'nullable|string',
             'is_active' => 'boolean',
             'is_featured' => 'boolean',
             'sort_order' => 'nullable|integer',
         ]);
 
         $validated['slug'] = Str::slug($validated['name']);
-        
-        // Decode features JSON string to array
-        if (isset($validated['features'])) {
-            $validated['features'] = json_decode($validated['features'], true);
-        }
-        
+
+        // Read features_text from raw $_POST to bypass TrimStrings/ConvertEmptyStringsToNull middleware
+        $featuresRaw = $_POST['features_text'] ?? $request->input('features_text', '');
+        $validated['features'] = array_values(array_filter(array_map('trim', explode("\n", (string) $featuresRaw))));
+
         $plan->update($validated);
 
         return redirect()->route('admin.credits.plans')->with('success', 'Subscription plan updated successfully');
@@ -184,6 +180,15 @@ class CreditsController extends Controller
         CreditPackage::create($validated);
 
         return redirect()->route('admin.credits.packages')->with('success', 'Credit package created successfully');
+    }
+
+    /**
+     * Show package detail
+     */
+    public function showPackage($id)
+    {
+        $package = CreditPackage::with('creditTransactions')->findOrFail($id);
+        return view('Admin::credits.packages.show', compact('package'));
     }
 
     /**

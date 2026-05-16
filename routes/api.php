@@ -44,6 +44,8 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
         
         // Client Orders
         Route::post('orders', [ClientOrderController::class, 'store']);
+        Route::post('orders/card/initialize', [ClientOrderController::class, 'initializeCardPayment']);
+        Route::post('orders/card/verify', [ClientOrderController::class, 'verifyCardPayment']);
         Route::get('orders/my-orders', [ClientOrderController::class, 'myOrders']);
         Route::get('orders/today', [ClientOrderController::class, 'todayOrders']);
         Route::get('orders/{id}', [ClientOrderController::class, 'show']);
@@ -77,11 +79,22 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
             Route::get('/packages', [\App\Http\Controllers\Api\CreditController::class, 'getPackages']);
             Route::post('/plans/purchase', [\App\Http\Controllers\Api\CreditController::class, 'purchasePlan']);
             Route::post('/packages/purchase', [\App\Http\Controllers\Api\CreditController::class, 'purchasePackage']);
+            Route::post('/custom/purchase', [\App\Http\Controllers\Api\CreditController::class, 'purchaseCustomAmount']);
             Route::post('/verify', [\App\Http\Controllers\Api\CreditController::class, 'verifyPayment']);
             Route::get('/transactions', [\App\Http\Controllers\Api\CreditController::class, 'getTransactions']);
             Route::get('/subscriptions', [\App\Http\Controllers\Api\CreditController::class, 'getSubscriptions']);
             Route::post('/calculate', [\App\Http\Controllers\Api\CreditController::class, 'calculateDeliveryCredits']);
             Route::get('/zones', [\App\Http\Controllers\Api\CreditController::class, 'getDeliveryZones']);
+        });
+
+        // Help Center
+        Route::prefix('help')->group(function () {
+            Route::get('/faqs', [\App\Http\Controllers\Api\HelpController::class, 'getFaqs']);
+            Route::get('/tickets', [\App\Http\Controllers\Api\HelpController::class, 'getTickets']);
+            Route::post('/tickets', [\App\Http\Controllers\Api\HelpController::class, 'createTicket']);
+            Route::get('/tickets/{id}', [\App\Http\Controllers\Api\HelpController::class, 'getTicket']);
+            Route::post('/tickets/{id}/messages', [\App\Http\Controllers\Api\HelpController::class, 'addMessage']);
+            Route::patch('/tickets/{id}/close', [\App\Http\Controllers\Api\HelpController::class, 'closeTicket']);
         });
     });
     

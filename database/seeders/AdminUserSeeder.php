@@ -14,15 +14,21 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
-        User::create([
-            'name' => 'Admin',
-            'email' => 'admin@wakalinelogistics.com',
-            'password' => Hash::make('password'),
-            'phone' => '+234 810 066 5758',
-            'is_admin' => true,
-        ]);
+        $user = User::updateOrCreate(
+            ['email' => 'admin@wakalinelogistics.com'],
+            [
+                'name' => 'Admin',
+                'password' => Hash::make('password'),
+                'phone' => '+234 810 066 5758',
+                'is_admin' => true,
+            ]
+        );
 
-        echo "Admin user created successfully!\n";
+        if ($user->wasRecentlyCreated) {
+            echo "Admin user created successfully!\n";
+        } else {
+            echo "Admin user already exists, updated successfully!\n";
+        }
         echo "Email: admin@wakalinelogistics.com\n";
         echo "Password: password\n";
     }
