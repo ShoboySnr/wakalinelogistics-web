@@ -27,8 +27,8 @@ class CreditPackage extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'is_popular' => 'boolean',
-        'price' => 'decimal:2',
-        'price_per_credit' => 'decimal:2',
+        'price' => 'float',
+        'price_per_credit' => 'float',
     ];
 
     /**
@@ -74,7 +74,7 @@ class CreditPackage extends Model
      */
     public function getFormattedPriceAttribute()
     {
-        return '₦' . number_format($this->price, 2);
+        return '₦' . number_format($this->price);
     }
 
     /**

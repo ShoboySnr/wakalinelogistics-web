@@ -14,6 +14,8 @@ use App\Modules\Admin\Models\JobApplication;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
 class DashboardController extends Controller
@@ -1727,13 +1729,194 @@ class DashboardController extends Controller
         $client = Client::with(['orders' => function($query) {
             $query->latest()->take(10);
         }])->findOrFail($id);
-        
+
         $totalOrders = $client->orders()->count();
         $completedOrders = $client->orders()->where('status', 'delivered')->count();
         $pendingOrders = $client->orders()->whereIn('status', ['pending', 'picked_up', 'in_transit'])->count();
         $totalRevenue = $client->orders()->where('status', 'delivered')->sum('price');
-        
-        return view('Admin::clients.show', compact('client', 'totalOrders', 'completedOrders', 'pendingOrders', 'totalRevenue'));
+
+        $subscriptionPlans = \App\Modules\Admin\Models\SubscriptionPlan::active()->orderBy('sort_order')->orderBy('price')->get();
+        $clientCredit = $client->getOrCreateCredits();
+        $activeSubscription = $client->activeSubscription()->with('plan')->first();
+
+        return view('Admin::clients.show', compact('client', 'totalOrders', 'completedOrders', 'pendingOrders', 'totalRevenue', 'subscriptionPlans', 'clientCredit', 'activeSubscription'));
+    }
+
+    public function manualSubscribe(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'subscription_plan_id' => 'required|exists:subscription_plans,id',
+            'starts_at' => 'required|date',
+            'notes' => 'nullable|string|max:500',
+        ]);
+
+        $client = Client::findOrFail($id);
+        $plan = \App\Modules\Admin\Models\SubscriptionPlan::findOrFail($validated['subscription_plan_id']);
+
+        DB::beginTransaction();
+        try {
+            // Cancel any existing active subscription
+            $client->subscriptions()->where('status', 'active')->update(['status' => 'cancelled', 'cancelled_at' => now()]);
+
+            $startsAt = \Carbon\Carbon::parse($validated['starts_at']);
+            $expiresAt = $plan->validity_days ? $startsAt->copy()->addDays($plan->validity_days) : null;
+
+            $subscription = \App\Modules\Admin\Models\ClientSubscription::create([
+                'client_id' => $client->id,
+                'subscription_plan_id' => $plan->id,
+                'status' => 'active',
+                'starts_at' => $startsAt,
+                'expires_at' => $expiresAt,
+                'credits_allocated' => $plan->credits,
+                'credits_used' => 0,
+                'amount_paid' => 0,
+                'auto_renew' => false,
+            ]);
+
+            // Add credits to client
+            $clientCredit = $client->getOrCreateCredits();
+            $balanceBefore = $clientCredit->available_credits;
+            $clientCredit->addCredits($plan->credits);
+
+            \App\Modules\Admin\Models\CreditTransaction::create([
+                'client_id' => $client->id,
+                'transaction_reference' => \App\Modules\Admin\Models\CreditTransaction::generateReference(),
+                'type' => 'purchase',
+                'status' => 'completed',
+                'credits' => $plan->credits,
+                'balance_before' => $balanceBefore,
+                'balance_after' => $clientCredit->available_credits,
+                'subscription_plan_id' => $plan->id,
+                'amount_paid' => 0,
+                'payment_method' => 'manual',
+                'description' => "Manual subscription: {$plan->name}" . ($validated['notes'] ? " — {$validated['notes']}" : ''),
+                'processed_by' => auth()->id(),
+                'metadata' => ['admin_note' => $validated['notes'] ?? null, 'subscription_id' => $subscription->id],
+            ]);
+
+            DB::commit();
+
+            return back()->with('success', "Client subscribed to {$plan->name} successfully. {$plan->credits} credits added.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to subscribe client: ' . $e->getMessage());
+        }
+    }
+
+    public function manualAddCredits(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'credits' => 'required|integer|min:1',
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $client = Client::findOrFail($id);
+
+        DB::beginTransaction();
+        try {
+            $clientCredit = $client->getOrCreateCredits();
+            $balanceBefore = $clientCredit->available_credits;
+            $clientCredit->addCredits($validated['credits']);
+
+            \App\Modules\Admin\Models\CreditTransaction::create([
+                'client_id' => $client->id,
+                'transaction_reference' => \App\Modules\Admin\Models\CreditTransaction::generateReference(),
+                'type' => 'adjustment',
+                'status' => 'completed',
+                'credits' => $validated['credits'],
+                'balance_before' => $balanceBefore,
+                'balance_after' => $clientCredit->available_credits,
+                'amount_paid' => 0,
+                'payment_method' => 'manual',
+                'description' => "Manual credit addition: {$validated['reason']}",
+                'processed_by' => auth()->id(),
+                'metadata' => ['admin_note' => $validated['reason'], 'adjustment_type' => 'add'],
+            ]);
+
+            DB::commit();
+
+            return back()->with('success', "{$validated['credits']} credits added to {$client->name} successfully.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to add credits: ' . $e->getMessage());
+        }
+    }
+
+    public function manualDeductCredits(Request $request, $id)
+    {
+        $validated = $request->validate([
+            'credits' => 'required|integer|min:1',
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $client = Client::findOrFail($id);
+
+        DB::beginTransaction();
+        try {
+            $clientCredit = $client->getOrCreateCredits();
+
+            if ($clientCredit->available_credits < $validated['credits']) {
+                return back()->with('error', "Cannot deduct {$validated['credits']} credits — client only has {$clientCredit->available_credits} available.");
+            }
+
+            $balanceBefore = $clientCredit->available_credits;
+            $clientCredit->deductCredits($validated['credits']);
+
+            \App\Modules\Admin\Models\CreditTransaction::create([
+                'client_id' => $client->id,
+                'transaction_reference' => \App\Modules\Admin\Models\CreditTransaction::generateReference(),
+                'type' => 'adjustment',
+                'status' => 'completed',
+                'credits' => -$validated['credits'],
+                'balance_before' => $balanceBefore,
+                'balance_after' => $clientCredit->available_credits,
+                'amount_paid' => 0,
+                'payment_method' => 'manual',
+                'description' => "Admin credit deduction: {$validated['reason']}",
+                'processed_by' => auth()->id(),
+                'metadata' => ['admin_note' => $validated['reason'], 'adjustment_type' => 'deduct'],
+            ]);
+
+            DB::commit();
+
+            return back()->with('success', "{$validated['credits']} credits deducted from {$client->name} successfully.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return back()->with('error', 'Failed to deduct credits: ' . $e->getMessage());
+        }
+    }
+
+    public function manualVerifyEmail($id)
+    {
+        $client = Client::findOrFail($id);
+
+        if ($client->email_verified_at) {
+            return back()->with('error', 'This client\'s email is already verified.');
+        }
+
+        $client->email_verified_at             = now();
+        $client->email_verification_code       = null;
+        $client->email_verification_expires_at = null;
+        $client->save();
+
+        $bonusMessage = '';
+        if (!$client->signup_bonus_credited) {
+            try {
+                $credits = $client->getOrCreateCredits();
+                $credits->addCredits(2000);
+                $client->signup_bonus_credited = true;
+                $client->save();
+                $bonusMessage = ' 2,000 signup bonus credits added.';
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Admin manual verify — bonus credit failed', [
+                    'client_id' => $client->id,
+                    'error'     => $e->getMessage(),
+                ]);
+                $bonusMessage = ' (Bonus credit failed.)';
+            }
+        }
+
+        return back()->with('success', "{$client->name}'s email has been manually verified.{$bonusMessage}");
     }
 
     public function editClient($id)

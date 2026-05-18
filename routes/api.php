@@ -6,7 +6,6 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ClientOrderController;
 use App\Http\Controllers\Api\ClientSettingsController;
-use App\Http\Controllers\Api\WalletController;
 use App\Http\Controllers\Api\RouteShareApiController;
 use App\Http\Controllers\Api\JobApplicationController;
 use App\Http\Controllers\ClientShareController;
@@ -33,6 +32,9 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
     Route::post('orders/submit-public', [\App\Http\Controllers\Api\OrderController::class, 'submitOrder'])->middleware('client.api');
     
     Route::post('auth/register', [AuthController::class, 'register']);
+    Route::post('auth/client-register', [AuthController::class, 'clientRegister']);
+    Route::post('auth/verify-email', [AuthController::class, 'verifyEmail']);
+    Route::post('auth/resend-verification', [AuthController::class, 'resendVerification']);
     Route::post('auth/login', [AuthController::class, 'login']);
     Route::post('auth/social-login', [AuthController::class, 'socialLogin']);
     Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword']);
@@ -48,7 +50,11 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
         Route::post('orders/card/verify', [ClientOrderController::class, 'verifyCardPayment']);
         Route::get('orders/my-orders', [ClientOrderController::class, 'myOrders']);
         Route::get('orders/today', [ClientOrderController::class, 'todayOrders']);
+        Route::get('orders/bulk/template', [ClientOrderController::class, 'bulkTemplate']);
+        Route::post('orders/bulk', [ClientOrderController::class, 'bulkUpload']);
+        Route::post('orders/bulk/card/verify', [ClientOrderController::class, 'verifyBulkCardPayment']);
         Route::get('orders/{id}', [ClientOrderController::class, 'show']);
+        Route::post('orders/{id}/cancel', [ClientOrderController::class, 'cancel']);
         
         // Client Settings
         Route::put('settings/profile', [ClientSettingsController::class, 'updateProfile']);
@@ -62,15 +68,6 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
         Route::get('settings/api-access', [ClientSettingsController::class, 'getApiAccess']);
         Route::post('settings/api-key/regenerate', [ClientSettingsController::class, 'regenerateApiKey']);
         Route::post('settings/2fa', [ClientSettingsController::class, 'toggle2FA']);
-        
-        // Wallet Routes
-        Route::prefix('wallet')->group(function () {
-            Route::get('/', [WalletController::class, 'getWallet']);
-            Route::get('/transactions', [WalletController::class, 'getTransactions']);
-            Route::post('/fund/initialize', [WalletController::class, 'initializeFunding']);
-            Route::post('/fund/verify', [WalletController::class, 'verifyPayment']);
-            Route::get('/paystack/public-key', [WalletController::class, 'getPaystackPublicKey']);
-        });
         
         // Credits & Subscriptions Routes
         Route::prefix('credits')->group(function () {
@@ -98,9 +95,11 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
         });
     });
     
-    // Paystack Webhook (no auth required)
-    Route::post('wallet/webhook/paystack', [WalletController::class, 'handleWebhook']);
-    
+    // Public endpoints (no auth required)
+    Route::get('credits/plans/public', [\App\Http\Controllers\Api\CreditController::class, 'getPublicPlans']);
+    Route::get('credits/stats/public', [\App\Http\Controllers\Api\CreditController::class, 'getPublicStats']);
+    Route::get('orders/track/{orderNumber}', [ClientOrderController::class, 'publicTrack']);
+
     Route::post('orders/submit', [OrderController::class, 'submitOrder'])->middleware('client.api');
     Route::get('orders/{orderNumber}/status', [OrderController::class, 'getOrderStatus'])->middleware('client.api');
 });

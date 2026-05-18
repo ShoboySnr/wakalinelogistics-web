@@ -26,7 +26,7 @@
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Price (₦) *</label>
-                <input type="number" name="price" value="{{ old('price', $package->price) }}" required step="0.01" min="0"
+                <input type="number" name="price" value="{{ old('price', $package->price + 0) }}" required step="any" min="0"
                     class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500">
             </div>
             <div>

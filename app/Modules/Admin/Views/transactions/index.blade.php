@@ -1,14 +1,14 @@
 @extends('Admin::layout')
 
-@section('title', 'Wallet Transactions')
+@section('title', 'Credit Transactions')
 
 @section('content')
 <div class="px-4 sm:px-6 lg:px-0">
     <!-- Header -->
     <div class="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
-            <h1 class="text-2xl font-bold text-gray-900">Wallet Transactions</h1>
-            <p class="text-sm text-gray-500 mt-1">Manage and monitor all wallet transactions</p>
+            <h1 class="text-2xl font-bold text-gray-900">Credit Transactions</h1>
+            <p class="text-sm text-gray-500 mt-1">Manage and monitor all credit purchase and usage transactions</p>
         </div>
     </div>
 
@@ -73,7 +73,7 @@
         <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-gray-500 text-sm">Total Amount</p>
+                    <p class="text-gray-500 text-sm">Total Paid</p>
                     <p class="text-2xl font-bold brand-accent-text">₦{{ number_format($stats['total_amount'], 2) }}</p>
                 </div>
                 <div class="p-3 brand-accent rounded-full">
@@ -91,15 +91,16 @@
             <input type="text" name="search" value="{{ request('search') }}" placeholder="Search by reference, description..." class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500">
             <select name="status" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500">
                 <option value="">All Status</option>
-                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                <option value="pending"   {{ request('status') == 'pending'   ? 'selected' : '' }}>Pending</option>
                 <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
-                <option value="failed" {{ request('status') == 'failed' ? 'selected' : '' }}>Failed</option>
-                <option value="reversed" {{ request('status') == 'reversed' ? 'selected' : '' }}>Reversed</option>
+                <option value="failed"    {{ request('status') == 'failed'    ? 'selected' : '' }}>Failed</option>
+                <option value="reversed"  {{ request('status') == 'reversed'  ? 'selected' : '' }}>Reversed</option>
             </select>
             <select name="type" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500">
                 <option value="">All Types</option>
-                <option value="credit" {{ request('type') == 'credit' ? 'selected' : '' }}>Credit</option>
-                <option value="debit" {{ request('type') == 'debit' ? 'selected' : '' }}>Debit</option>
+                <option value="purchase" {{ request('type') == 'purchase' ? 'selected' : '' }}>Purchase</option>
+                <option value="usage"    {{ request('type') == 'usage'    ? 'selected' : '' }}>Usage</option>
+                <option value="refund"   {{ request('type') == 'refund'   ? 'selected' : '' }}>Refund</option>
             </select>
             <button type="submit" class="px-4 py-2 text-white rounded-md brand-accent-bg brand-accent-hover whitespace-nowrap">
                 Search
@@ -119,9 +120,10 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reference</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credits</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount Paid</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment Method</th>
                         <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
@@ -141,52 +143,41 @@
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm text-gray-900">
-                                @if($transaction->wallet && $transaction->wallet->walletable)
-                                    {{ $transaction->wallet->walletable->name ?? $transaction->wallet->walletable->email }}
+                                {{ $transaction->client->name ?? $transaction->client->email ?? 'N/A' }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            @if($transaction->type === 'purchase')
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Purchase</span>
+                            @elseif($transaction->type === 'refund')
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Refund</span>
+                            @else
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Usage</span>
+                            @endif
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-semibold {{ $transaction->credits >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                                {{ $transaction->credits >= 0 ? '+' : '' }}{{ number_format($transaction->credits) }}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm text-gray-900">
+                                @if($transaction->amount_paid)
+                                    ₦{{ number_format($transaction->amount_paid, 2) }}
                                 @else
-                                    N/A
+                                    —
                                 @endif
                             </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            @if($transaction->type === 'credit')
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                                </svg>
-                                Credit
-                            </span>
-                            @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
-                                </svg>
-                                Debit
-                            </span>
-                            @endif
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-semibold {{ $transaction->type === 'credit' ? 'text-green-600' : 'text-red-600' }}">
-                                {{ $transaction->type === 'credit' ? '+' : '-' }}₦{{ number_format($transaction->amount, 2) }}
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
                             @if($transaction->status === 'completed')
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Completed
-                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Completed</span>
                             @elseif($transaction->status === 'pending')
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Pending
-                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
                             @elseif($transaction->status === 'failed')
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                Failed
-                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Failed</span>
                             @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                {{ ucfirst($transaction->status) }}
-                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{{ ucfirst($transaction->status) }}</span>
                             @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -203,7 +194,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                        <td colspan="9" class="px-6 py-12 text-center text-gray-500">
                             <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                             </svg>
@@ -215,7 +206,6 @@
             </table>
         </div>
 
-        <!-- Pagination -->
         @if($transactions->hasPages())
         <div class="px-6 py-4 border-t border-gray-200">
             {{ $transactions->links() }}

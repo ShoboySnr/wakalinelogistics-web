@@ -119,6 +119,10 @@ Route::prefix('super-admin')->group(function () {
         Route::post('/clients/{id}/regenerate-api-key', [DashboardController::class, 'regenerateApiKey'])->name('admin.clients.regenerate-api-key');
         Route::post('/clients/{id}/enable-api-access', [DashboardController::class, 'enableApiAccess'])->name('admin.clients.enable-api-access');
         Route::post('/clients/{id}/disable-api-access', [DashboardController::class, 'disableApiAccess'])->name('admin.clients.disable-api-access');
+        Route::post('/clients/{id}/subscribe', [DashboardController::class, 'manualSubscribe'])->name('admin.clients.subscribe');
+        Route::post('/clients/{id}/add-credits', [DashboardController::class, 'manualAddCredits'])->name('admin.clients.add-credits');
+        Route::post('/clients/{id}/deduct-credits', [DashboardController::class, 'manualDeductCredits'])->name('admin.clients.deduct-credits');
+        Route::post('/clients/{id}/verify-email', [DashboardController::class, 'manualVerifyEmail'])->name('admin.clients.verify-email');
         
         // Communications (subscriptions & contact messages)
         Route::get('/communications', [CommunicationsController::class, 'index'])->name('admin.communications');

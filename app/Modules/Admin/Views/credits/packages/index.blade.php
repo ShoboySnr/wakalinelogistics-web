@@ -45,12 +45,12 @@
                             <span class="inline-block px-2 py-0.5 text-xs font-semibold rounded-full bg-[#C1666B] text-white mt-1">Best Value</span>
                             @endif
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₦{{ number_format($package->price, 2) }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₦{{ number_format($package->price) }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ number_format($package->credits) }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ $package->bonus_credits > 0 ? '+' . number_format($package->bonus_credits) : '—' }}
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₦{{ number_format($package->price_per_credit, 2) }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₦{{ number_format($package->price_per_credit) }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                             {{ $package->validity_days ? $package->validity_days . ' days' : 'Lifetime' }}
                         </td>

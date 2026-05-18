@@ -3,7 +3,7 @@
 namespace App\Modules\Admin\Controllers;
 
 use App\Http\Controllers\Controller;
-use App\Modules\Admin\Models\WalletTransaction;
+use App\Modules\Admin\Models\CreditTransaction;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -11,21 +11,18 @@ class TransactionController extends Controller
 {
     public function index(Request $request)
     {
-        $query = WalletTransaction::with(['wallet.walletable', 'transactable'])
+        $query = CreditTransaction::with(['client', 'subscriptionPlan', 'creditPackage', 'order'])
             ->orderBy('created_at', 'desc');
 
-        // Filter by status
-        if ($request->has('status') && $request->status !== 'all') {
+        if ($request->filled('status') && $request->status !== 'all') {
             $query->where('status', $request->status);
         }
 
-        // Filter by type
-        if ($request->has('type') && $request->type !== 'all') {
+        if ($request->filled('type') && $request->type !== 'all') {
             $query->where('type', $request->type);
         }
 
-        // Search
-        if ($request->has('search') && $request->search) {
+        if ($request->filled('search')) {
             $query->where(function ($q) use ($request) {
                 $q->where('transaction_reference', 'like', '%' . $request->search . '%')
                   ->orWhere('payment_reference', 'like', '%' . $request->search . '%')
@@ -36,11 +33,11 @@ class TransactionController extends Controller
         $transactions = $query->paginate(20);
 
         $stats = [
-            'total' => WalletTransaction::count(),
-            'pending' => WalletTransaction::where('status', 'pending')->count(),
-            'completed' => WalletTransaction::where('status', 'completed')->count(),
-            'failed' => WalletTransaction::where('status', 'failed')->count(),
-            'total_amount' => WalletTransaction::where('status', 'completed')->sum('amount'),
+            'total'        => CreditTransaction::count(),
+            'pending'      => CreditTransaction::where('status', 'pending')->count(),
+            'completed'    => CreditTransaction::where('status', 'completed')->count(),
+            'failed'       => CreditTransaction::where('status', 'failed')->count(),
+            'total_amount' => CreditTransaction::where('status', 'completed')->sum('amount_paid'),
         ];
 
         return view('Admin::transactions.index', compact('transactions', 'stats'));
@@ -48,7 +45,7 @@ class TransactionController extends Controller
 
     public function show($id)
     {
-        $transaction = WalletTransaction::with(['wallet.walletable', 'transactable', 'order'])
+        $transaction = CreditTransaction::with(['client', 'subscriptionPlan', 'creditPackage', 'order'])
             ->findOrFail($id);
 
         return view('Admin::transactions.show', compact('transaction'));
@@ -56,7 +53,7 @@ class TransactionController extends Controller
 
     public function approve(Request $request, $id)
     {
-        $transaction = WalletTransaction::findOrFail($id);
+        $transaction = CreditTransaction::findOrFail($id);
 
         if ($transaction->status !== 'pending') {
             return back()->with('error', 'Only pending transactions can be approved');
@@ -64,35 +61,27 @@ class TransactionController extends Controller
 
         DB::beginTransaction();
         try {
-            $wallet = $transaction->wallet;
+            $client = $transaction->client;
+            $clientCredit = $client->getOrCreateCredits();
+            $balanceBefore = $clientCredit->available_credits;
 
-            // Update wallet balance
-            if ($transaction->type === 'credit') {
-                $wallet->balance += $transaction->amount;
-                $wallet->total_credited += $transaction->amount;
-            } else {
-                $wallet->balance -= $transaction->amount;
-                $wallet->total_debited += $transaction->amount;
+            if ($transaction->type === 'purchase' || $transaction->type === 'refund') {
+                $clientCredit->addCredits($transaction->credits);
             }
-            
-            $wallet->last_transaction_at = now();
-            $wallet->save();
 
-            // Update transaction
             $transaction->update([
-                'status' => 'completed',
-                'balance_after' => $wallet->balance,
-                'completed_at' => now(),
-                'processed_by' => auth()->id(),
-                'metadata' => array_merge($transaction->metadata ?? [], [
+                'status'        => 'completed',
+                'balance_before' => $balanceBefore,
+                'balance_after'  => $clientCredit->available_credits,
+                'processed_by'   => auth()->id(),
+                'metadata'       => array_merge($transaction->metadata ?? [], [
                     'manually_approved_by' => auth()->user()->name,
                     'manually_approved_at' => now()->toDateTimeString(),
                 ]),
             ]);
 
             DB::commit();
-
-            return back()->with('success', 'Transaction approved successfully');
+            return back()->with('success', 'Transaction approved and credits added successfully');
         } catch (\Exception $e) {
             DB::rollBack();
             return back()->with('error', 'Failed to approve transaction: ' . $e->getMessage());
@@ -105,19 +94,19 @@ class TransactionController extends Controller
             'reason' => 'required|string|max:500',
         ]);
 
-        $transaction = WalletTransaction::findOrFail($id);
+        $transaction = CreditTransaction::findOrFail($id);
 
         if ($transaction->status !== 'pending') {
             return back()->with('error', 'Only pending transactions can be rejected');
         }
 
         $transaction->update([
-            'status' => 'failed',
+            'status'       => 'failed',
             'processed_by' => auth()->id(),
-            'metadata' => array_merge($transaction->metadata ?? [], [
+            'metadata'     => array_merge($transaction->metadata ?? [], [
                 'rejection_reason' => $request->reason,
-                'rejected_by' => auth()->user()->name,
-                'rejected_at' => now()->toDateTimeString(),
+                'rejected_by'      => auth()->user()->name,
+                'rejected_at'      => now()->toDateTimeString(),
             ]),
         ]);
 
@@ -130,7 +119,7 @@ class TransactionController extends Controller
             'reason' => 'required|string|max:500',
         ]);
 
-        $transaction = WalletTransaction::findOrFail($id);
+        $transaction = CreditTransaction::findOrFail($id);
 
         if ($transaction->status !== 'completed') {
             return back()->with('error', 'Only completed transactions can be reversed');
@@ -138,33 +127,27 @@ class TransactionController extends Controller
 
         DB::beginTransaction();
         try {
-            $wallet = $transaction->wallet;
+            $client = $transaction->client;
+            $clientCredit = $client->getOrCreateCredits();
 
-            // Reverse wallet balance
-            if ($transaction->type === 'credit') {
-                $wallet->balance -= $transaction->amount;
-                $wallet->total_credited -= $transaction->amount;
-            } else {
-                $wallet->balance += $transaction->amount;
-                $wallet->total_debited -= $transaction->amount;
+            // Reverse the credit effect
+            if ($transaction->type === 'purchase' || $transaction->type === 'refund') {
+                $clientCredit->deductCredits($transaction->credits);
+            } elseif ($transaction->type === 'usage') {
+                $clientCredit->addCredits(abs($transaction->credits));
             }
-            
-            $wallet->last_transaction_at = now();
-            $wallet->save();
 
-            // Update transaction
             $transaction->update([
-                'status' => 'reversed',
+                'status'       => 'reversed',
                 'processed_by' => auth()->id(),
-                'metadata' => array_merge($transaction->metadata ?? [], [
+                'metadata'     => array_merge($transaction->metadata ?? [], [
                     'reversal_reason' => $request->reason,
-                    'reversed_by' => auth()->user()->name,
-                    'reversed_at' => now()->toDateTimeString(),
+                    'reversed_by'     => auth()->user()->name,
+                    'reversed_at'     => now()->toDateTimeString(),
                 ]),
             ]);
 
             DB::commit();
-
             return back()->with('success', 'Transaction reversed successfully');
         } catch (\Exception $e) {
             DB::rollBack();

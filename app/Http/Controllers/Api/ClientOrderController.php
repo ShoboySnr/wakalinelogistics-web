@@ -53,7 +53,7 @@ class ClientOrderController extends Controller
             'delivery_address'    => 'required|string',
             'package_description' => 'required|string',
             'package_quantity'    => 'required|integer|min:1',
-            'payment_method'      => 'nullable|in:credits,cash,wallet',
+            'payment_method'      => 'nullable|in:credits,cash',
         ]);
 
         if ($validator->fails()) {
@@ -99,23 +99,6 @@ class ClientOrderController extends Controller
                 }
             }
 
-            // --- Wallet payment: validate before creating the order ---
-            if ($paymentMethod === 'wallet') {
-                $wallet = $user->getOrCreateWallet();
-                if (!$wallet->hasSufficientBalance($deliveryFee)) {
-                    DB::rollBack();
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Insufficient wallet balance',
-                        'data'    => [
-                            'required'  => $deliveryFee,
-                            'available' => $wallet->balance,
-                            'shortfall' => $deliveryFee - $wallet->balance,
-                        ],
-                    ], 400);
-                }
-            }
-
             // Create the order
             $order = Order::create([
                 'order_number'        => $orderNumber,
@@ -138,7 +121,8 @@ class ClientOrderController extends Controller
                 'delivery_date'       => now()->addDays(2)->format('Y-m-d'),
                 'distance'            => $distance,
                 'price'               => $deliveryFee,
-                'status'              => 'pending',
+                // Orders paid immediately (credits) are confirmed; cash awaits collection
+                'status'              => $paymentMethod === 'credits' ? 'confirmed' : 'pending',
                 'payment_method'      => $paymentMethod,
                 'paid_with_credits'   => $paymentMethod === 'credits',
             ]);
@@ -153,16 +137,6 @@ class ClientOrderController extends Controller
                     $deliveryFee
                 );
                 $order->update(['credits_used' => $deliveryFee]);
-            }
-
-            // --- Deduct from wallet ---
-            if ($paymentMethod === 'wallet') {
-                $wallet = $user->getOrCreateWallet();
-                $wallet->debit(
-                    $deliveryFee,
-                    "Order payment: #{$orderNumber}",
-                    ['order_id' => $order->id, 'order_number' => $orderNumber]
-                );
             }
 
             DB::commit();
@@ -462,6 +436,405 @@ class ClientOrderController extends Controller
     }
 
     /**
+     * Return a sample CSV template for bulk order uploads.
+     */
+    public function bulkTemplate()
+    {
+        $headers = [
+            'sender_name', 'sender_phone', 'sender_email',
+            'pickup_address',
+            'receiver_name', 'receiver_phone', 'receiver_email',
+            'delivery_address',
+            'package_description', 'package_quantity',
+        ];
+
+        $sample = [
+            'John Doe', '08012345678', 'john@example.com',
+            '123 Victoria Island, Lagos',
+            'Jane Smith', '08098765432', 'jane@example.com',
+            '456 Ikeja, Lagos',
+            'Electronics package', '1',
+        ];
+
+        $csv = implode(',', $headers) . "\n" . implode(',', $sample) . "\n";
+
+        return response($csv, 200, [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="wakaline_bulk_orders_template.csv"',
+        ]);
+    }
+
+    /**
+     * Validate and process a bulk order CSV upload.
+     * No orders are created unless every row passes all validation.
+     */
+    public function bulkUpload(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user instanceof Client) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $fileValidator = Validator::make($request->all(), [
+            'file'           => 'required|file|mimes:csv,txt|max:5120',
+            'payment_method' => 'nullable|in:credits,cash,card',
+        ]);
+
+        if ($fileValidator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid request',
+                'errors'  => $fileValidator->errors(),
+            ], 422);
+        }
+
+        $paymentMethod = $request->input('payment_method', 'cash');
+
+        // --- Parse CSV ---
+        $handle   = fopen($request->file('file')->getPathname(), 'r');
+        $csvHeaders = fgetcsv($handle); // consume header row
+
+        $expectedColumns = [
+            'sender_name', 'sender_phone', 'sender_email',
+            'pickup_address',
+            'receiver_name', 'receiver_phone', 'receiver_email',
+            'delivery_address',
+            'package_description', 'package_quantity',
+        ];
+
+        $rawRows  = [];
+        $rowIndex = 1;
+
+        while (($row = fgetcsv($handle)) !== false) {
+            // Skip completely blank lines
+            if (count(array_filter($row, fn($v) => trim($v) !== '')) === 0) {
+                continue;
+            }
+
+            if (count($row) < count($expectedColumns)) {
+                $rawRows[] = ['index' => $rowIndex, 'data' => null, 'parse_error' => 'Row has too few columns (expected at least ' . count($expectedColumns) . ')'];
+            } else {
+                $rawRows[] = [
+                    'index'       => $rowIndex,
+                    'data'        => array_combine($expectedColumns, array_slice($row, 0, count($expectedColumns))),
+                    'parse_error' => null,
+                ];
+            }
+            $rowIndex++;
+        }
+        fclose($handle);
+
+        if (empty($rawRows)) {
+            return response()->json(['success' => false, 'message' => 'The CSV file contains no data rows.'], 422);
+        }
+
+        if (count($rawRows) > 100) {
+            return response()->json(['success' => false, 'message' => 'Maximum 100 orders per upload. Your file has ' . count($rawRows) . ' rows.'], 422);
+        }
+
+        // --- Phase 1: Field validation for ALL rows ---
+        $allErrors    = [];
+        $validRows    = [];
+
+        foreach ($rawRows as $rowInfo) {
+            $rowNum = $rowInfo['index'];
+
+            if ($rowInfo['parse_error']) {
+                $allErrors[] = ['row' => $rowNum, 'errors' => [$rowInfo['parse_error']]];
+                continue;
+            }
+
+            $v = Validator::make($rowInfo['data'], [
+                'sender_name'         => 'required|string|max:255',
+                'sender_phone'        => 'required|string|max:20',
+                'sender_email'        => 'nullable|email|max:255',
+                'pickup_address'      => 'required|string',
+                'receiver_name'       => 'required|string|max:255',
+                'receiver_phone'      => 'required|string|max:20',
+                'receiver_email'      => 'nullable|email|max:255',
+                'delivery_address'    => 'required|string',
+                'package_description' => 'required|string',
+                'package_quantity'    => 'required|integer|min:1',
+            ]);
+
+            if ($v->fails()) {
+                $allErrors[] = ['row' => $rowNum, 'errors' => $v->errors()->all()];
+            } else {
+                $validRows[] = ['index' => $rowNum, 'data' => $rowInfo['data']];
+            }
+        }
+
+        if (!empty($allErrors)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed for ' . count($allErrors) . ' row(s). Fix the errors and re-upload.',
+                'errors'  => $allErrors,
+            ], 422);
+        }
+
+        // --- Phase 2: Delivery price calculation for ALL rows ---
+        $priceErrors   = [];
+        $processedRows = [];
+
+        foreach ($validRows as $rowInfo) {
+            $priceData = $this->deliveryPriceService->processDeliveryCalculation(
+                $rowInfo['data']['pickup_address'],
+                $rowInfo['data']['delivery_address']
+            );
+
+            if (isset($priceData['error'])) {
+                $priceErrors[] = ['row' => $rowInfo['index'], 'errors' => [$priceData['error']]];
+            } else {
+                $processedRows[] = [
+                    'index'        => $rowInfo['index'],
+                    'data'         => $rowInfo['data'],
+                    'delivery_fee' => $priceData['delivery_fee'],
+                    'distance'     => $priceData['distance_km'],
+                ];
+            }
+        }
+
+        if (!empty($priceErrors)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Address/price calculation failed for ' . count($priceErrors) . ' row(s). Fix the addresses and re-upload.',
+                'errors'  => $priceErrors,
+            ], 422);
+        }
+
+        $totalFee = array_sum(array_column($processedRows, 'delivery_fee'));
+
+        // --- Phase 3a: Card payment — initialize Paystack, cache rows, return redirect URL ---
+        if ($paymentMethod === 'card') {
+            $reference = $this->paystackService->generateReference();
+
+            Cache::put('bulk_card_order_' . $reference, [
+                'client_id' => $user->id,
+                'rows'      => $processedRows,
+            ], now()->addMinutes(30));
+
+            $paystackResponse = $this->paystackService->initializeTransaction([
+                'email'        => $user->email,
+                'amount'       => $totalFee,
+                'reference'    => $reference,
+                'callback_url' => config('app.frontend_url') . '/dashboard/client/orders?bulk_reference=' . $reference,
+                'metadata'     => [
+                    'transaction_type' => 'bulk_order_payment',
+                    'client_id'        => $user->id,
+                    'order_count'      => count($processedRows),
+                ],
+            ]);
+
+            if (!$paystackResponse['success']) {
+                Cache::forget('bulk_card_order_' . $reference);
+                return response()->json([
+                    'success' => false,
+                    'message' => $paystackResponse['message'],
+                ], 400);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment initialized. Redirecting to checkout.',
+                'data'    => [
+                    'authorization_url' => $paystackResponse['data']['authorization_url'],
+                    'reference'         => $reference,
+                    'total_amount'      => $totalFee,
+                    'order_count'       => count($processedRows),
+                ],
+            ]);
+        }
+
+        // --- Phase 3b: Balance/credit check ---
+        if ($paymentMethod === 'credits') {
+            $clientCredit = $user->getOrCreateCredits();
+            if (!$clientCredit->hasEnoughCredits($totalFee)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Insufficient credits. Total required: ' . number_format($totalFee) . ', Available: ' . number_format($clientCredit->available_credits),
+                ], 400);
+            }
+        }
+
+        // --- Phase 4: Create all orders in one transaction ---
+        DB::beginTransaction();
+        try {
+            $createdOrders = [];
+
+            foreach ($processedRows as $rowInfo) {
+                $data        = $rowInfo['data'];
+                $deliveryFee = $rowInfo['delivery_fee'];
+                $distance    = $rowInfo['distance'];
+                $orderNumber = 'WKL' . date('Ymd') . strtoupper(substr(uniqid(), -6));
+
+                $order = Order::create([
+                    'order_number'        => $orderNumber,
+                    'client_id'           => $user->id,
+                    'customer_name'       => $user->name ?? $data['sender_name'],
+                    'customer_phone'      => $user->phone ?? $data['sender_phone'],
+                    'sender_name'         => $data['sender_name'],
+                    'sender_phone'        => $data['sender_phone'],
+                    'sender_email'        => $data['sender_email'] ?: null,
+                    'pickup_address'      => $data['pickup_address'],
+                    'receiver_name'       => $data['receiver_name'],
+                    'receiver_phone'      => $data['receiver_phone'],
+                    'receiver_email'      => $data['receiver_email'] ?: null,
+                    'delivery_address'    => $data['delivery_address'],
+                    'package_description' => $data['package_description'],
+                    'package_size'        => 'medium',
+                    'package_weight'      => '0',
+                    'package_quantity'    => (int) $data['package_quantity'],
+                    'pickup_date'         => now()->addDay()->format('Y-m-d'),
+                    'delivery_date'       => now()->addDays(2)->format('Y-m-d'),
+                    'distance'            => $distance,
+                    'price'               => $deliveryFee,
+                    'status'              => $paymentMethod === 'credits' ? 'confirmed' : 'pending',
+                    'payment_method'      => $paymentMethod,
+                    'paid_with_credits'   => $paymentMethod === 'credits',
+                ]);
+
+                if ($paymentMethod === 'credits') {
+                    $this->creditPurchaseService->deductCreditsForOrder($user, $order->id, $deliveryFee);
+                    $order->update(['credits_used' => $deliveryFee]);
+                }
+
+                $createdOrders[] = [
+                    'row'          => $rowInfo['index'],
+                    'order_number' => $orderNumber,
+                    'delivery_fee' => $deliveryFee,
+                ];
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => count($createdOrders) . ' order(s) created successfully!',
+                'data'    => [
+                    'total_created' => count($createdOrders),
+                    'orders'        => $createdOrders,
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Bulk order creation error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create orders. Please try again.',
+            ], 500);
+        }
+    }
+
+    /**
+     * Verify card payment for a bulk order upload and create all orders as confirmed.
+     */
+    public function verifyBulkCardPayment(Request $request)
+    {
+        $user = Auth::user();
+
+        if (!$user instanceof Client) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'reference' => 'required|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['success' => false, 'message' => 'Reference is required'], 422);
+        }
+
+        $reference  = $request->input('reference');
+        $cachedData = Cache::get('bulk_card_order_' . $reference);
+
+        if (!$cachedData) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Session expired or not found. Please upload your CSV again.',
+            ], 404);
+        }
+
+        if ($cachedData['client_id'] !== $user->id) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        // Verify payment with Paystack
+        $paystackResponse = $this->paystackService->verifyTransaction($reference);
+
+        if (!$paystackResponse['success'] || $paystackResponse['data']['status'] !== 'success') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment verification failed. If you were charged, contact support with reference: ' . $reference,
+            ], 400);
+        }
+
+        DB::beginTransaction();
+        try {
+            $createdOrders = [];
+
+            foreach ($cachedData['rows'] as $rowInfo) {
+                $data        = $rowInfo['data'];
+                $deliveryFee = $rowInfo['delivery_fee'];
+                $distance    = $rowInfo['distance'];
+                $orderNumber = 'WKL' . date('Ymd') . strtoupper(substr(uniqid(), -6));
+
+                Order::create([
+                    'order_number'        => $orderNumber,
+                    'client_id'           => $user->id,
+                    'customer_name'       => $user->name ?? $data['sender_name'],
+                    'customer_phone'      => $user->phone ?? $data['sender_phone'],
+                    'sender_name'         => $data['sender_name'],
+                    'sender_phone'        => $data['sender_phone'],
+                    'sender_email'        => $data['sender_email'] ?: null,
+                    'pickup_address'      => $data['pickup_address'],
+                    'receiver_name'       => $data['receiver_name'],
+                    'receiver_phone'      => $data['receiver_phone'],
+                    'receiver_email'      => $data['receiver_email'] ?: null,
+                    'delivery_address'    => $data['delivery_address'],
+                    'package_description' => $data['package_description'],
+                    'package_size'        => 'medium',
+                    'package_weight'      => '0',
+                    'package_quantity'    => (int) $data['package_quantity'],
+                    'pickup_date'         => now()->addDay()->format('Y-m-d'),
+                    'delivery_date'       => now()->addDays(2)->format('Y-m-d'),
+                    'distance'            => $distance,
+                    'price'               => $deliveryFee,
+                    'status'              => 'confirmed',
+                    'payment_method'      => 'card',
+                    'paid_with_credits'   => false,
+                    'payment_reference'   => $reference,
+                ]);
+
+                $createdOrders[] = [
+                    'row'          => $rowInfo['index'],
+                    'order_number' => $orderNumber,
+                    'delivery_fee' => $deliveryFee,
+                ];
+            }
+
+            Cache::forget('bulk_card_order_' . $reference);
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => count($createdOrders) . ' order(s) confirmed successfully!',
+                'data'    => [
+                    'total_created' => count($createdOrders),
+                    'orders'        => $createdOrders,
+                ],
+            ], 201);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Bulk card order creation error: ' . $e->getMessage(), ['reference' => $reference]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment received but order creation failed. Contact support with reference: ' . $reference,
+            ], 500);
+        }
+    }
+
+    /**
      * Get today's orders + unfulfilled orders from previous days
      */
     public function todayOrders(Request $request)
@@ -494,7 +867,8 @@ class ClientOrderController extends Controller
 
         $stats = [
             'total'      => $orders->count(),
-            'pending'    => $orders->whereIn('status', ['pending', 'confirmed'])->count(),
+            'pending'    => $orders->where('status', 'pending')->count(),
+            'confirmed'  => $orders->where('status', 'confirmed')->count(),
             'in_transit' => $orders->whereIn('status', ['in_transit', 'picked_up'])->count(),
             'delivered'  => $orders->where('status', 'delivered')->count(),
             'cancelled'  => $orders->where('status', 'cancelled')->count(),
@@ -505,5 +879,104 @@ class ClientOrderController extends Controller
             'message' => "Today's orders retrieved successfully",
             'data'    => ['orders' => $orders, 'stats' => $stats],
         ]);
+    }
+
+    /**
+     * Public order tracking — no authentication required.
+     * Returns only safe, non-sensitive fields suitable for sharing with customers.
+     */
+    public function publicTrack($orderNumber)
+    {
+        $order = Order::where('order_number', $orderNumber)
+            ->with('rider:id,name')
+            ->first();
+
+        if (!$order) {
+            return response()->json(['success' => false, 'message' => 'Order not found'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'order_number'        => $order->order_number,
+                'status'              => $order->status,
+                'pickup_address'      => $order->pickup_address,
+                'delivery_address'    => $order->delivery_address,
+                'receiver_name'       => $order->receiver_name,
+                'package_description' => $order->package_description,
+                'created_at'          => $order->created_at,
+                'updated_at'          => $order->updated_at,
+                'rider'               => $order->rider ? ['name' => $order->rider->name] : null,
+            ],
+        ]);
+    }
+
+    /**
+     * Cancel an order and refund the payment.
+     * Credits → refund to credit balance.
+     * Card/Cash → no automatic refund; contact support.
+     */
+    public function cancel(Request $request, $id)
+    {
+        $user = Auth::user();
+
+        if (!$user instanceof Client) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $order = Order::where('id', $id)->where('client_id', $user->id)->first();
+
+        if (!$order) {
+            return response()->json(['success' => false, 'message' => 'Order not found'], 404);
+        }
+
+        if (!in_array($order->status, ['pending', 'confirmed'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only pending or confirmed orders can be cancelled.',
+            ], 422);
+        }
+
+        DB::beginTransaction();
+        try {
+            $order->update(['status' => 'cancelled']);
+
+            $refundMessage = 'Order cancelled.';
+            $paymentMethod = $order->payment_method ?? 'cash';
+
+            if ($paymentMethod === 'credits' && $order->credits_used > 0) {
+                $clientCredit = $user->getOrCreateCredits();
+                $balanceBefore = $clientCredit->available_credits;
+                $clientCredit->addCredits($order->credits_used);
+
+                \App\Modules\Admin\Models\CreditTransaction::create([
+                    'client_id'               => $user->id,
+                    'transaction_reference'   => \App\Modules\Admin\Models\CreditTransaction::generateReference(),
+                    'type'                    => 'refund',
+                    'credits'                 => $order->credits_used,
+                    'balance_before'          => $balanceBefore,
+                    'balance_after'           => $clientCredit->available_credits,
+                    'order_id'                => $order->id,
+                    'description'             => "Credit refund for cancelled order #{$order->order_number}",
+                    'metadata'                => ['order_id' => $order->id, 'reason' => 'cancellation'],
+                ]);
+
+                $refundMessage = "Order cancelled. {$order->credits_used} credits refunded to your account.";
+
+            } elseif ($paymentMethod === 'card' && $order->price > 0) {
+                $refundMessage = 'Order cancelled. Card refunds are processed manually — please contact support with your order number.';
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => $refundMessage,
+            ]);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Order cancellation failed', ['order_id' => $id, 'error' => $e->getMessage()]);
+            return response()->json(['success' => false, 'message' => 'Failed to cancel order. Please try again.'], 500);
+        }
     }
 }

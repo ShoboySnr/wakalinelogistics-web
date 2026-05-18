@@ -20,48 +20,11 @@ class CreditPurchaseService
     public function purchaseSubscriptionPlan(
         Client $client,
         SubscriptionPlan $plan,
-        string $paymentMethod = 'wallet',
+        string $paymentMethod = 'paystack',
         ?string $paymentReference = null
     ) {
         DB::beginTransaction();
         try {
-            // Check if using wallet payment
-            if ($paymentMethod === 'wallet') {
-                $wallet = $client->wallet;
-                
-                if (!$wallet || $wallet->balance < $plan->price) {
-                    throw new Exception('Insufficient wallet balance');
-                }
-
-                // Deduct from wallet
-                $wallet->balance -= $plan->price;
-                $wallet->total_debited += $plan->price;
-                $wallet->last_transaction_at = now();
-                $wallet->save();
-
-                // Create wallet transaction
-                \App\Modules\Admin\Models\WalletTransaction::create([
-                    'wallet_id' => $wallet->id,
-                    'transaction_reference' => 'WKL-' . strtoupper(uniqid()) . '-' . time(),
-                    'payment_reference' => $paymentReference ?? 'SUBSCRIPTION-' . $plan->id . '-' . time(),
-                    'type' => 'debit',
-                    'amount' => $plan->price,
-                    'balance_before' => $wallet->balance + $plan->price,
-                    'balance_after' => $wallet->balance,
-                    'payment_method' => 'wallet',
-                    'status' => 'completed',
-                    'description' => "Subscription purchase: {$plan->name}",
-                    'completed_at' => now(),
-                    'transactable_type' => SubscriptionPlan::class,
-                    'transactable_id' => $plan->id,
-                    'metadata' => [
-                        'subscription_plan_id' => $plan->id,
-                        'subscription_plan_name' => $plan->name,
-                        'credits_purchased' => $plan->credits,
-                    ],
-                ]);
-            }
-
             // Calculate subscription dates
             $startsAt = now();
             $expiresAt = null;
@@ -150,48 +113,11 @@ class CreditPurchaseService
     public function purchaseCreditPackage(
         Client $client,
         CreditPackage $package,
-        string $paymentMethod = 'wallet',
+        string $paymentMethod = 'paystack',
         ?string $paymentReference = null
     ) {
         DB::beginTransaction();
         try {
-            // Check if using wallet payment
-            if ($paymentMethod === 'wallet') {
-                $wallet = $client->wallet;
-                
-                if (!$wallet || $wallet->balance < $package->price) {
-                    throw new Exception('Insufficient wallet balance');
-                }
-
-                // Deduct from wallet
-                $wallet->balance -= $package->price;
-                $wallet->total_debited += $package->price;
-                $wallet->last_transaction_at = now();
-                $wallet->save();
-
-                // Create wallet transaction
-                \App\Modules\Admin\Models\WalletTransaction::create([
-                    'wallet_id' => $wallet->id,
-                    'transaction_reference' => 'WKL-' . strtoupper(uniqid()) . '-' . time(),
-                    'payment_reference' => $paymentReference ?? 'CREDITS-' . $package->id . '-' . time(),
-                    'type' => 'debit',
-                    'amount' => $package->price,
-                    'balance_before' => $wallet->balance + $package->price,
-                    'balance_after' => $wallet->balance,
-                    'payment_method' => 'wallet',
-                    'status' => 'completed',
-                    'description' => "Credit package purchase: {$package->name}",
-                    'completed_at' => now(),
-                    'transactable_type' => CreditPackage::class,
-                    'transactable_id' => $package->id,
-                    'metadata' => [
-                        'credit_package_id' => $package->id,
-                        'credit_package_name' => $package->name,
-                        'credits_purchased' => $package->total_credits,
-                    ],
-                ]);
-            }
-
             // Add credits to client account
             $clientCredit = $client->getOrCreateCredits();
             $balanceBefore = $clientCredit->available_credits;

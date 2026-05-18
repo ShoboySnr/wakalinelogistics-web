@@ -2,16 +2,13 @@
 
 namespace App\Modules\Admin\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Auth\Authenticatable as AuthenticatableTrait;
 use Laravel\Sanctum\HasApiTokens;
-use App\Traits\HasWallet;
-
 class Client extends Authenticatable
 {
-    use Notifiable, AuthenticatableTrait, HasApiTokens, HasWallet;
+    use Notifiable, AuthenticatableTrait, HasApiTokens;
 
     protected $fillable = [
         'name',
@@ -48,6 +45,9 @@ class Client extends Authenticatable
         'default_pickup_contact_phone',
         'notification_preferences',
         'two_factor_enabled',
+        'email_verification_code',
+        'email_verification_expires_at',
+        'signup_bonus_credited',
     ];
 
     protected $casts = [
@@ -62,6 +62,8 @@ class Client extends Authenticatable
         'api_key_generated_at' => 'datetime',
         'api_last_used_at' => 'datetime',
         'notification_preferences' => 'array',
+        'email_verification_expires_at' => 'datetime',
+        'signup_bonus_credited' => 'boolean',
     ];
 
     protected $hidden = [

@@ -48,7 +48,6 @@ return [
 
     'frontend' => [
         'url' => env('FRONTEND_URL', 'http://localhost:3000'),
-        'wallet_callback_url' => env('FRONTEND_WALLET_CALLBACK_URL', env('FRONTEND_URL', 'http://localhost:3000') . '/dashboard/client/settings'),
     ],
 
     'paystack' => [

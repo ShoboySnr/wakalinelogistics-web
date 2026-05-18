@@ -29,6 +29,40 @@ class CreditController extends Controller
     }
 
     /**
+     * Get live platform stats publicly (no auth required)
+     */
+    public function getPublicStats()
+    {
+        try {
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'deliveries_completed' => \App\Modules\Admin\Models\Order::where('status', 'delivered')->count(),
+                    'active_clients'       => \App\Modules\Admin\Models\Client::where('is_active', true)->count(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to fetch stats'], 500);
+        }
+    }
+
+    /**
+     * Get active subscription plans publicly (no auth required)
+     */
+    public function getPublicPlans()
+    {
+        try {
+            $plans = SubscriptionPlan::active()
+                ->orderBy('price', 'asc')
+                ->get(['id', 'name', 'slug', 'description', 'credits', 'price', 'billing_cycle', 'validity_days', 'features', 'is_featured']);
+
+            return response()->json(['success' => true, 'data' => $plans]);
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Failed to fetch plans'], 500);
+        }
+    }
+
+    /**
      * Get client's credit balance
      */
     public function getBalance(Request $request)
@@ -115,7 +149,7 @@ class CreditController extends Controller
     {
         $validated = $request->validate([
             'plan_id' => 'required|exists:subscription_plans,id',
-            'payment_method' => 'required|in:wallet,card,paystack',
+            'payment_method' => 'required|in:card,paystack',
         ]);
 
         try {
@@ -204,18 +238,7 @@ class CreditController extends Controller
                 ]);
             }
 
-            // Handle wallet payment
-            $result = $this->creditPurchaseService->purchaseSubscriptionPlan(
-                $client,
-                $plan,
-                'wallet'
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Subscription purchased successfully',
-                'data' => $result,
-            ]);
+            return response()->json(['success' => false, 'message' => 'Invalid payment method'], 400);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -231,7 +254,7 @@ class CreditController extends Controller
     {
         $validated = $request->validate([
             'package_id' => 'required|exists:credit_packages,id',
-            'payment_method' => 'required|in:wallet,card,paystack',
+            'payment_method' => 'required|in:card,paystack',
         ]);
 
         try {
@@ -321,18 +344,7 @@ class CreditController extends Controller
                 ]);
             }
 
-            // Handle wallet payment
-            $result = $this->creditPurchaseService->purchaseCreditPackage(
-                $client,
-                $package,
-                'wallet'
-            );
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Credit package purchased successfully',
-                'data' => $result,
-            ]);
+            return response()->json(['success' => false, 'message' => 'Invalid payment method'], 400);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -348,7 +360,7 @@ class CreditController extends Controller
     {
         $validated = $request->validate([
             'amount' => 'required|numeric|min:5000',
-            'payment_method' => 'required|in:wallet,card,paystack',
+            'payment_method' => 'required|in:card,paystack',
         ]);
 
         try {
@@ -432,52 +444,7 @@ class CreditController extends Controller
                 ]);
             }
 
-            // Handle wallet payment
-            $wallet = $client->wallet;
-
-            if (!$wallet || $wallet->balance < $amount) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Insufficient wallet balance',
-                ], 400);
-            }
-
-            // Deduct from wallet and add credits directly (no package record needed)
-            $wallet->balance -= $amount;
-            $wallet->total_debited += $amount;
-            $wallet->last_transaction_at = now();
-            $wallet->save();
-
-            $clientCredit = $client->getOrCreateCredits();
-            $balanceBefore = $clientCredit->available_credits;
-            $clientCredit->addCredits($credits);
-
-            CreditTransaction::create([
-                'client_id' => $client->id,
-                'transaction_reference' => CreditTransaction::generateReference(),
-                'type' => 'purchase',
-                'credits' => $credits,
-                'balance_before' => $balanceBefore,
-                'balance_after' => $clientCredit->available_credits,
-                'amount_paid' => $amount,
-                'payment_method' => 'wallet',
-                'status' => 'completed',
-                'description' => "Custom credit purchase: ₦" . number_format($amount),
-                'metadata' => [
-                    'purchase_type' => 'custom',
-                    'amount' => $amount,
-                    'credits' => $credits,
-                ],
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Credits purchased successfully',
-                'data' => [
-                    'credits_added' => $credits,
-                    'new_balance' => $clientCredit->available_credits,
-                ],
-            ]);
+            return response()->json(['success' => false, 'message' => 'Invalid payment method'], 400);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -579,6 +546,7 @@ class CreditController extends Controller
                     'status' => $creditTransaction->status,
                     'amount' => $creditTransaction->amount_paid,
                     'credits' => $creditTransaction->credits,
+                    'credits_added' => $creditTransaction->credits,
                 ],
             ]);
         } catch (\Exception $e) {

@@ -40,7 +40,7 @@
                             @endif
                         </td>
                         <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">{{ $plan->description }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₦{{ number_format($plan->price, 2) }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">₦{{ number_format($plan->price) }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ $plan->credits }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ ucfirst($plan->billing_cycle) }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">

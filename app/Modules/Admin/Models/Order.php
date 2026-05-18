@@ -44,8 +44,13 @@ class Order extends Model
         'distance',
         'price',
         'status',
+        'payment_method',
+        'paid_with_credits',
+        'credits_used',
         'priority_level',
         'notes',
+        'package_description',
+        'package_quantity',
         'pickup_date',
         'delivery_date',
         'package_image_1',
@@ -64,6 +69,9 @@ class Order extends Model
         'price' => 'decimal:2',
         'weight' => 'decimal:2',
         'distance' => 'decimal:2',
+        'paid_with_credits' => 'boolean',
+        'credits_used' => 'integer',
+        'package_quantity' => 'integer',
     ];
 
     public function user(): BelongsTo

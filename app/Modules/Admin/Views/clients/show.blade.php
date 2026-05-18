@@ -55,13 +55,15 @@
 
         <div class="rounded-lg shadow p-6 text-white" style="background: linear-gradient(to bottom right, #C1666B, #A85559);">
             <div class="flex items-center justify-between mb-1">
-                <p class="text-sm opacity-90">Wallet Balance</p>
+                <p class="text-sm opacity-90">Credit Balance</p>
                 <svg class="w-5 h-5 opacity-75" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
             </div>
-            <p class="text-2xl font-bold">{{ $client->wallet ? '₦' . number_format($client->wallet->balance, 2) : '₦0.00' }}</p>
+            <p class="text-2xl font-bold">{{ number_format($clientCredit->available_credits) }}</p>
+            <p class="text-xs opacity-75 mt-1">of {{ number_format($clientCredit->total_credits) }} total</p>
         </div>
+
     </div>
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -284,72 +286,170 @@
                 </div>
             </div>
 
-            <!-- Wallet Information -->
+            <!-- Email Verification -->
             <div class="bg-white rounded-lg shadow">
                 <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-semibold text-gray-900">Wallet Information</h2>
+                    <h2 class="text-lg font-semibold text-gray-900">Email Verification</h2>
                 </div>
-                <div class="px-6 py-4">
-                    @php
-                        $wallet = $client->wallet;
-                        $recentTransactions = $wallet ? $wallet->transactions()->latest()->take(5)->get() : collect();
-                    @endphp
-                    
-                    @if($wallet)
-                        <div class="space-y-4">
-                            <div class="grid grid-cols-3 gap-4">
-                                <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
-                                    <p class="text-xs text-green-700 font-medium mb-1">Current Balance</p>
-                                    <p class="text-2xl font-bold text-green-900">₦{{ number_format($wallet->balance, 2) }}</p>
-                                </div>
-                                <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                                    <p class="text-xs text-blue-700 font-medium mb-1">Total Credited</p>
-                                    <p class="text-xl font-semibold text-blue-900">₦{{ number_format($wallet->total_credited, 2) }}</p>
-                                </div>
-                                <div class="bg-red-50 rounded-lg p-4 border border-red-200">
-                                    <p class="text-xs text-red-700 font-medium mb-1">Total Debited</p>
-                                    <p class="text-xl font-semibold text-red-900">₦{{ number_format($wallet->total_debited, 2) }}</p>
-                                </div>
+                <div class="px-6 py-4 space-y-3">
+                    @if($client->email_verified_at)
+                        <div class="flex items-center gap-2">
+                            <svg class="w-5 h-5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <div>
+                                <p class="text-sm font-semibold text-green-700">Email Verified</p>
+                                <p class="text-xs text-gray-500">{{ $client->email_verified_at->format('M d, Y h:i A') }}</p>
                             </div>
+                        </div>
+                    @else
+                        <div class="flex items-center gap-2 mb-3">
+                            <svg class="w-5 h-5 text-yellow-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                            </svg>
+                            <p class="text-sm font-semibold text-yellow-700">Email Not Verified</p>
+                        </div>
 
-                            @if($recentTransactions->count() > 0)
-                                <div class="mt-4">
-                                    <h3 class="text-sm font-semibold text-gray-700 mb-3">Recent Transactions</h3>
-                                    <div class="space-y-2">
-                                        @foreach($recentTransactions as $transaction)
-                                            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                                <div class="flex-1">
-                                                    <p class="text-sm font-medium text-gray-900">{{ $transaction->description }}</p>
-                                                    <p class="text-xs text-gray-500">{{ $transaction->created_at->format('M d, Y H:i') }}</p>
-                                                </div>
-                                                <div class="text-right">
-                                                    <p class="text-sm font-bold {{ $transaction->type === 'credit' ? 'text-green-600' : 'text-red-600' }}">
-                                                        {{ $transaction->type === 'credit' ? '+' : '-' }}₦{{ number_format($transaction->amount, 2) }}
-                                                    </p>
-                                                    <span class="inline-block px-2 py-0.5 text-xs font-medium rounded-full 
-                                                        {{ $transaction->status === 'completed' ? 'bg-green-100 text-green-800' : '' }}
-                                                        {{ $transaction->status === 'pending' ? 'bg-yellow-100 text-yellow-800' : '' }}
-                                                        {{ $transaction->status === 'failed' ? 'bg-red-100 text-red-800' : '' }}">
-                                                        {{ ucfirst($transaction->status) }}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </div>
+                        @if($client->email_verification_code && $client->email_verification_expires_at && $client->email_verification_expires_at->isFuture())
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <p class="text-xs text-blue-700 font-semibold mb-2">Active Verification Code</p>
+                                <p class="text-2xl font-black tracking-[0.35em] text-blue-900 text-center py-2">{{ $client->email_verification_code }}</p>
+                                <p class="text-xs text-gray-500 text-center mt-1">
+                                    Expires {{ $client->email_verification_expires_at->diffForHumans() }}
+                                    ({{ $client->email_verification_expires_at->format('h:i A') }})
+                                </p>
+                            </div>
+                        @else
+                            <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-center">
+                                <p class="text-sm text-gray-500">No active verification code</p>
+                                <p class="text-xs text-gray-400 mt-1">Code was never sent or has expired</p>
+                            </div>
+                        @endif
+
+                        <form method="POST" action="{{ route('admin.clients.verify-email', $client->id) }}" class="mt-3" onsubmit="return confirm('Manually verify this client\'s email? This will also credit the ₦2,000 signup bonus if not yet credited.')">
+                            @csrf
+                            <button type="submit" class="w-full px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors">
+                                Verify Email Manually
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Subscription Management -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Subscription Plan</h2>
+                    <p class="text-xs text-gray-500 mt-1">Manually assign a subscription plan to this client</p>
+                </div>
+                <div class="px-6 py-4 space-y-4">
+                    @if($activeSubscription)
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-1">
+                                <p class="text-sm font-semibold text-green-800">{{ $activeSubscription->plan->name }}</p>
+                                <span class="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 rounded-full">Active</span>
+                            </div>
+                            <p class="text-xs text-gray-600">Credits: {{ number_format($activeSubscription->credits_used) }} / {{ number_format($activeSubscription->credits_allocated) }} used</p>
+                            @if($activeSubscription->expires_at)
+                            <p class="text-xs text-gray-500 mt-1">Expires: {{ $activeSubscription->expires_at->format('M d, Y') }}</p>
                             @else
-                                <p class="text-sm text-gray-500 text-center py-4">No transactions yet</p>
+                            <p class="text-xs text-gray-500 mt-1">No expiry</p>
                             @endif
                         </div>
                     @else
-                        <div class="text-center py-6">
-                            <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                            </svg>
-                            <p class="text-sm text-gray-500">No wallet created yet</p>
-                            <p class="text-xs text-gray-400 mt-1">Wallet will be created automatically when client funds it</p>
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                            <p class="text-sm text-gray-500">No active subscription</p>
                         </div>
                     @endif
+
+                    @if($subscriptionPlans->count() > 0)
+                    <form method="POST" action="{{ route('admin.clients.subscribe', $client->id) }}" class="space-y-3 border-t border-gray-200 pt-4">
+                        @csrf
+                        <h3 class="text-sm font-semibold text-gray-900">{{ $activeSubscription ? 'Change Subscription' : 'Assign Subscription' }}</h3>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Plan</label>
+                            <select name="subscription_plan_id" required class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-pink-500 focus:border-pink-500">
+                                <option value="">Select a plan…</option>
+                                @foreach($subscriptionPlans as $plan)
+                                <option value="{{ $plan->id }}">{{ $plan->name }} — {{ $plan->credits }} credits ({{ $plan->billing_cycle }})</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Start Date</label>
+                            <input type="date" name="starts_at" required value="{{ date('Y-m-d') }}" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-pink-500 focus:border-pink-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Notes (optional)</label>
+                            <input type="text" name="notes" placeholder="Reason for manual subscription" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-pink-500 focus:border-pink-500">
+                        </div>
+                        <button type="submit" onclick="return confirm('This will cancel any existing active subscription and assign the selected plan. Credits from the plan will be added immediately. Continue?')" class="w-full px-4 py-2 brand-accent-bg text-white text-sm rounded-md brand-accent-hover transition-colors">
+                            Assign Plan
+                        </button>
+                    </form>
+                    @else
+                    <p class="text-xs text-gray-500 text-center">No active subscription plans available. <a href="{{ route('admin.credits.plans') }}" class="underline" style="color:#C1666B;">Create one</a></p>
+                    @endif
+                </div>
+            </div>
+
+            <!-- Credits Management -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Delivery Credits</h2>
+                    <p class="text-xs text-gray-500 mt-1">Manually add delivery credits to this client</p>
+                </div>
+                <div class="px-6 py-4 space-y-4">
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+                            <p class="text-xs text-green-700 font-medium">Available</p>
+                            <p class="text-xl font-bold text-green-900">{{ number_format($clientCredit->available_credits) }}</p>
+                        </div>
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p class="text-xs text-blue-700 font-medium">Total</p>
+                            <p class="text-xl font-bold text-blue-900">{{ number_format($clientCredit->total_credits) }}</p>
+                        </div>
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+                            <p class="text-xs text-red-700 font-medium">Used</p>
+                            <p class="text-xl font-bold text-red-900">{{ number_format($clientCredit->used_credits) }}</p>
+                        </div>
+                    </div>
+
+                    <form method="POST" action="{{ route('admin.clients.add-credits', $client->id) }}" class="space-y-3 border-t border-gray-200 pt-4">
+                        @csrf
+                        <h3 class="text-sm font-semibold text-gray-900">Add Credits</h3>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Number of Credits</label>
+                            <input type="number" name="credits" required min="1" placeholder="e.g. 50" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-pink-500 focus:border-pink-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Reason</label>
+                            <input type="text" name="reason" required placeholder="e.g. Goodwill credit, Compensation" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-pink-500 focus:border-pink-500">
+                        </div>
+                        <button type="submit" class="w-full px-4 py-2 brand-accent-bg text-white text-sm rounded-md brand-accent-hover transition-colors">
+                            Add Credits
+                        </button>
+                    </form>
+
+                    <form method="POST" action="{{ route('admin.clients.deduct-credits', $client->id) }}" class="space-y-3 border-t border-gray-200 pt-4" onsubmit="return confirm('Are you sure you want to deduct credits from this client?')">
+                        @csrf
+                        <h3 class="text-sm font-semibold text-red-700">Deduct Credits</h3>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Number of Credits to Deduct</label>
+                            <input type="number" name="credits" required min="1" max="{{ $clientCredit->available_credits }}" placeholder="e.g. 10" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-red-500 focus:border-red-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-700 mb-1">Reason</label>
+                            <input type="text" name="reason" required placeholder="e.g. Correction, Reversal" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-red-500 focus:border-red-500">
+                        </div>
+                        <button type="submit" class="w-full px-4 py-2 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 transition-colors">
+                            Deduct Credits
+                        </button>
+                    </form>
+
+                    <a href="{{ route('admin.credits.client-history', $client->id) }}" class="block w-full px-4 py-2 text-center text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 text-sm">
+                        View Credit History
+                    </a>
                 </div>
             </div>
 

@@ -26,7 +26,7 @@
             </div>
             <p class="text-sm text-gray-500">{{ $transaction->transaction_reference }}</p>
         </div>
-        
+
         <!-- Action Buttons -->
         <div class="flex gap-2">
             @if($transaction->status === 'pending')
@@ -37,7 +37,7 @@
                 Reject
             </button>
             @endif
-            
+
             @if($transaction->status === 'completed')
             <button onclick="document.getElementById('reverseModal').classList.remove('hidden')" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors">
                 Reverse
@@ -49,7 +49,6 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <!-- Main Details -->
         <div class="lg:col-span-2 space-y-6">
-            <!-- Transaction Info -->
             <div class="bg-white rounded-lg shadow p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Transaction Information</h2>
                 <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -64,14 +63,12 @@
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Type</dt>
                         <dd class="mt-1">
-                            @if($transaction->type === 'credit')
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Credit
-                            </span>
+                            @if($transaction->type === 'purchase')
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Purchase</span>
+                            @elseif($transaction->type === 'refund')
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">Refund</span>
                             @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                Debit
-                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Usage</span>
                             @endif
                         </dd>
                     </div>
@@ -79,60 +76,51 @@
                         <dt class="text-sm font-medium text-gray-500">Status</dt>
                         <dd class="mt-1">
                             @if($transaction->status === 'completed')
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                Completed
-                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Completed</span>
                             @elseif($transaction->status === 'pending')
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
-                                Pending
-                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">Pending</span>
                             @elseif($transaction->status === 'failed')
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                                Failed
-                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">Failed</span>
                             @else
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                                {{ ucfirst($transaction->status) }}
-                            </span>
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">{{ ucfirst($transaction->status) }}</span>
                             @endif
                         </dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Amount</dt>
-                        <dd class="mt-1 text-lg font-bold {{ $transaction->type === 'credit' ? 'text-green-600' : 'text-red-600' }}">
-                            {{ $transaction->type === 'credit' ? '+' : '-' }}₦{{ number_format($transaction->amount, 2) }}
+                        <dt class="text-sm font-medium text-gray-500">Credits</dt>
+                        <dd class="mt-1 text-lg font-bold {{ $transaction->credits >= 0 ? 'text-green-600' : 'text-red-600' }}">
+                            {{ $transaction->credits >= 0 ? '+' : '' }}{{ number_format($transaction->credits) }} credits
                         </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Amount Paid</dt>
+                        <dd class="mt-1 text-sm text-gray-900">
+                            {{ $transaction->amount_paid ? '₦' . number_format($transaction->amount_paid, 2) : '—' }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Credit Balance Before</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ number_format($transaction->balance_before) }} credits</dd>
+                    </div>
+                    <div>
+                        <dt class="text-sm font-medium text-gray-500">Credit Balance After</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ number_format($transaction->balance_after) }} credits</dd>
                     </div>
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Payment Method</dt>
                         <dd class="mt-1 text-sm text-gray-900">{{ ucfirst($transaction->payment_method ?? 'N/A') }}</dd>
                     </div>
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Balance Before</dt>
-                        <dd class="mt-1 text-sm text-gray-900">₦{{ number_format($transaction->balance_before, 2) }}</dd>
-                    </div>
-                    <div>
-                        <dt class="text-sm font-medium text-gray-500">Balance After</dt>
-                        <dd class="mt-1 text-sm text-gray-900">₦{{ number_format($transaction->balance_after, 2) }}</dd>
+                        <dt class="text-sm font-medium text-gray-500">Created At</dt>
+                        <dd class="mt-1 text-sm text-gray-900">{{ $transaction->created_at->format('M d, Y H:i:s') }}</dd>
                     </div>
                     <div class="md:col-span-2">
                         <dt class="text-sm font-medium text-gray-500">Description</dt>
                         <dd class="mt-1 text-sm text-gray-900">{{ $transaction->description }}</dd>
                     </div>
-                    <div>
-                        <dt class="text-sm font-medium text-gray-500">Created At</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ $transaction->created_at->format('M d, Y H:i:s') }}</dd>
-                    </div>
-                    @if($transaction->completed_at)
-                    <div>
-                        <dt class="text-sm font-medium text-gray-500">Completed At</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ $transaction->completed_at->format('M d, Y H:i:s') }}</dd>
-                    </div>
-                    @endif
                 </dl>
             </div>
 
-            <!-- Metadata -->
             @if($transaction->metadata)
             <div class="bg-white rounded-lg shadow p-6">
                 <h2 class="text-lg font-semibold text-gray-900 mb-4">Additional Information</h2>
@@ -143,25 +131,26 @@
 
         <!-- Sidebar -->
         <div class="space-y-6">
-            <!-- User Info -->
-            @if($transaction->wallet && $transaction->wallet->walletable)
+            <!-- Client Info -->
+            @if($transaction->client)
             <div class="bg-white rounded-lg shadow p-6">
-                <h2 class="text-lg font-semibold text-gray-900 mb-4">User Information</h2>
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Client Information</h2>
                 <div class="space-y-3">
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Name</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ $transaction->wallet->walletable->name ?? 'N/A' }}</dd>
+                        <dd class="mt-1 text-sm text-gray-900">{{ $transaction->client->name ?? 'N/A' }}</dd>
                     </div>
                     <div>
                         <dt class="text-sm font-medium text-gray-500">Email</dt>
-                        <dd class="mt-1 text-sm text-gray-900">{{ $transaction->wallet->walletable->email ?? 'N/A' }}</dd>
+                        <dd class="mt-1 text-sm text-gray-900">{{ $transaction->client->email ?? 'N/A' }}</dd>
                     </div>
+                    @php $clientCredit = $transaction->client->getOrCreateCredits(); @endphp
                     <div>
-                        <dt class="text-sm font-medium text-gray-500">Current Balance</dt>
-                        <dd class="mt-1 text-lg font-bold text-gray-900">₦{{ number_format($transaction->wallet->balance, 2) }}</dd>
+                        <dt class="text-sm font-medium text-gray-500">Current Credit Balance</dt>
+                        <dd class="mt-1 text-lg font-bold text-gray-900">{{ number_format($clientCredit->available_credits) }} credits</dd>
                     </div>
-                    <a href="{{ route('admin.clients.show', $transaction->wallet->walletable->id) }}" class="block w-full text-center px-4 py-2 brand-accent text-white rounded-lg hover:opacity-90 transition-opacity mt-4">
-                        View User Profile
+                    <a href="{{ route('admin.clients.show', $transaction->client->id) }}" class="block w-full text-center px-4 py-2 brand-accent text-white rounded-lg hover:opacity-90 transition-opacity mt-4">
+                        View Client Profile
                     </a>
                 </div>
             </div>
@@ -182,6 +171,21 @@
                 </div>
             </div>
             @endif
+
+            <!-- Related Plan / Package -->
+            @if($transaction->subscriptionPlan)
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Subscription Plan</h2>
+                <p class="text-sm font-medium text-gray-900">{{ $transaction->subscriptionPlan->name }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ number_format($transaction->subscriptionPlan->credits) }} credits · {{ $transaction->subscriptionPlan->billing_cycle }}</p>
+            </div>
+            @elseif($transaction->creditPackage)
+            <div class="bg-white rounded-lg shadow p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Credit Package</h2>
+                <p class="text-sm font-medium text-gray-900">{{ $transaction->creditPackage->name }}</p>
+                <p class="text-xs text-gray-500 mt-1">{{ number_format($transaction->creditPackage->credits) }} credits</p>
+            </div>
+            @endif
         </div>
     </div>
 </div>
@@ -190,7 +194,7 @@
 <div id="approveModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-lg max-w-md w-full p-6">
         <h3 class="text-xl font-semibold text-gray-900 mb-4">Approve Transaction</h3>
-        <p class="text-gray-600 mb-6">Are you sure you want to approve this transaction? This will credit/debit the user's wallet.</p>
+        <p class="text-gray-600 mb-6">This will mark the transaction as completed and add the credits to the client's account.</p>
         <form method="POST" action="{{ route('admin.transactions.approve', $transaction->id) }}">
             @csrf
             <div class="flex gap-3">
@@ -231,7 +235,7 @@
 <div id="reverseModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
     <div class="bg-white rounded-lg max-w-md w-full p-6">
         <h3 class="text-xl font-semibold text-gray-900 mb-4">Reverse Transaction</h3>
-        <p class="text-red-600 mb-4 text-sm font-medium">⚠️ Warning: This will reverse the wallet balance changes.</p>
+        <p class="text-red-600 mb-4 text-sm font-medium">⚠️ Warning: This will reverse the credit balance changes for this client.</p>
         <form method="POST" action="{{ route('admin.transactions.reverse', $transaction->id) }}">
             @csrf
             <div class="mb-4">

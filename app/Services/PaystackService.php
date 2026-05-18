@@ -30,7 +30,7 @@ class PaystackService
                 'email' => $data['email'],
                 'amount' => $data['amount'] * 100, // Convert to kobo
                 'reference' => $data['reference'] ?? $this->generateReference(),
-                'callback_url' => $data['callback_url'] ?? config('app.url') . '/api/wallet/verify-payment',
+                'callback_url' => $data['callback_url'] ?? config('app.url') . '/api/wakalinelogistics/v1/credits/verify',
                 'metadata' => $data['metadata'] ?? [],
             ]);
 

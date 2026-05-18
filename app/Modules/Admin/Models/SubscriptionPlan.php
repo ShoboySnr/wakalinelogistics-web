@@ -28,7 +28,7 @@ class SubscriptionPlan extends Model
         'features' => 'array',
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
-        'price' => 'decimal:2',
+        'price' => 'float',
     ];
 
     /**
@@ -68,7 +68,7 @@ class SubscriptionPlan extends Model
      */
     public function getFormattedPriceAttribute()
     {
-        return '₦' . number_format($this->price, 2);
+        return '₦' . number_format($this->price);
     }
 
     /**
