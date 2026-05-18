@@ -5,6 +5,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\ClientOrderController;
+use App\Http\Controllers\Api\ClientCustomerController;
 use App\Http\Controllers\Api\ClientSettingsController;
 use App\Http\Controllers\Api\RouteShareApiController;
 use App\Http\Controllers\Api\JobApplicationController;
@@ -83,6 +84,10 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
             Route::post('/calculate', [\App\Http\Controllers\Api\CreditController::class, 'calculateDeliveryCredits']);
             Route::get('/zones', [\App\Http\Controllers\Api\CreditController::class, 'getDeliveryZones']);
         });
+
+        // Customers
+        Route::get('customers', [ClientCustomerController::class, 'index']);
+        Route::get('customers/{phone}', [ClientCustomerController::class, 'show'])->where('phone', '.+');
 
         // Help Center
         Route::prefix('help')->group(function () {
