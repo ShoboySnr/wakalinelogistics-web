@@ -26,6 +26,8 @@ class Client extends Authenticatable
         'business_type',
         'tax_id',
         'website',
+        'facebook_handle',
+        'instagram_handle',
         'payment_terms',
         'credit_limit',
         'notes',
@@ -48,6 +50,7 @@ class Client extends Authenticatable
         'email_verification_code',
         'email_verification_expires_at',
         'signup_bonus_credited',
+        'customer_settings',
     ];
 
     protected $casts = [
@@ -62,6 +65,7 @@ class Client extends Authenticatable
         'api_key_generated_at' => 'datetime',
         'api_last_used_at' => 'datetime',
         'notification_preferences' => 'array',
+        'customer_settings'        => 'array',
         'email_verification_expires_at' => 'datetime',
         'signup_bonus_credited' => 'boolean',
     ];

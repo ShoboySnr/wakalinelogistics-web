@@ -40,6 +40,8 @@ class ClientSettingsController extends Controller
             'business_type' => 'sometimes|nullable|string|max:100',
             'tax_id' => 'sometimes|nullable|string|max:100',
             'website' => 'sometimes|nullable|url|max:255',
+            'facebook_handle' => 'sometimes|nullable|string|max:255',
+            'instagram_handle' => 'sometimes|nullable|string|max:255',
             'pickup_address' => 'sometimes|nullable|string|max:500',
             'pickup_contact_name' => 'sometimes|nullable|string|max:255',
             'pickup_contact_phone' => 'sometimes|nullable|string|max:20',
@@ -68,26 +70,14 @@ class ClientSettingsController extends Controller
         if ($request->has('business_type')) $updateData['business_type'] = $request->business_type;
         if ($request->has('tax_id')) $updateData['tax_id'] = $request->tax_id;
         if ($request->has('website')) $updateData['website'] = $request->website;
+        if ($request->has('facebook_handle')) $updateData['facebook_handle'] = $request->facebook_handle;
+        if ($request->has('instagram_handle')) $updateData['instagram_handle'] = $request->instagram_handle;
         if ($request->has('pickup_address')) $updateData['default_pickup_address'] = $request->pickup_address;
         if ($request->has('pickup_contact_name')) $updateData['default_pickup_contact_name'] = $request->pickup_contact_name;
         if ($request->has('pickup_contact_phone')) $updateData['default_pickup_contact_phone'] = $request->pickup_contact_phone;
 
-        // Log what we're updating
-        \Log::info('Updating client profile', [
-            'user_id' => $user->id,
-            'request_data' => $request->all(),
-            'update_data' => $updateData
-        ]);
-
         $user->update($updateData);
-        
-        // Refresh the model to get the latest data
         $user->refresh();
-
-        \Log::info('Client profile updated', [
-            'user_id' => $user->id,
-            'updated_user' => $user->toArray()
-        ]);
 
         return response()->json([
             'success' => true,

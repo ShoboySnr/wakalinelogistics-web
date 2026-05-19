@@ -85,9 +85,12 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
             Route::get('/zones', [\App\Http\Controllers\Api\CreditController::class, 'getDeliveryZones']);
         });
 
-        // Customers
-        Route::get('customers', [ClientCustomerController::class, 'index']);
-        Route::get('customers/{phone}', [ClientCustomerController::class, 'show'])->where('phone', '.+');
+        // Customers — settings route MUST be before {phone} wildcard
+        Route::get('customers/settings',         [ClientCustomerController::class, 'getSettings']);
+        Route::patch('customers/settings',        [ClientCustomerController::class, 'updateSettings']);
+        Route::get('customers',                   [ClientCustomerController::class, 'index']);
+        Route::get('customers/{phone}',           [ClientCustomerController::class, 'show'])->where('phone', '.+');
+        Route::patch('customers/{phone}/meta',    [ClientCustomerController::class, 'updateMeta'])->where('phone', '.+');
 
         // Help Center
         Route::prefix('help')->group(function () {

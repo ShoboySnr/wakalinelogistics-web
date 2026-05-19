@@ -23,7 +23,7 @@ class PaystackService
     public function initializeTransaction(array $data): array
     {
         try {
-            $response = Http::withHeaders([
+            $response = Http::timeout(30)->withHeaders([
                 'Authorization' => 'Bearer ' . $this->secretKey,
                 'Content-Type' => 'application/json',
             ])->post($this->baseUrl . '/transaction/initialize', [
@@ -66,7 +66,7 @@ class PaystackService
     public function verifyTransaction(string $reference): array
     {
         try {
-            $response = Http::withHeaders([
+            $response = Http::timeout(30)->withHeaders([
                 'Authorization' => 'Bearer ' . $this->secretKey,
             ])->get($this->baseUrl . '/transaction/verify/' . $reference);
 

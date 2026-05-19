@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Admin\Models\ClientCustomer;
 use App\Modules\Admin\Models\Order;
 use App\Modules\Admin\Models\Client;
 use App\Services\CreditPurchaseService;
@@ -54,6 +55,8 @@ class ClientOrderController extends Controller
             'package_description' => 'required|string',
             'package_quantity'    => 'required|integer|min:1',
             'payment_method'      => 'nullable|in:credits,cash',
+            'use_credits'         => 'nullable|boolean',
+            'credits_amount'      => 'nullable|numeric|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -63,6 +66,9 @@ class ClientOrderController extends Controller
                 'errors'  => $validator->errors(),
             ], 422);
         }
+
+        $useCredits    = (bool) $request->input('use_credits', false);
+        $creditsAmount = (float) $request->input('credits_amount', 0);
 
         DB::beginTransaction();
         try {
@@ -99,6 +105,21 @@ class ClientOrderController extends Controller
                 }
             }
 
+            // --- Partial credits with cash: validate credit portion ---
+            if ($paymentMethod === 'cash' && $useCredits && $creditsAmount > 0) {
+                $clientCredit = $user->getOrCreateCredits();
+                $creditsAmount = min($creditsAmount, $clientCredit->available_credits, $deliveryFee);
+                if ($creditsAmount <= 0) {
+                    $useCredits = false;
+                } elseif (!$clientCredit->hasEnoughCredits($creditsAmount)) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Insufficient credits for the requested credit portion',
+                    ], 400);
+                }
+            }
+
             // Create the order
             $order = Order::create([
                 'order_number'        => $orderNumber,
@@ -129,7 +150,7 @@ class ClientOrderController extends Controller
 
             $result = [];
 
-            // --- Deduct credits ---
+            // --- Deduct credits (full credits payment) ---
             if ($paymentMethod === 'credits') {
                 $result = $this->creditPurchaseService->deductCreditsForOrder(
                     $user,
@@ -139,7 +160,31 @@ class ClientOrderController extends Controller
                 $order->update(['credits_used' => $deliveryFee]);
             }
 
+            // --- Deduct partial credits (cash + credits) ---
+            if ($paymentMethod === 'cash' && $useCredits && $creditsAmount > 0) {
+                $result = $this->creditPurchaseService->deductCreditsForOrder(
+                    $user,
+                    $order->id,
+                    $creditsAmount
+                );
+                $order->update(['credits_used' => $creditsAmount]);
+            }
+
+            // --- Register / update customer record ---
+            ClientCustomer::upsertFromOrder(
+                $user->id,
+                $request->receiver_name,
+                $request->receiver_phone,
+                $request->receiver_email,
+                $request->delivery_address,
+                $deliveryFee,
+                $order->created_at ?? now()
+            );
+
             DB::commit();
+
+            $creditsUsed      = $paymentMethod === 'credits' ? $deliveryFee : ($useCredits ? $creditsAmount : 0);
+            $remainingCredits = !empty($result['remaining_balance']) ? $result['remaining_balance'] : null;
 
             return response()->json([
                 'success' => true,
@@ -147,8 +192,8 @@ class ClientOrderController extends Controller
                 'data'    => [
                     'order'             => $order,
                     'payment_method'    => $paymentMethod,
-                    'credits_used'      => $paymentMethod === 'credits' ? $deliveryFee : 0,
-                    'remaining_credits' => $paymentMethod === 'credits' ? ($result['remaining_balance'] ?? null) : null,
+                    'credits_used'      => $creditsUsed,
+                    'remaining_credits' => $remainingCredits,
                 ],
             ], 201);
         } catch (\Exception $e) {
@@ -185,6 +230,8 @@ class ClientOrderController extends Controller
             'delivery_address'    => 'required|string',
             'package_description' => 'required|string',
             'package_quantity'    => 'required|integer|min:1',
+            'use_credits'         => 'nullable|boolean',
+            'credits_amount'      => 'nullable|numeric|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -194,6 +241,9 @@ class ClientOrderController extends Controller
                 'errors'  => $validator->errors(),
             ], 422);
         }
+
+        $useCredits    = (bool) $request->input('use_credits', false);
+        $creditsAmount = (float) $request->input('credits_amount', 0);
 
         try {
             $priceData = $this->deliveryPriceService->processDeliveryCalculation(
@@ -207,7 +257,19 @@ class ClientOrderController extends Controller
 
             $deliveryFee = $priceData['delivery_fee'];
             $distance    = $priceData['distance_km'];
-            $reference   = $this->paystackService->generateReference();
+
+            // Validate and cap partial credits
+            if ($useCredits && $creditsAmount > 0) {
+                $clientCredit  = $user->getOrCreateCredits();
+                $creditsAmount = min($creditsAmount, $clientCredit->available_credits, $deliveryFee);
+                if ($creditsAmount <= 0) $useCredits = false;
+            }
+
+            $chargeAmount = ($useCredits && $creditsAmount > 0)
+                ? max(0, $deliveryFee - $creditsAmount)
+                : $deliveryFee;
+
+            $reference = $this->paystackService->generateReference();
 
             // Cache the order data for 30 minutes — retrieved after Paystack confirms payment
             Cache::put('card_order_' . $reference, [
@@ -224,10 +286,12 @@ class ClientOrderController extends Controller
                 'package_quantity'    => $request->package_quantity,
                 'delivery_fee'        => $deliveryFee,
                 'distance'            => $distance,
+                'use_credits'         => $useCredits,
+                'credits_amount'      => $useCredits ? $creditsAmount : 0,
             ], now()->addMinutes(30));
 
             $paystackResponse = $this->paystackService->initializeTransaction([
-                'amount'       => $deliveryFee,
+                'amount'       => $chargeAmount,
                 'email'        => $user->email,
                 'reference'    => $reference,
                 'metadata'     => [
@@ -314,6 +378,9 @@ class ClientOrderController extends Controller
             ], 400);
         }
 
+        $useCredits    = (bool) ($orderData['use_credits'] ?? false);
+        $creditsAmount = (float) ($orderData['credits_amount'] ?? 0);
+
         DB::beginTransaction();
         try {
             $orderNumber = 'WKL' . date('Ymd') . strtoupper(substr(uniqid(), -6));
@@ -345,6 +412,23 @@ class ClientOrderController extends Controller
                 'payment_reference'   => $reference,
             ]);
 
+            // Deduct partial credits if used alongside card
+            if ($useCredits && $creditsAmount > 0) {
+                $this->creditPurchaseService->deductCreditsForOrder($user, $order->id, $creditsAmount);
+                $order->update(['credits_used' => $creditsAmount]);
+            }
+
+            // Register / update customer record
+            ClientCustomer::upsertFromOrder(
+                $user->id,
+                $orderData['receiver_name'],
+                $orderData['receiver_phone'],
+                $orderData['receiver_email'] ?? null,
+                $orderData['delivery_address'],
+                $orderData['delivery_fee'],
+                $order->created_at ?? now()
+            );
+
             // Clear the cache entry now the order is created
             Cache::forget('card_order_' . $reference);
 
@@ -354,9 +438,10 @@ class ClientOrderController extends Controller
                 'success' => true,
                 'message' => 'Payment confirmed and order created successfully!',
                 'data'    => [
-                    'order'      => $order,
-                    'reference'  => $reference,
-                    'amount_paid' => $orderData['delivery_fee'],
+                    'order'        => $order,
+                    'reference'    => $reference,
+                    'amount_paid'  => $orderData['delivery_fee'],
+                    'credits_used' => $useCredits ? $creditsAmount : 0,
                 ],
             ], 201);
         } catch (\Exception $e) {
@@ -699,6 +784,16 @@ class ClientOrderController extends Controller
                     $order->update(['credits_used' => $deliveryFee]);
                 }
 
+                ClientCustomer::upsertFromOrder(
+                    $user->id,
+                    $data['receiver_name'],
+                    $data['receiver_phone'],
+                    $data['receiver_email'] ?: null,
+                    $data['delivery_address'],
+                    $deliveryFee,
+                    $order->created_at ?? now()
+                );
+
                 $createdOrders[] = [
                     'row'          => $rowInfo['index'],
                     'order_number' => $orderNumber,
@@ -805,6 +900,16 @@ class ClientOrderController extends Controller
                     'paid_with_credits'   => false,
                     'payment_reference'   => $reference,
                 ]);
+
+                ClientCustomer::upsertFromOrder(
+                    $user->id,
+                    $data['receiver_name'],
+                    $data['receiver_phone'],
+                    $data['receiver_email'] ?: null,
+                    $data['delivery_address'],
+                    $deliveryFee,
+                    now()
+                );
 
                 $createdOrders[] = [
                     'row'          => $rowInfo['index'],
