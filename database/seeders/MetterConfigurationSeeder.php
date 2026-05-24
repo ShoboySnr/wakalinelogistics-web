@@ -17,7 +17,7 @@ class MetterConfigurationSeeder extends Seeder
             // Pricing Configurations
             [
                 'key' => 'metter_base_rate',
-                'value' => '3500',
+                'value' => '2000',
                 'type' => 'number',
                 'category' => 'pricing',
                 'description' => 'Base delivery rate in Naira (₦)',
@@ -133,7 +133,7 @@ class MetterConfigurationSeeder extends Seeder
             // Zone-based Pricing
             [
                 'key' => 'metter_mainland_rate',
-                'value' => '3500',
+                'value' => '2000',
                 'type' => 'number',
                 'category' => 'pricing',
                 'description' => 'Flat rate for mainland deliveries (₦)',

@@ -21,14 +21,16 @@ class ContactFormService
         ]);
 
         try {
-            Mail::to($message->email)->queue(new ContactReceived($message));
-
-            $adminEmail = config('app.admin_email');
-            if ($adminEmail) {
-                Mail::to($adminEmail)->queue(new AdminNewContact($message));
-            }
+            Mail::to($message->email)->send(new ContactReceived($message));
         } catch (\Exception $e) {
-            Log::error('Failed to queue contact form emails', ['error' => $e->getMessage()]);
+            Log::error('Contact received email failed', ['error' => $e->getMessage()]);
+        }
+
+        try {
+            $adminEmail = config('app.admin_email', 'support@wakalinelogistics.com');
+            Mail::to($adminEmail)->send(new AdminNewContact($message));
+        } catch (\Exception $e) {
+            Log::error('Admin contact notification email failed', ['error' => $e->getMessage()]);
         }
 
         return true;

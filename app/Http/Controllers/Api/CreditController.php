@@ -11,6 +11,8 @@ use App\Services\CreditPurchaseService;
 use App\Services\PaystackService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 
 class CreditController extends Controller
 {
@@ -358,15 +360,18 @@ class CreditController extends Controller
      */
     public function purchaseCustomAmount(Request $request)
     {
-        $validated = $request->validate([
-            'amount' => 'required|numeric|min:5000',
-            'payment_method' => 'required|in:card,paystack',
-        ]);
-
         try {
             $client = $request->user();
+
+            $validated = $request->validate([
+                'amount' => 'required|numeric|min:500',
+                'payment_method' => 'required|in:card,wallet',
+                'callback_url' => 'nullable|string',
+            ]);
+
             $amount = $validated['amount'];
             $credits = $amount; // 1:1 ratio for custom purchases
+            $callbackUrl = $validated['callback_url'] ?? config('app.frontend_url') . '/dashboard/client/subscriptions/verify';
 
             // Convert 'card' to 'paystack' for processing
             if ($validated['payment_method'] === 'card') {
@@ -395,6 +400,7 @@ class CreditController extends Controller
                         'purchase_type' => 'custom',
                         'amount' => $amount,
                         'credits' => $credits,
+                        'callback_url' => $callbackUrl,
                     ],
                 ]);
 
@@ -410,7 +416,7 @@ class CreditController extends Controller
                         'credit_transaction_id' => $creditTransaction->id,
                         'credits' => $credits,
                     ],
-                    'callback_url' => config('app.frontend_url') . '/dashboard/client/subscriptions/verify?reference=' . $reference,
+                    'callback_url' => $callbackUrl . '?reference=' . $reference,
                 ]);
 
                 if (!$paystackResponse['success']) {
@@ -454,7 +460,8 @@ class CreditController extends Controller
     }
 
     /**
-     * Verify Paystack payment for credit purchase
+     * Verify Paystack payment for credit purchase (JSON API endpoint).
+     * Called by the frontend after Paystack redirects the user back.
      */
     public function verifyPayment(Request $request)
     {
@@ -467,16 +474,45 @@ class CreditController extends Controller
         try {
             $client = $request->user();
 
-            // Find the pending credit transaction by payment reference
+            // Check if this is a subscription order payment
+            $order = \App\Modules\Admin\Models\Order::where('payment_reference', $validated['reference'])
+                ->where('client_id', $client->id)
+                ->where('status', 'pending')
+                ->where('payment_method', 'subscription')
+                ->first();
+
+            if ($order) {
+                return $this->verifySubscriptionOrderPayment($order, $validated['reference'], $client);
+            }
+
+            // Find the pending credit transaction
             $creditTransaction = CreditTransaction::where('payment_reference', $validated['reference'])
                 ->where('client_id', $client->id)
                 ->where('status', 'pending')
                 ->first();
 
             if (!$creditTransaction) {
+                // Already completed — treat as success so the user sees their credits
+                $completed = CreditTransaction::where('payment_reference', $validated['reference'])
+                    ->where('client_id', $client->id)
+                    ->where('status', 'completed')
+                    ->first();
+
+                if ($completed) {
+                    return response()->json([
+                        'success' => true,
+                        'message' => 'Payment already verified — your credits are ready.',
+                        'data' => [
+                            'credits' => $completed->credits,
+                            'transaction_id' => $completed->id,
+                            'status' => 'completed',
+                        ],
+                    ]);
+                }
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Transaction not found or already processed',
+                    'message' => 'Transaction not found. Please contact support if you were charged.',
                 ], 404);
             }
 
@@ -489,7 +525,7 @@ class CreditController extends Controller
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Payment verification failed',
+                    'message' => 'Payment verification failed. Please try again or contact support.',
                 ], 400);
             }
 
@@ -501,7 +537,7 @@ class CreditController extends Controller
 
                 return response()->json([
                     'success' => false,
-                    'message' => 'Payment was not successful',
+                    'message' => 'Payment was not successful. Please try again.',
                 ], 400);
             }
 
@@ -535,28 +571,43 @@ class CreditController extends Controller
                     );
                 }
             } else {
-                // Custom amount — add credits directly
                 $clientCredit = $client->getOrCreateCredits();
                 $clientCredit->addCredits($creditTransaction->credits);
             }
 
+            try {
+                $newBalance = $client->getOrCreateCredits()->available_credits;
+                Mail::send('emails.credit_purchase_success', [
+                    'clientName' => $client->name,
+                    'credits'    => $creditTransaction->credits,
+                    'amountPaid' => $creditTransaction->amount_paid,
+                    'newBalance' => $newBalance,
+                    'description'=> $creditTransaction->description,
+                ], function ($message) use ($client) {
+                    $message->to($client->email)
+                        ->subject('Credits Added to Your Waka Line Logistics Account');
+                });
+            } catch (\Exception $mailEx) {
+                Log::error('Credit purchase email failed', ['error' => $mailEx->getMessage()]);
+            }
+
             return response()->json([
                 'success' => true,
-                'message' => 'Payment verified successfully',
+                'message' => 'Payment verified successfully. Credits added to your account.',
                 'data' => [
                     'transaction_id' => $creditTransaction->id,
                     'status' => $creditTransaction->status,
                     'amount' => $creditTransaction->amount_paid,
                     'credits' => $creditTransaction->credits,
-                    'credits_added' => $creditTransaction->credits,
                 ],
             ]);
+
         } catch (\Exception $e) {
             Log::error('Credit payment verification error', ['error' => $e->getMessage()]);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Payment verification failed',
+                'message' => 'An error occurred while verifying payment. Please use the Recheck button or contact support.',
                 'error' => $e->getMessage(),
             ], 500);
         }
@@ -671,6 +722,88 @@ class CreditController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch delivery zones',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Verify subscription order payment
+     */
+    private function verifySubscriptionOrderPayment($order, $reference, $client)
+    {
+        try {
+            $paystackResponse = $this->paystackService->verifyTransaction($reference);
+
+            if (!$paystackResponse['success']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment verification failed. Please try again.',
+                ], 400);
+            }
+
+            $paymentData = $paystackResponse['data'];
+
+            if ($paymentData['status'] !== 'success') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment was not successful. Please try again.',
+                ], 400);
+            }
+
+            $plan = SubscriptionPlan::find($order->subscription_plan_id);
+            if (!$plan) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Subscription plan not found.',
+                ], 404);
+            }
+
+            DB::beginTransaction();
+            try {
+                $order->update(['status' => 'confirmed']);
+
+                $this->creditPurchaseService->purchaseSubscriptionPlan(
+                    $client,
+                    $plan,
+                    'paystack',
+                    $reference
+                );
+
+                $clientCredit = $client->getOrCreateCredits();
+                $clientCredit->deductCredits($order->price);
+
+                DB::commit();
+
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Payment verified. Order confirmed and subscription activated.',
+                    'data' => [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'credits' => $plan->credits,
+                    ],
+                ]);
+            } catch (\Exception $e) {
+                DB::rollBack();
+                Log::error('Subscription order completion failed', [
+                    'order_id' => $order->id,
+                    'error' => $e->getMessage(),
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment verified but subscription activation failed. Please contact support.',
+                    'error' => $e->getMessage(),
+                ], 500);
+            }
+        } catch (\Exception $e) {
+            Log::error('Subscription order verification failed', [
+                'reference' => $reference,
+                'error' => $e->getMessage(),
+            ]);
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred during verification. Please use the Recheck button.',
                 'error' => $e->getMessage(),
             ], 500);
         }

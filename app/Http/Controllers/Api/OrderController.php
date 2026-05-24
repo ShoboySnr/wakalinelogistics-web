@@ -132,23 +132,6 @@ class OrderController extends Controller
             // Create order in database with confirmed status
             $order = Order::create($orderCreateData);
 
-            Log::info('Order Created via API', [
-                'order_id' => $order->id,
-                'order_number' => $order->order_number,
-                'client_id' => $client ? $client->id : null,
-                'client_name' => $client ? $client->name : 'N/A',
-                'sender' => $orderData['sender_name'],
-                'receiver' => $orderData['receiver_name'],
-                'pickup' => $pickupAddress,
-                'delivery' => $deliveryAddress,
-                'item' => $orderData['item_description'],
-                'price' => $finalPrice,
-                'distance_km' => $finalDistance,
-                'calculated_price' => $calculatedPrice,
-                'status' => 'confirmed',
-                'timestamp' => now()
-            ]);
-
             return response()->json([
                 'success' => true,
                 'message' => 'Order created successfully!',

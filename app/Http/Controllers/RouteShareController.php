@@ -426,14 +426,10 @@ class RouteShareController extends Controller
                     return $distance;
                 }
             } catch (\Exception $e) {
-                \Log::warning('Google Maps API failed, using fallback', [
-                    'error' => $e->getMessage(),
-                    'address1' => $address1,
-                    'address2' => $address2
-                ]);
+                // Fall through to area-based estimation
             }
         }
-        
+
         // Fallback to area-based estimation
         return $this->estimateDistanceByArea($address1, $address2);
     }

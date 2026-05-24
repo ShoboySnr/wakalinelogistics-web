@@ -421,6 +421,7 @@ class ClientSettingsController extends Controller
 
         $validator = Validator::make($request->all(), [
             'enabled' => 'required|boolean',
+            'method' => 'nullable|in:email,authenticator',
         ]);
 
         if ($validator->fails()) {
@@ -432,17 +433,200 @@ class ClientSettingsController extends Controller
         }
 
         $enabled = $request->enabled;
+        $method = $request->method ?? 'email';
 
-        // Update 2FA status
+        // If disabling, clear all 2FA data
+        if (!$enabled) {
+            $user->update([
+                'two_factor_enabled' => false,
+                'two_factor_method' => 'email',
+                'two_factor_secret' => null,
+                'two_factor_recovery_codes' => null,
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => '2FA disabled successfully',
+                'data' => [
+                    'two_factor_enabled' => false,
+                ]
+            ], 200);
+        }
+
+        // Update 2FA status and method
         $user->update([
             'two_factor_enabled' => $enabled,
+            'two_factor_method' => $method,
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => $enabled ? '2FA enabled successfully' : '2FA disabled successfully',
+            'message' => '2FA enabled successfully',
             'data' => [
                 'two_factor_enabled' => $user->two_factor_enabled,
+                'two_factor_method' => $user->two_factor_method,
+            ]
+        ], 200);
+    }
+
+    /**
+     * Setup authenticator 2FA - Generate QR code
+     */
+    public function setupAuthenticator(Request $request)
+    {
+        $user = Auth::user();
+        
+        if (!$user instanceof Client) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        $twoFactorService = new \App\Services\TwoFactorAuthService();
+        
+        // Generate new secret
+        $secret = $twoFactorService->generateSecret();
+        
+        // Store temporarily (not confirmed yet)
+        $user->update([
+            'two_factor_secret' => $secret,
+        ]);
+
+        // Generate QR code URL
+        $qrCodeUrl = $twoFactorService->getQRCodeUrl($user->email, $secret);
+        $provisioningUri = $twoFactorService->getProvisioningUri($user->email, $secret);
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'secret' => $secret,
+                'qr_code_url' => $qrCodeUrl,
+                'provisioning_uri' => $provisioningUri,
+            ]
+        ], 200);
+    }
+
+    /**
+     * Confirm authenticator setup with verification code
+     */
+    public function confirmAuthenticator(Request $request)
+    {
+        $user = Auth::user();
+        
+        if (!$user instanceof Client) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'code' => 'required|string|size:6',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        if (!$user->two_factor_secret) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No authenticator setup in progress'
+            ], 400);
+        }
+
+        $twoFactorService = new \App\Services\TwoFactorAuthService();
+        
+        // Verify the code
+        if (!$twoFactorService->verifyCode($user->two_factor_secret, $request->code)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid verification code'
+            ], 401);
+        }
+
+        // Generate recovery codes
+        $recoveryCodes = $twoFactorService->generateRecoveryCodes();
+
+        // Confirm setup
+        $user->update([
+            'two_factor_enabled' => true,
+            'two_factor_method' => 'authenticator',
+            'two_factor_recovery_codes' => $recoveryCodes,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Authenticator setup completed successfully',
+            'data' => [
+                'recovery_codes' => $recoveryCodes,
+            ]
+        ], 200);
+    }
+
+    /**
+     * Get current 2FA settings
+     */
+    public function get2FASettings(Request $request)
+    {
+        $user = Auth::user();
+        
+        if (!$user instanceof Client) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'two_factor_enabled' => $user->two_factor_enabled,
+                'two_factor_method' => $user->two_factor_method ?? 'email',
+                'has_recovery_codes' => !empty($user->two_factor_recovery_codes),
+                'recovery_codes_count' => count($user->two_factor_recovery_codes ?? []),
+            ]
+        ], 200);
+    }
+
+    /**
+     * Regenerate recovery codes
+     */
+    public function regenerateRecoveryCodes(Request $request)
+    {
+        $user = Auth::user();
+        
+        if (!$user instanceof Client) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized'
+            ], 403);
+        }
+
+        if (!$user->two_factor_enabled || $user->two_factor_method !== 'authenticator') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Authenticator 2FA is not enabled'
+            ], 400);
+        }
+
+        $twoFactorService = new \App\Services\TwoFactorAuthService();
+        $recoveryCodes = $twoFactorService->generateRecoveryCodes();
+
+        $user->update([
+            'two_factor_recovery_codes' => $recoveryCodes,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Recovery codes regenerated successfully',
+            'data' => [
+                'recovery_codes' => $recoveryCodes,
             ]
         ], 200);
     }
@@ -463,6 +647,9 @@ class ClientSettingsController extends Controller
 
         $validator = Validator::make($request->all(), [
             'theme_preference' => 'sometimes|in:light,dark',
+            'language' => 'sometimes|string|max:50',
+            'timezone' => 'sometimes|string|max:100',
+            'date_format' => 'sometimes|string|max:50',
         ]);
 
         if ($validator->fails()) {
@@ -473,13 +660,16 @@ class ClientSettingsController extends Controller
             ], 422);
         }
 
-        $user->update($request->only(['theme_preference']));
+        $user->update($request->only(['theme_preference', 'language', 'timezone', 'date_format']));
 
         return response()->json([
             'success' => true,
             'message' => 'Preferences updated successfully',
             'data' => [
                 'theme_preference' => $user->theme_preference,
+                'language' => $user->language,
+                'timezone' => $user->timezone,
+                'date_format' => $user->date_format,
             ]
         ], 200);
     }

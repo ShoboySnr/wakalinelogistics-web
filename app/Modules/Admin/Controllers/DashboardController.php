@@ -12,9 +12,12 @@ use App\Modules\Admin\Models\RouteShare;
 use App\Modules\Admin\Models\Client;
 use App\Modules\Admin\Models\JobApplication;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
 use Barryvdh\DomPDF\Facade\Pdf;
 
@@ -254,6 +257,27 @@ class DashboardController extends Controller
             'new_status' => $request->status,
         ]);
 
+        // Notify client by email when status changes to a meaningful state
+        if ($oldStatus !== $request->status && $order->client_id) {
+            try {
+                $client = Client::find($order->client_id);
+                if ($client && $client->email) {
+                    Mail::send('emails.order_status_update', [
+                        'order'      => $order,
+                        'clientName' => $client->name,
+                        'newStatus'  => $request->status,
+                        'oldStatus'  => $oldStatus,
+                    ], function ($message) use ($client, $order, $request) {
+                        $label = ucwords(str_replace('_', ' ', $request->status));
+                        $message->to($client->email)
+                            ->subject("Order #{$order->order_number} is now {$label} — Waka Line Logistics");
+                    });
+                }
+            } catch (\Exception $e) {
+                Log::error('Order status email failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+            }
+        }
+
         if ($request->expectsJson() || $request->ajax()) {
             return response()->json([
                 'success' => true,
@@ -283,13 +307,33 @@ class DashboardController extends Controller
         $order->rider_id = $request->rider_id;
         $order->save();
 
-        $riderName = $request->rider_id ? Rider::find($request->rider_id)->name : 'None';
-        $oldRiderName = $oldRiderId ? Rider::find($oldRiderId)->name : 'None';
+        $rider    = $request->rider_id ? Rider::find($request->rider_id) : null;
+        $riderName    = $rider ? $rider->name : 'None';
+        $oldRiderName = $oldRiderId ? (Rider::find($oldRiderId)->name ?? 'Unknown') : 'None';
 
         ActivityLog::log('order_rider_assigned', "Assigned order #{$order->order_number} to rider: {$riderName}", $order, [
             'old_rider' => $oldRiderName,
             'new_rider' => $riderName,
         ]);
+
+        // Notify client when a rider is newly assigned or changed
+        if ($rider && $order->client_id) {
+            try {
+                $client = Client::find($order->client_id);
+                if ($client && $client->email) {
+                    Mail::send('emails.rider_assigned', [
+                        'order'      => $order,
+                        'rider'      => $rider,
+                        'clientName' => $client->name,
+                    ], function ($message) use ($client, $order) {
+                        $message->to($client->email)
+                            ->subject("Rider assigned to Order #{$order->order_number} — Waka Line Logistics");
+                    });
+                }
+            } catch (\Exception $e) {
+                Log::error('Rider assigned email failed', ['order_id' => $order->id, 'error' => $e->getMessage()]);
+            }
+        }
 
         return redirect()->back()->with('success', 'Rider assigned successfully');
     }
@@ -557,6 +601,13 @@ class DashboardController extends Controller
         return redirect()->route('admin.settings')->with('success', 'Settings updated successfully');
     }
 
+    public function clearCache(Request $request)
+    {
+        Artisan::call('optimize:clear');
+        ActivityLog::log('cache_cleared', 'Admin cleared all application caches');
+        return redirect()->route('admin.settings')->with('cache_cleared', 'All caches cleared successfully!');
+    }
+
     // Rider Management
     public function riders()
     {
@@ -678,15 +729,6 @@ class DashboardController extends Controller
             ->orderBy('id', 'asc')
             ->get();
         
-        \Log::info("Route Planning Debug", [
-            'rider_id' => $rider->id,
-            'pending_orders_count' => $pendingOrders->count(),
-            'orders' => $pendingOrders->pluck('order_number')->toArray(),
-            'priorities' => $pendingOrders->map(function($o) {
-                return ['order' => $o->order_number, 'priority' => $o->priority_level ?? 'NULL'];
-            })->toArray()
-        ]);
-        
         // Build route waypoints with proximity-based smart routing
         $startingPoint = 'Iju Ishaga, Lagos, Nigeria';
         $allStops = [];
@@ -749,13 +791,9 @@ class DashboardController extends Controller
             }
         }
         
-        \Log::info("All Stops Collected", ['count' => count($allStops), 'stops' => $allStops]);
-        
         // Optimize route using nearest neighbor algorithm with constraints
         $waypoints = $this->optimizeRoute($allStops, $startingPoint);
-        
-        \Log::info("Waypoints After Optimization", ['count' => count($waypoints), 'waypoints' => $waypoints]);
-        
+
         // Calculate cumulative time and ETA for each stop
         $cumulativeTime = 0;
         foreach ($waypoints as &$waypoint) {
@@ -1359,14 +1397,6 @@ class DashboardController extends Controller
         $highPriorityStops = array_filter($stops, function($s) { return ($s['priority_level'] ?? 'normal') === 'high'; });
         $normalStops = array_filter($stops, function($s) { return ($s['priority_level'] ?? 'normal') === 'normal'; });
         
-        \Log::info("Priority Separation", [
-            'urgent_count' => count($urgentStops),
-            'high_count' => count($highPriorityStops),
-            'normal_count' => count($normalStops),
-            'urgent_orders' => array_map(fn($s) => $s['order_number'], $urgentStops),
-            'high_orders' => array_map(fn($s) => $s['order_number'], $highPriorityStops),
-        ]);
-        
         // Combine in priority order: urgent first, then high, then normal
         $prioritizedStops = array_merge(array_values($urgentStops), array_values($highPriorityStops), array_values($normalStops));
         
@@ -1465,14 +1495,10 @@ class DashboardController extends Controller
                     return $distance;
                 }
             } catch (\Exception $e) {
-                \Log::warning('Google Maps API failed, using fallback', [
-                    'error' => $e->getMessage(),
-                    'address1' => $address1,
-                    'address2' => $address2
-                ]);
+                // Fall through to area-based estimation
             }
         }
-        
+
         // Fallback to area-based estimation
         return $this->estimateDistanceByArea($address1, $address2);
     }
@@ -2004,7 +2030,7 @@ class DashboardController extends Controller
         
         ActivityLog::log('client_share_created', "Enabled order tracking for client: {$client->name}", $clientShare);
         
-        $shareUrl = url("/client-share/{$clientShare->token}");
+        $shareUrl = config('app.frontend_url') . '/share/' . $clientShare->token;
         
         return response()->json([
             'success' => true,
@@ -2157,34 +2183,6 @@ class DashboardController extends Controller
         ActivityLog::log('job_application_deleted', "Deleted job application from {$applicantName}");
 
         return redirect()->route('admin.job-applications')->with('success', 'Application deleted successfully');
-    }
-
-    // Client Dashboard Management
-    public function toggleClientDashboard($id)
-    {
-        $client = Client::findOrFail($id);
-        $client->dashboard_enabled = !$client->dashboard_enabled;
-        $client->save();
-
-        $status = $client->dashboard_enabled ? 'enabled' : 'disabled';
-        ActivityLog::log('client_dashboard_toggled', "Dashboard access {$status} for client: {$client->name}", $client);
-
-        return redirect()->back()->with('success', "Dashboard access {$status} successfully");
-    }
-
-    public function setClientPassword(Request $request, $id)
-    {
-        $validated = $request->validate([
-            'password' => 'required|string|min:8|confirmed',
-        ]);
-
-        $client = Client::findOrFail($id);
-        $client->password = Hash::make($validated['password']);
-        $client->save();
-
-        ActivityLog::log('client_password_set', "Password set for client: {$client->name}", $client);
-
-        return redirect()->back()->with('success', 'Password set successfully');
     }
 
     // Bike Management

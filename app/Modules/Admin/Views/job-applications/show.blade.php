@@ -117,7 +117,7 @@
                     </div>
                     @if($application->why_join)
                     <div>
-                        <label class="text-xs font-medium text-gray-500 uppercase">Why Join Wakaline?</label>
+                        <label class="text-xs font-medium text-gray-500 uppercase">Why Join Waka Line Logistics?</label>
                         <p class="mt-1 text-sm text-gray-900 whitespace-pre-line">{{ $application->why_join }}</p>
                     </div>
                     @endif

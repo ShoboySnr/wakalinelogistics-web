@@ -21,7 +21,7 @@ class SubscriptionConfirmation extends Mailable implements ShouldQueue
 
     public function build()
     {
-        return $this->subject('Welcome to Wakaline')->view('emails.subscription_confirmation')
+        return $this->subject('Welcome to Waka Line Logistics')->view('emails.subscription_confirmation')
             ->with(['email' => $this->subscription->email]);
     }
 }

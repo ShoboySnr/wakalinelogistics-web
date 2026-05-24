@@ -79,7 +79,7 @@
             <div class="max-w-5xl mx-auto">
                 <div class="flex items-center justify-center mb-8">
                     <a href="{{ route('home') }}">
-                        <img src="{{ asset('assets/img/wakalinelogistics-logo-white.png') }}" alt="Wakaline Logistics" class="h-12 cursor-pointer hover:opacity-90 transition-opacity">
+                        <img src="{{ asset('assets/img/wakalinelogistics-logo-white.png') }}" alt="Waka Line Logistics" class="h-12 cursor-pointer hover:opacity-90 transition-opacity">
                     </a>
                 </div>
                 <div class="text-white mb-10 mt-10 text-center">
@@ -1029,7 +1029,7 @@
             
             try {
                 const deliveryFeeElement = document.getElementById('formDeliveryFee');
-                const deliveryFeeText = deliveryFeeElement ? deliveryFeeElement.textContent : '₦3,500';
+                const deliveryFeeText = deliveryFeeElement ? deliveryFeeElement.textContent : '₦2,000';
                 const deliveryFeeNumeric = parseFloat(deliveryFeeText.replace(/[₦,]/g, '')) || 0;
                 const distanceValue = parseFloat(document.getElementById('formDistanceValue')?.textContent) || 0;
                 

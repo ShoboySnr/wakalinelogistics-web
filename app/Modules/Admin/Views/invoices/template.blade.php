@@ -323,7 +323,7 @@
         <div class="header">
             <div class="header-left">
                 <div class="logo-container">
-                    <img src="{{ public_path('wakalinelogistics-logo-dark.png') }}" alt="Wakaline Logistics" style="height: 50px; width: auto;">
+                    <img src="{{ public_path('wakalinelogistics-logo-dark.png') }}" alt="Waka Line Logistics" style="height: 50px; width: auto;">
                 </div>
             </div>
             <div class="header-right">

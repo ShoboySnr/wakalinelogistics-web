@@ -19,10 +19,6 @@
         </a>
     </div>
 
-    @if(session('success'))
-    <div class="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">{{ session('success') }}</div>
-    @endif
-
     @if($categories->isNotEmpty())
     <div class="flex flex-wrap gap-2 mb-6">
         <span class="text-sm text-gray-600 self-center">Filter:</span>

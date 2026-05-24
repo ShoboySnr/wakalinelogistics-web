@@ -36,7 +36,7 @@
                             Base Delivery Rate (₦)
                         </label>
                         <input type="number" name="metter_base_rate" id="metter_base_rate" 
-                               value="{{ old('metter_base_rate', $configs['metter_base_rate'] ?? 3500) }}" 
+                               value="{{ old('metter_base_rate', $configs['metter_base_rate'] ?? 2000) }}" 
                                step="0.01" min="0"
                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500">
                         <p class="mt-1 text-xs text-gray-500">Starting price for any delivery</p>
@@ -221,7 +221,7 @@
                             Mainland Rate (₦)
                         </label>
                         <input type="number" name="metter_mainland_rate" id="metter_mainland_rate" 
-                               value="{{ old('metter_mainland_rate', $configs['metter_mainland_rate'] ?? 3500) }}" 
+                               value="{{ old('metter_mainland_rate', $configs['metter_mainland_rate'] ?? 2000) }}" 
                                step="0.01" min="0"
                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500">
                         <p class="mt-1 text-xs text-gray-500">Flat rate for mainland deliveries</p>

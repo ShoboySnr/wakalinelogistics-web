@@ -35,7 +35,7 @@ class DeliveryPriceService
                 'fuel_rate' => (float) ($configs['metter_fuel_rate'] ?? 700),
                 'vehicle_consumption' => 12, // km per liter
                 'fuel_surcharge' => 10, // percentage
-                'mainland_rate' => (float) ($configs['metter_mainland_rate'] ?? 3500),
+                'mainland_rate' => (float) ($configs['metter_mainland_rate'] ?? 2000),
                 'island_rate' => (float) ($configs['metter_island_rate'] ?? 5000),
                 'inter_zone_surcharge' => (float) ($configs['metter_inter_zone_surcharge'] ?? 1500),
                 'round_up_price' => (bool) ($configs['metter_round_up_price'] ?? true),
@@ -46,7 +46,7 @@ class DeliveryPriceService
     /**
      * Get a configuration value
      */
-    private function getConfig(string $key, $default = null)
+    public function getConfig(string $key, $default = null)
     {
         return $this->config[$key] ?? $default;
     }
@@ -142,8 +142,11 @@ class DeliveryPriceService
         $fuelCost = $litersNeeded * $fuelPricePerLiter;
         $fuelCostWithSurcharge = $fuelCost * (1 + ($fuelSurcharge / 100));
 
+        // Calculate tiered distance cost (rate decreases for longer distances)
+        $distanceCost = $this->calculateTieredDistanceCost($distanceKm, $perKmRate);
+
         // Calculate base price (now includes fuel cost)
-        $basePrice = $baseFee + $fuelCostWithSurcharge + ($distanceKm * $perKmRate);
+        $basePrice = $baseFee + $fuelCostWithSurcharge + $distanceCost;
 
         // Bridge crossing fee (Mainland <-> Island)
         $pickupIsIsland = ZoneDetector::isIsland($pickupZone);
@@ -193,10 +196,45 @@ class DeliveryPriceService
             'breakdown' => [
                 'base_fee' => $baseFee,
                 'fuel_cost' => (int) round($fuelCostWithSurcharge),
-                'distance_cost' => (int) round($distanceKm * $perKmRate),
-                'adjustments' => (int) round($basePrice - $baseFee - $fuelCostWithSurcharge - ($distanceKm * $perKmRate)),
+                'distance_cost' => (int) round($distanceCost),
+                'adjustments' => (int) round($basePrice - $baseFee - $fuelCostWithSurcharge - $distanceCost),
             ]
         ];
+    }
+
+    private function calculateTieredDistanceCost(float $distanceKm, float $perKmRate): float
+    {
+        $cost = 0.0;
+        $remaining = $distanceKm;
+
+        // Tier 1: 0–10km at full rate
+        $band = min($remaining, 10.0);
+        $cost += $band * $perKmRate;
+        $remaining -= $band;
+        if ($remaining <= 0) return $cost;
+
+        // Tier 2: 10–20km at 60%
+        $band = min($remaining, 10.0);
+        $cost += $band * ($perKmRate * 0.60);
+        $remaining -= $band;
+        if ($remaining <= 0) return $cost;
+
+        // Tier 3: 20–35km at 40%
+        $band = min($remaining, 15.0);
+        $cost += $band * ($perKmRate * 0.30);
+        $remaining -= $band;
+        if ($remaining <= 0) return $cost;
+
+        // Tier 4: 35–50km at 25%
+        $band = min($remaining, 15.0);
+        $cost += $band * ($perKmRate * 0.15);
+        $remaining -= $band;
+        if ($remaining <= 0) return $cost;
+
+        // Tier 5: 50km+ at 18%
+        $cost += $remaining * ($perKmRate * 0.5);
+
+        return $cost;
     }
 
     public function processDeliveryCalculation(string $pickupAddress, string $deliveryAddress): array

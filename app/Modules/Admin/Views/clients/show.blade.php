@@ -461,7 +461,7 @@
                 <div class="px-6 py-4 space-y-3">
                     @php
                         $clientShare = $client->clientShare()->where('is_active', true)->first();
-                        $shareUrl = $clientShare ? url("/client-share/{$clientShare->token}") : null;
+                        $shareUrl = $clientShare ? config('app.frontend_url') . '/share/' . $clientShare->token : null;
                     @endphp
                     
                     @if($shareUrl)
@@ -482,71 +482,6 @@
                             Enable Order Tracking
                         </button>
                     @endif
-                </div>
-            </div>
-
-            <!-- Dashboard Access Management -->
-            <div class="bg-white rounded-lg shadow">
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h2 class="text-lg font-semibold text-gray-900">Client Dashboard Access</h2>
-                    <p class="text-xs text-gray-500 mt-1">Allow client to login and manage their orders via dashboard</p>
-                </div>
-                <div class="px-6 py-4 space-y-4">
-                    @if($client->dashboard_enabled)
-                        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <div class="flex items-center justify-between mb-2">
-                                <p class="text-xs text-gray-600 font-semibold">Dashboard Access: <span class="text-green-600">Enabled</span></p>
-                                @if($client->last_login_at)
-                                <p class="text-xs text-gray-500">Last Login: {{ $client->last_login_at->format('M d, Y h:i A') }}</p>
-                                @endif
-                            </div>
-                            <div class="text-xs text-gray-600 space-y-1">
-                                <p><strong>Login URL:</strong> <a href="{{ url('/client') }}" target="_blank" class="text-blue-600 hover:underline">{{ url('/client') }}</a></p>
-                                <p><strong>Email:</strong> {{ $client->email }}</p>
-                                <p><strong>Password:</strong> {{ $client->password ? 'Set' : 'Not Set' }}</p>
-                            </div>
-                        </div>
-
-                        <form method="POST" action="{{ route('admin.clients.toggle-dashboard', $client->id) }}" class="inline">
-                            @csrf
-                            <button type="submit" onclick="return confirm('This will disable dashboard access for this client. Continue?')" class="w-full px-4 py-2 brand-accent-bg text-white text-sm rounded-md brand-accent-hover transition-colors">
-                                Disable Dashboard Access
-                            </button>
-                        </form>
-                    @else
-                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-2">
-                            <p class="text-sm text-gray-600 mb-3">
-                                <span class="font-semibold">Dashboard Access: <span class="text-red-600">Disabled</span></span><br>
-                                <span class="text-xs">Enable dashboard access to allow this client to login and manage their orders.</span>
-                            </p>
-                        </div>
-
-                        <form method="POST" action="{{ route('admin.clients.toggle-dashboard', $client->id) }}" class="inline">
-                            @csrf
-                            <button type="submit" class="w-full px-4 py-2 brand-accent-bg text-white text-sm rounded-md brand-accent-hover transition-colors">
-                                Enable Dashboard Access
-                            </button>
-                        </form>
-                    @endif
-
-                    <!-- Set/Reset Password Form -->
-                    <div class="border-t border-gray-200 pt-4">
-                        <h3 class="text-sm font-semibold text-gray-900 mb-3">Set Client Password</h3>
-                        <form method="POST" action="{{ route('admin.clients.set-password', $client->id) }}" class="space-y-3">
-                            @csrf
-                            <div>
-                                <label for="password" class="block text-xs font-medium text-gray-700 mb-1">New Password</label>
-                                <input type="password" name="password" id="password" required minlength="8" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Minimum 8 characters">
-                            </div>
-                            <div>
-                                <label for="password_confirmation" class="block text-xs font-medium text-gray-700 mb-1">Confirm Password</label>
-                                <input type="password" name="password_confirmation" id="password_confirmation" required minlength="8" class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-pink-500 focus:border-pink-500" placeholder="Confirm password">
-                            </div>
-                            <button type="submit" class="w-full px-4 py-2 brand-accent-bg text-white text-sm rounded-md brand-accent-hover transition-colors">
-                                Set Password
-                            </button>
-                        </form>
-                    </div>
                 </div>
             </div>
 

@@ -178,11 +178,17 @@ class AuthController extends Controller
             }
         }
 
+        try {
+            $this->sendWelcomeEmail($client->email, $client->name);
+        } catch (\Exception $e) {
+            Log::error('Welcome email failed', ['client_id' => $client->id, 'error' => $e->getMessage()]);
+        }
+
         $token = $client->createToken('wakaline-client')->plainTextToken;
 
         return response()->json([
             'success' => true,
-            'message' => 'Email verified! Welcome to Wakaline — 2,000 credits have been added to your account.',
+            'message' => 'Email verified! Welcome to Waka Line — 2,000 credits have been added to your account.',
             'data'    => [
                 'user' => [
                     'id'           => $client->id,
@@ -231,80 +237,34 @@ class AuthController extends Controller
 
     private function sendVerificationEmail(string $email, string $name, string $code): void
     {
-        $html = '<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f9fafb;font-family:\'Helvetica Neue\',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 20px;">
-    <tr><td align="center">
-      <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
-        <tr><td style="background:linear-gradient(135deg,#1a0406,#c1666b);padding:36px 40px;text-align:center;">
-          <h1 style="margin:0;color:#fff;font-size:24px;font-weight:800;letter-spacing:-0.5px;">Wakaline Logistics</h1>
-          <p style="margin:6px 0 0;color:rgba(255,255,255,.7);font-size:13px;">Verify your email address</p>
-        </td></tr>
-        <tr><td style="padding:40px;">
-          <p style="margin:0 0 8px;color:#374151;font-size:15px;">Hi ' . htmlspecialchars($name) . ',</p>
-          <p style="margin:0 0 28px;color:#6b7280;font-size:14px;line-height:1.6;">Thanks for signing up! Enter the code below to verify your email and unlock your 2,000 credit signup bonus.</p>
-          <div style="background:#fdf4f4;border:1px solid #f3d0d2;border-radius:12px;padding:28px;text-align:center;margin-bottom:28px;">
-            <p style="margin:0 0 8px;color:#6b7280;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Your verification code</p>
-            <p style="margin:0;font-size:42px;font-weight:900;letter-spacing:10px;color:#c1666b;font-family:\'Courier New\',monospace;">' . $code . '</p>
-            <p style="margin:12px 0 0;color:#9ca3af;font-size:12px;">Expires in 30 minutes</p>
-          </div>
-          <div style="background:#fefce8;border:1px solid #fde047;border-radius:10px;padding:14px 18px;margin-bottom:28px;">
-            <p style="margin:0;color:#854d0e;font-size:13px;font-weight:600;">🎁 2,000 credits will be added to your account once verified.</p>
-          </div>
-          <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.6;">If you did not create a Wakaline account, you can safely ignore this email.</p>
-        </td></tr>
-        <tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #f3f4f6;">
-          <p style="margin:0;color:#9ca3af;font-size:12px;">© ' . date('Y') . ' Wakaline Logistics. All rights reserved.</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>';
-
-        Mail::html($html, function ($message) use ($email) {
+        // Sanitize name to ensure valid UTF-8 encoding
+        $sanitizedName = mb_convert_encoding($name, 'UTF-8', 'UTF-8');
+        
+        Mail::send('emails.verify_email', ['name' => $sanitizedName, 'code' => $code], function ($message) use ($email) {
             $message->to($email)
-                ->subject('Verify your Wakaline account — your code inside');
+                ->subject('Verify Your Waka Line Account — Get Code');
         });
     }
 
     private function sendPasswordResetEmail(string $email, string $name, string $code): void
     {
-        $html = '<!DOCTYPE html>
-<html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#f9fafb;font-family:\'Helvetica Neue\',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:40px 20px;">
-    <tr><td align="center">
-      <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,.08);">
-        <tr><td style="background:linear-gradient(135deg,#1a0406,#c1666b);padding:36px 40px;text-align:center;">
-          <h1 style="margin:0;color:#fff;font-size:24px;font-weight:800;letter-spacing:-0.5px;">Wakaline Logistics</h1>
-          <p style="margin:6px 0 0;color:rgba(255,255,255,.7);font-size:13px;">Password reset request</p>
-        </td></tr>
-        <tr><td style="padding:40px;">
-          <p style="margin:0 0 8px;color:#374151;font-size:15px;">Hi ' . htmlspecialchars($name) . ',</p>
-          <p style="margin:0 0 28px;color:#6b7280;font-size:14px;line-height:1.6;">We received a request to reset your password. Use the code below to set a new password. If you did not request this, you can safely ignore this email.</p>
-          <div style="background:#fdf4f4;border:1px solid #f3d0d2;border-radius:12px;padding:28px;text-align:center;margin-bottom:28px;">
-            <p style="margin:0 0 8px;color:#6b7280;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Your reset code</p>
-            <p style="margin:0;font-size:42px;font-weight:900;letter-spacing:10px;color:#c1666b;font-family:\'Courier New\',monospace;">' . $code . '</p>
-            <p style="margin:12px 0 0;color:#9ca3af;font-size:12px;">Expires in 15 minutes</p>
-          </div>
-          <p style="margin:0;color:#9ca3af;font-size:12px;line-height:1.6;">If you did not request a password reset, please ignore this email. Your password will not change.</p>
-        </td></tr>
-        <tr><td style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #f3f4f6;">
-          <p style="margin:0;color:#9ca3af;font-size:12px;">© ' . date('Y') . ' Wakaline Logistics. All rights reserved.</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>';
-
-        Mail::html($html, function ($message) use ($email) {
+        // Sanitize name to ensure valid UTF-8 encoding
+        $sanitizedName = mb_convert_encoding($name, 'UTF-8', 'UTF-8');
+        
+        Mail::send('emails.reset_password', ['name' => $sanitizedName, 'code' => $code], function ($message) use ($email) {
             $message->to($email)
-                ->subject('Reset your Wakaline password — code inside');
+                ->subject('Reset Your Waka Line Password — Get Code');
+        });
+    }
+
+    private function sendWelcomeEmail(string $email, string $name): void
+    {
+        // Sanitize name to ensure valid UTF-8 encoding
+        $sanitizedName = mb_convert_encoding($name, 'UTF-8', 'UTF-8');
+        
+        Mail::send('emails.welcome', ['name' => $sanitizedName], function ($message) use ($email) {
+            $message->to($email)
+                ->subject('Welcome to Waka Line Logistics — Your Account is Ready!');
         });
     }
 
@@ -345,6 +305,14 @@ class AuthController extends Controller
 
         // For clients, check if they have dashboard access
         if ($accountType === 'client') {
+            // Waitlist users: inactive with no password set yet
+            if (!$user->is_active && empty($user->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "You're on our waitlist! Your account will be activated when we launch. We'll send you an email when it's ready.",
+                ], 401);
+            }
+
             if (!$user->is_active) {
                 return response()->json([
                     'success' => false,
@@ -390,7 +358,49 @@ class AuthController extends Controller
             ], 401);
         }
 
+        // Check if 2FA is enabled for clients
+        if ($accountType === 'client' && $user->two_factor_enabled) {
+            $method = $user->two_factor_method ?? 'email';
+
+            if ($method === 'email') {
+                // Generate and send 2FA code via email
+                $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+                $user->two_factor_code = $code;
+                $user->two_factor_expires_at = now()->addMinutes(10);
+                $user->save();
+
+                try {
+                    $this->send2FACode($user->email, $user->name, $code);
+                } catch (\Exception $e) {
+                    Log::error('2FA code email failed', ['client_id' => $user->id, 'error' => $e->getMessage()]);
+                }
+
+                return response()->json([
+                    'success' => false,
+                    'requires_2fa' => true,
+                    'two_factor_method' => 'email',
+                    'email' => $user->email,
+                    'message' => 'A verification code has been sent to your email. Please enter it to complete login.',
+                ], 200);
+            } else {
+                // Authenticator method
+                return response()->json([
+                    'success' => false,
+                    'requires_2fa' => true,
+                    'two_factor_method' => 'authenticator',
+                    'email' => $user->email,
+                    'message' => 'Please enter the code from your authenticator app to complete login.',
+                ], 200);
+            }
+        }
+
         $token = $user->createToken('metter-app')->plainTextToken;
+
+        // Update last login time for clients
+        if ($accountType === 'client') {
+            $user->last_login_at = now();
+            $user->save();
+        }
 
         // Determine role
         $role = 'user';
@@ -466,6 +476,28 @@ class AuthController extends Controller
         // Clients use OTP-based reset
         $client = Client::where('email', $request->email)->first();
         if ($client) {
+            // Waitlist users have no password yet
+            if (!$client->is_active && empty($client->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "You're on our waitlist! Your account hasn't been activated yet. You'll receive an email when we launch.",
+                ], 403);
+            }
+
+            if (!$client->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your account has been deactivated. Please contact support.',
+                ], 403);
+            }
+
+            if (empty($client->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your account is not set up for dashboard access. Please contact support.',
+                ], 403);
+            }
+
             $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
             $client->email_verification_code = $code;
             $client->email_verification_expires_at = now()->addMinutes(15);
@@ -526,6 +558,20 @@ class AuthController extends Controller
             $client = Client::where('email', $request->email)->first();
             if (!$client) {
                 return response()->json(['success' => false, 'message' => 'No account found with this email.'], 404);
+            }
+
+            if (!$client->is_active && empty($client->password)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "You're on our waitlist! Your account hasn't been activated yet.",
+                ], 403);
+            }
+
+            if (!$client->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your account has been deactivated. Please contact support.',
+                ], 403);
             }
 
             if ($client->email_verification_code !== $request->otp) {
@@ -648,5 +694,221 @@ class AuthController extends Controller
                 'message' => 'Social login failed. Please try again.'
             ], 500);
         }
+    }
+
+    /**
+     * Verify 2FA code and complete login
+     */
+    public function verify2FA(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+            'code' => 'required|string',
+            'is_recovery_code' => 'nullable|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $client = Client::where('email', $request->email)->first();
+
+        if (!$client) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid email address'
+            ], 404);
+        }
+
+        if (!$client->two_factor_enabled) {
+            return response()->json([
+                'success' => false,
+                'message' => '2FA is not enabled for this account'
+            ], 400);
+        }
+
+        $method = $client->two_factor_method ?? 'email';
+        $isRecoveryCode = $request->is_recovery_code ?? false;
+
+        // Handle recovery code
+        if ($isRecoveryCode && $method === 'authenticator') {
+            $twoFactorService = new \App\Services\TwoFactorAuthService();
+            
+            if (!$twoFactorService->verifyRecoveryCode($client->two_factor_recovery_codes ?? [], $request->code)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid recovery code'
+                ], 401);
+            }
+
+            // Remove used recovery code
+            $client->two_factor_recovery_codes = $twoFactorService->removeRecoveryCode(
+                $client->two_factor_recovery_codes ?? [],
+                $request->code
+            );
+            $client->last_login_at = now();
+            $client->save();
+
+            // Generate token
+            $token = $client->createToken('metter-app')->plainTextToken;
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Login successful using recovery code',
+                'data' => [
+                    'user' => [
+                        'id' => $client->id,
+                        'name' => $client->name,
+                        'email' => $client->email,
+                        'phone' => $client->phone,
+                        'role' => 'client',
+                        'account_type' => 'client',
+                    ],
+                    'token' => $token,
+                    'recovery_codes_remaining' => count($client->two_factor_recovery_codes ?? []),
+                ]
+            ], 200);
+        }
+
+        // Handle email 2FA
+        if ($method === 'email') {
+            if (!$client->two_factor_code) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No verification code found. Please request a new one.'
+                ], 400);
+            }
+
+            if ($client->two_factor_expires_at && $client->two_factor_expires_at->isPast()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Verification code has expired. Please log in again.'
+                ], 400);
+            }
+
+            if ($client->two_factor_code !== $request->code) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid verification code'
+                ], 401);
+            }
+
+            // Clear 2FA code
+            $client->two_factor_code = null;
+            $client->two_factor_expires_at = null;
+        } 
+        // Handle authenticator 2FA
+        else if ($method === 'authenticator') {
+            if (!$client->two_factor_secret) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authenticator not set up'
+                ], 400);
+            }
+
+            $twoFactorService = new \App\Services\TwoFactorAuthService();
+            
+            if (!$twoFactorService->verifyCode($client->two_factor_secret, $request->code)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid verification code'
+                ], 401);
+            }
+        }
+
+        $client->last_login_at = now();
+        $client->save();
+
+        // Generate token
+        $token = $client->createToken('metter-app')->plainTextToken;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Login successful',
+            'data' => [
+                'user' => [
+                    'id' => $client->id,
+                    'name' => $client->name,
+                    'email' => $client->email,
+                    'phone' => $client->phone,
+                    'role' => 'client',
+                    'account_type' => 'client',
+                ],
+                'token' => $token
+            ]
+        ], 200);
+    }
+
+    /**
+     * Resend 2FA code
+     */
+    public function resend2FACode(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'email' => 'required|email',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation failed',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $client = Client::where('email', $request->email)->first();
+
+        if (!$client) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid email address'
+            ], 404);
+        }
+
+        if (!$client->two_factor_enabled) {
+            return response()->json([
+                'success' => false,
+                'message' => '2FA is not enabled for this account'
+            ], 400);
+        }
+
+        // Generate and send new code
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $client->two_factor_code = $code;
+        $client->two_factor_expires_at = now()->addMinutes(10);
+        $client->save();
+
+        try {
+            $this->send2FACode($client->email, $client->name, $code);
+        } catch (\Exception $e) {
+            Log::error('2FA code resend failed', ['client_id' => $client->id, 'error' => $e->getMessage()]);
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to send verification code. Please try again.'
+            ], 500);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'A new verification code has been sent to your email.'
+        ], 200);
+    }
+
+    /**
+     * Send 2FA code email
+     */
+    private function send2FACode(string $email, string $name, string $code): void
+    {
+        // Sanitize name to ensure valid UTF-8 encoding
+        $sanitizedName = mb_convert_encoding($name, 'UTF-8', 'UTF-8');
+        
+        Mail::send('emails.two_factor_code', ['name' => $sanitizedName, 'code' => $code], function ($message) use ($email) {
+            $message->to($email)
+                ->subject('Your Waka Line Login Verification Code');
+        });
     }
 }

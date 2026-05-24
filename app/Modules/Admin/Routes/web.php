@@ -39,6 +39,7 @@ Route::prefix('super-admin')->group(function () {
         // Settings Routes
         Route::get('/settings', [DashboardController::class, 'settings'])->name('admin.settings');
         Route::put('/settings', [DashboardController::class, 'updateSettings'])->name('admin.settings.update');
+        Route::post('/settings/clear-cache', [DashboardController::class, 'clearCache'])->name('admin.settings.clear-cache');
         
         // Expenses
         Route::get('/expenses', [DashboardController::class, 'expenses'])->name('admin.expenses');
@@ -111,8 +112,6 @@ Route::prefix('super-admin')->group(function () {
         Route::put('/clients/{id}', [DashboardController::class, 'updateClient'])->name('admin.clients.update');
         Route::delete('/clients/{id}', [DashboardController::class, 'deleteClient'])->name('admin.clients.delete');
         Route::get('/clients/{id}/data', [DashboardController::class, 'getClientData'])->name('admin.clients.data');
-        Route::post('/clients/{id}/toggle-dashboard', [DashboardController::class, 'toggleClientDashboard'])->name('admin.clients.toggle-dashboard');
-        Route::post('/clients/{id}/set-password', [DashboardController::class, 'setClientPassword'])->name('admin.clients.set-password');
         Route::post('/clients/{id}/generate-share-link', [DashboardController::class, 'generateClientShareLink'])->name('admin.clients.generate-share-link');
         Route::post('/clients/{id}/disable-share-link', [DashboardController::class, 'disableClientShareLink'])->name('admin.clients.disable-share-link');
         Route::post('/clients/{id}/generate-api-key', [DashboardController::class, 'generateApiKey'])->name('admin.clients.generate-api-key');
@@ -126,6 +125,12 @@ Route::prefix('super-admin')->group(function () {
         
         // Communications (subscriptions & contact messages)
         Route::get('/communications', [CommunicationsController::class, 'index'])->name('admin.communications');
+
+        // Waitlist management
+        Route::get('/waitlist', [CommunicationsController::class, 'waitlist'])->name('admin.waitlist');
+        Route::post('/waitlist/send-sample-email', [CommunicationsController::class, 'sendSampleEmail'])->name('admin.waitlist.send-sample-email');
+        Route::post('/waitlist/{clientId}/send-activation-email', [CommunicationsController::class, 'sendActivationEmail'])->name('admin.waitlist.send-activation-email');
+        Route::post('/waitlist/send-launch-emails', [CommunicationsController::class, 'sendLaunchEmails'])->name('admin.waitlist.send-launch-emails');
 
         // Subscriptions
         Route::put('/communications/subscriptions/{id}', [CommunicationsController::class, 'updateSubscription'])->name('admin.communications.subscriptions.update');

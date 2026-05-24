@@ -153,27 +153,42 @@ class DeliveryCalculatorApiController extends Controller
 
     public function getPricingRules(): JsonResponse
     {
+        $baseRate = $this->priceService->getConfig('base_rate', 2500);
+        $perKmRate = $this->priceService->getConfig('per_km_rate', 100);
+        $minimumCharge = $this->priceService->getConfig('minimum_charge', 2500);
+        $interZoneSurcharge = $this->priceService->getConfig('inter_zone_surcharge', 1500);
+
         return response()->json([
             'success' => true,
             'pricing' => [
-                'base_fee' => 2500,
-                'per_km_rate' => 100,
+                'base_fee' => $baseRate,
+                'minimum_charge' => $minimumCharge,
+                'distance_pricing' => [
+                    'type' => 'tiered',
+                    'tiers' => [
+                        ['from_km' => 0,  'to_km' => 10,  'rate_per_km' => round($perKmRate * 1.00, 2)],
+                        ['from_km' => 10, 'to_km' => 20,  'rate_per_km' => round($perKmRate * 0.60, 2)],
+                        ['from_km' => 20, 'to_km' => 35,  'rate_per_km' => round($perKmRate * 0.30, 2)],
+                        ['from_km' => 35, 'to_km' => 50,  'rate_per_km' => round($perKmRate * 0.15, 2)],
+                        ['from_km' => 50, 'to_km' => null, 'rate_per_km' => round($perKmRate * 0.5, 2)],
+                    ]
+                ],
                 'adjustments' => [
                     'bridge_crossing' => [
                         'description' => 'Mainland to Island or Island to Mainland',
-                        'fee' => 500
+                        'fee' => $interZoneSurcharge
                     ],
                     'lekki_toll' => [
                         'description' => 'Delivery to Lekki, Ajah, or Sangotedo',
-                        'fee' => 500
+                        'fee' => 0
                     ],
                     'apapa_congestion' => [
                         'description' => 'Delivery to Apapa or Ajegunle',
-                        'fee' => 1000
+                        'fee' => 0
                     ],
                     'interstate' => [
                         'description' => 'Delivery to Mowe, Sango Ota, or Ota',
-                        'fee' => 1000
+                        'fee' => 0
                     ]
                 ],
                 'rounding' => 'Rounded to nearest 500 Naira',
@@ -186,7 +201,7 @@ class DeliveryCalculatorApiController extends Controller
     {
         return response()->json([
             'success' => true,
-            'service' => 'Wakaline Delivery Calculator API',
+            'service' => 'Waka Line Logistics Delivery Calculator API',
             'status' => 'operational',
             'version' => '1.0.0',
             'timestamp' => now()->toIso8601String()

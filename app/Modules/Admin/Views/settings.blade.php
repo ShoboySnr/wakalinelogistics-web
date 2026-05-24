@@ -9,6 +9,15 @@
         <p class="text-sm text-gray-500 mt-1">Configure general system preferences and company information</p>
     </div>
 
+    @if(session('cache_cleared'))
+    <div class="mb-6 bg-green-50 border-l-4 border-green-400 p-4 rounded flex items-center gap-3">
+        <svg class="h-5 w-5 text-green-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+        <p class="text-sm font-medium text-green-700">{{ session('cache_cleared') }}</p>
+    </div>
+    @endif
+
     @if($errors->any())
     <div class="mb-6 bg-red-50 border-l-4 border-red-400 p-4 rounded">
         <div class="flex">
@@ -93,5 +102,37 @@
         </div>
     </form>
     @endif
+
+    {{-- System Operations --}}
+    <div class="mt-6 bg-white shadow rounded-lg overflow-hidden">
+        <div class="px-6 py-4 border-b border-gray-200 bg-gray-50">
+            <h2 class="text-lg font-semibold text-gray-900">System Operations</h2>
+            <p class="text-sm text-gray-500 mt-1">Maintenance actions for the application</p>
+        </div>
+        <div class="px-6 py-6">
+            <div class="flex items-start justify-between gap-4">
+                <div>
+                    <p class="text-sm font-medium text-gray-900">Clear Application Cache</p>
+                    <p class="text-sm text-gray-500 mt-1">
+                        Clears route cache, config cache, view cache, and application cache.
+                        Use this after deploying updated files to the server.
+                    </p>
+                </div>
+                <form method="POST" action="{{ route('admin.settings.clear-cache') }}" class="shrink-0">
+                    @csrf
+                    <button
+                        type="submit"
+                        onclick="return confirm('Clear all application caches? The next request will be slightly slower while caches rebuild.')"
+                        class="inline-flex items-center gap-2 px-4 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition-colors"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        Clear All Cache
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 @endsection

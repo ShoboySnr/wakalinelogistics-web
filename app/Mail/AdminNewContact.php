@@ -2,15 +2,13 @@
 
 namespace App\Mail;
 
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
 use App\Models\ContactMessage;
 
-class AdminNewContact extends Mailable implements ShouldQueue
+class AdminNewContact extends Mailable
 {
-    use Queueable, SerializesModels;
+    use SerializesModels;
 
     public ContactMessage $messageModel;
 
@@ -21,7 +19,8 @@ class AdminNewContact extends Mailable implements ShouldQueue
 
     public function build()
     {
-        return $this->subject('New contact form submission')->view('emails.admin_new_contact')
+        return $this->subject('New Enquiry: ' . $this->messageModel->first_name . ' ' . $this->messageModel->last_name)
+            ->view('emails.admin_new_contact')
             ->with(['messageModel' => $this->messageModel]);
     }
 }

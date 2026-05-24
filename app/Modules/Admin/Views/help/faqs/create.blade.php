@@ -34,7 +34,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-2">Answer *</label>
-                <textarea name="answer" rows="6" required
+                <textarea id="answer-editor" name="answer" rows="6"
                     class="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
                     placeholder="Enter the detailed answer">{{ old('answer') }}</textarea>
             </div>
@@ -83,4 +83,52 @@
         </div>
     </form>
 </div>
+
 @endsection
+
+@push('scripts')
+<script src="https://cdn.tiny.cloud/1/bx4hxtn8dh14nwvyw0bhgez4j7siz2ukyylhlpm75kxtpfg5/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        tinymce.init({
+            selector: '#answer-editor',
+            height: 400,
+            menubar: false,
+            plugins: [
+                'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                'insertdatetime', 'media', 'table', 'help', 'wordcount'
+            ],
+            toolbar: 'undo redo | formatselect | bold italic underline strikethrough | ' +
+                      'alignleft aligncenter alignright alignjustify | ' +
+                      'bullist numlist outdent indent | link image | ' +
+                      'forecolor backcolor | removeformat | code | help',
+            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 14px; }',
+            image_advtab: true,
+            link_default_target: '_blank',
+            link_assume_external_targets: true,
+            relative_urls: false,
+            remove_script_host: false,
+            convert_urls: true,
+        });
+
+        document.querySelector('form').addEventListener('submit', function(e) {
+            tinymce.triggerSave();
+            const content = (tinymce.get('answer-editor').getContent({ format: 'text' }) || '').trim();
+            if (!content) {
+                e.preventDefault();
+                const label = document.querySelector('label[for="answer-editor"], label + textarea#answer-editor')
+                    || document.querySelector('#answer-editor').closest('div');
+                let err = document.getElementById('answer-error');
+                if (!err) {
+                    err = document.createElement('p');
+                    err.id = 'answer-error';
+                    err.className = 'mt-1 text-sm text-red-600';
+                    err.textContent = 'Answer is required.';
+                    document.querySelector('.tox-tinymce').after(err);
+                }
+            }
+        });
+    });
+</script>
+@endpush

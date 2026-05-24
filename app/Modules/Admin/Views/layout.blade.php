@@ -228,6 +228,14 @@
                         <span class="font-medium">Communications</span>
                     </a>
                     
+                    <a href="{{ route('admin.waitlist') }}"
+                       class="sidebar-link flex items-center px-4 py-3 text-gray-300 rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.waitlist*') ? 'active' : '' }}">
+                        <svg class="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        <span class="font-medium">Waitlist</span>
+                    </a>
+
                     <a href="{{ route('admin.job-applications') }}"
                        class="sidebar-link flex items-center px-4 py-3 text-gray-300 rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.job-applications*') ? 'active' : '' }}">
                         <svg class="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -341,5 +349,7 @@ function toggleMobileMenu() {
 mobileMenuBtn.addEventListener('click', toggleMobileMenu);
 overlay.addEventListener('click', toggleMobileMenu);
 </script>
+
+@stack('scripts')
 </body>
 </html>

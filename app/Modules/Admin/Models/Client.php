@@ -42,15 +42,36 @@ class Client extends Authenticatable
         'api_key_generated_at',
         'api_last_used_at',
         'theme_preference',
+        'language',
+        'timezone',
+        'date_format',
         'default_pickup_address',
         'default_pickup_contact_name',
         'default_pickup_contact_phone',
         'notification_preferences',
         'two_factor_enabled',
+        'two_factor_method',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
+        'two_factor_code',
+        'two_factor_expires_at',
         'email_verification_code',
         'email_verification_expires_at',
         'signup_bonus_credited',
         'customer_settings',
+        'waitlist_token',
+        'company_logo',
+        'invoice_prefix',
+        'invoice_counter',
+        'primary_color',
+        'secondary_color',
+        'company_address',
+        'company_phone',
+        'company_email',
+        'company_website',
+        'tax_id',
+        'registration_number',
+        'report_settings',
     ];
 
     protected $casts = [
@@ -67,13 +88,18 @@ class Client extends Authenticatable
         'notification_preferences' => 'array',
         'customer_settings'        => 'array',
         'email_verification_expires_at' => 'datetime',
+        'two_factor_expires_at' => 'datetime',
+        'two_factor_recovery_codes' => 'array',
         'signup_bonus_credited' => 'boolean',
+        'report_settings' => 'array',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
         'api_key',
+        'two_factor_secret',
+        'two_factor_recovery_codes',
     ];
 
     public function orders()

@@ -31,7 +31,7 @@ class SettingsSeeder extends Seeder
             ],
             [
                 'key' => 'general_company_name',
-                'value' => 'Wakaline Logistics',
+                'value' => 'Waka Line Logistics',
                 'type' => 'string',
                 'group' => 'general',
                 'description' => 'Company name',

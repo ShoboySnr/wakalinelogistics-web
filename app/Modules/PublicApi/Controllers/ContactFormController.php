@@ -21,6 +21,6 @@ class ContactFormController extends Controller
         $service = new ContactFormService();
         $service->send($data);
 
-        return response()->json(['success' => true, 'message' => 'Message sent']);
+        return response()->json(['success' => true, 'message' => 'Your message is received. Please check your email for confirmation.']);
     }
 }

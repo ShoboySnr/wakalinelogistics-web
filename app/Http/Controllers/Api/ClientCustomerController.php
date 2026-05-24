@@ -62,6 +62,15 @@ class ClientCustomerController extends Controller
 
         $result = $customers->map(function ($c) use ($metaMap) {
             $meta = $metaMap->get($c->receiver_phone);
+            
+            // Calculate customer segment
+            $segment = $this->calculateCustomerSegment($c);
+            
+            // Calculate days since last order
+            $daysSinceLastOrder = $c->last_order_at 
+                ? now()->diffInDays($c->last_order_at) 
+                : null;
+            
             return [
                 'receiver_phone'   => $c->receiver_phone,
                 'receiver_name'    => $c->receiver_name,
@@ -70,6 +79,9 @@ class ClientCustomerController extends Controller
                 'total_orders'     => $c->total_orders,
                 'total_spend'      => $c->total_spend,
                 'last_order_at'    => $c->last_order_at,
+                'segment'          => $segment,
+                'days_since_last_order' => $daysSinceLastOrder,
+                'is_at_risk'       => $daysSinceLastOrder && $daysSinceLastOrder > 30,
                 'meta' => [
                     'starred'   => $meta?->starred ?? false,
                     'tags'      => $meta?->tags ?? [],
@@ -112,9 +124,12 @@ class ClientCustomerController extends Controller
             ->get([
                 'id', 'order_number', 'status', 'pickup_address',
                 'delivery_address', 'package_description',
-                'receiver_name', 'receiver_email', 'receiver_phone',
-                'price', 'payment_method', 'created_at',
+                'receiver_name', 'receiver_phone',
+                'price', 'payment_method', 'created_at', 'updated_at',
             ]);
+
+        // Calculate analytics
+        $analytics = $this->calculateCustomerAnalytics($user, $orders, $customer);
 
         $profile = [
             'receiver_phone'   => $customer->receiver_phone,
@@ -130,8 +145,9 @@ class ClientCustomerController extends Controller
         return response()->json([
             'success' => true,
             'data'    => [
-                'profile' => $profile,
-                'orders'  => $orders,
+                'profile'   => $profile,
+                'orders'    => $orders,
+                'analytics' => $analytics,
             ],
         ]);
     }
@@ -259,5 +275,116 @@ class ClientCustomerController extends Controller
         $full['default_pickup_contact_phone'] = $user->fresh()->default_pickup_contact_phone ?? '';
 
         return response()->json(['success' => true, 'message' => 'Settings saved', 'data' => $full]);
+    }
+
+    // ── Calculate Customer Segment ────────────────────────────────────────────
+
+    private function calculateCustomerSegment($customer): string
+    {
+        $totalOrders = $customer->total_orders;
+        $totalSpend = $customer->total_spend;
+        $daysSinceLastOrder = $customer->last_order_at 
+            ? now()->diffInDays($customer->last_order_at) 
+            : 999;
+
+        // VIP: High spend OR many orders
+        if ($totalSpend >= 50000 || $totalOrders >= 20) {
+            return 'VIP';
+        }
+
+        // At Risk: Haven't ordered in 30+ days but has history
+        if ($daysSinceLastOrder > 30 && $totalOrders > 0) {
+            return 'At Risk';
+        }
+
+        // New: Less than 3 orders
+        if ($totalOrders <= 2) {
+            return 'New';
+        }
+
+        // Regular: Everything else
+        return 'Regular';
+    }
+
+    // ── Calculate Customer Analytics ──────────────────────────────────────────
+
+    private function calculateCustomerAnalytics($user, $orders, $customer): array
+    {
+        if ($orders->isEmpty()) {
+            return [
+                'order_patterns' => null,
+                'revenue_contribution' => 0,
+                'top_delivery_locations' => [],
+                'average_delivery_time' => null,
+                'order_frequency' => null,
+            ];
+        }
+
+        // Get total business revenue for percentage calculation
+        $totalBusinessRevenue = Order::where('client_id', $user->id)->sum('price');
+        $revenueContribution = $totalBusinessRevenue > 0 
+            ? round(($customer->total_spend / $totalBusinessRevenue) * 100, 2) 
+            : 0;
+
+        // Analyze order patterns (day of week)
+        $dayOfWeekCounts = [];
+        foreach ($orders as $order) {
+            $dayName = \Carbon\Carbon::parse($order->created_at)->format('l');
+            $dayOfWeekCounts[$dayName] = ($dayOfWeekCounts[$dayName] ?? 0) + 1;
+        }
+        arsort($dayOfWeekCounts);
+        $mostCommonDay = !empty($dayOfWeekCounts) ? array_key_first($dayOfWeekCounts) : null;
+
+        // Top delivery locations
+        $locationCounts = [];
+        foreach ($orders as $order) {
+            $location = $order->delivery_address;
+            $locationCounts[$location] = ($locationCounts[$location] ?? 0) + 1;
+        }
+        arsort($locationCounts);
+        $topLocations = array_slice($locationCounts, 0, 3, true);
+
+        // Average delivery time (for delivered orders)
+        $deliveredOrders = $orders->where('status', 'delivered');
+        $avgDeliveryTime = null;
+        if ($deliveredOrders->count() > 0) {
+            $totalHours = 0;
+            $count = 0;
+            foreach ($deliveredOrders as $order) {
+                if ($order->updated_at && $order->created_at) {
+                    $hours = \Carbon\Carbon::parse($order->created_at)
+                        ->diffInHours(\Carbon\Carbon::parse($order->updated_at));
+                    $totalHours += $hours;
+                    $count++;
+                }
+            }
+            $avgDeliveryTime = $count > 0 ? round($totalHours / $count, 1) : null;
+        }
+
+        // Order frequency (days between orders)
+        $orderFrequency = null;
+        if ($orders->count() > 1) {
+            $dates = $orders->pluck('created_at')->map(fn($d) => \Carbon\Carbon::parse($d))->sortBy(fn($d) => $d);
+            $intervals = [];
+            $prevDate = null;
+            foreach ($dates as $date) {
+                if ($prevDate) {
+                    $intervals[] = $prevDate->diffInDays($date);
+                }
+                $prevDate = $date;
+            }
+            $orderFrequency = !empty($intervals) ? round(array_sum($intervals) / count($intervals), 1) : null;
+        }
+
+        return [
+            'order_patterns' => $mostCommonDay ? "Usually orders on {$mostCommonDay}s" : null,
+            'revenue_contribution' => $revenueContribution,
+            'top_delivery_locations' => array_map(fn($addr, $count) => [
+                'address' => $addr,
+                'count' => $count,
+            ], array_keys($topLocations), array_values($topLocations)),
+            'average_delivery_time' => $avgDeliveryTime,
+            'order_frequency' => $orderFrequency,
+        ];
     }
 }
