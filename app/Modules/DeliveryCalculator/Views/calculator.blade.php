@@ -17,7 +17,8 @@
     </script>
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.api_key') }}&libraries=places"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.api_key') }}&libraries=places&loading=async" async defer></script>
+    <script src="{{ asset('assets/js/nominatim-autocomplete.js') }}"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
     <script>
@@ -78,7 +79,7 @@
         <div class="gradient-bg py-4 px-4 sm:px-6 lg:px-8">
             <div class="max-w-5xl mx-auto">
                 <div class="flex items-center justify-center mb-8">
-                    <a href="{{ route('home') }}">
+                    <a href="/">
                         <img src="{{ asset('assets/img/wakalinelogistics-logo-white.png') }}" alt="Waka Line Logistics" class="h-12 cursor-pointer hover:opacity-90 transition-opacity">
                     </a>
                 </div>
@@ -661,33 +662,11 @@
                 },
 
                 init() {
-                    this.initAutocomplete('pickup_address');
-                    this.initAutocomplete('delivery_address');
-                },
-
-                initAutocomplete(elementId) {
-                    const input = document.getElementById(elementId);
-                    const lagosBounds = new google.maps.LatLngBounds(
-                        new google.maps.LatLng(6.3876, 3.0982),
-                        new google.maps.LatLng(6.7027, 3.6964)
-                    );
-                    
-                    const autocomplete = new google.maps.places.Autocomplete(input, {
-                        bounds: lagosBounds,
-                        strictBounds: true,
-                        componentRestrictions: { country: 'ng' },
-                        fields: ['formatted_address', 'geometry', 'name', 'address_components']
+                    nominatimAutocomplete(document.getElementById('pickup_address'), (address) => {
+                        this.pickupAddress = address;
                     });
-
-                    autocomplete.addListener('place_changed', () => {
-                        const place = autocomplete.getPlace();
-                        if (place.formatted_address) {
-                            if (elementId === 'pickup_address') {
-                                this.pickupAddress = place.formatted_address;
-                            } else if (elementId === 'delivery_address') {
-                                this.deliveryAddress = place.formatted_address;
-                            }
-                        }
+                    nominatimAutocomplete(document.getElementById('delivery_address'), (address) => {
+                        this.deliveryAddress = address;
                     });
                 },
 

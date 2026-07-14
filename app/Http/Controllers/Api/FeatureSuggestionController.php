@@ -227,6 +227,38 @@ class FeatureSuggestionController extends Controller
     }
 
     /**
+     * Delete a pending suggestion (owner only)
+     */
+    public function destroy(int $id)
+    {
+        $user = Auth::user();
+
+        if (!$user instanceof Client) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 403);
+        }
+
+        $suggestion = FeatureSuggestion::where('id', $id)
+            ->where('client_id', $user->id)
+            ->first();
+
+        if (!$suggestion) {
+            return response()->json(['success' => false, 'message' => 'Suggestion not found'], 404);
+        }
+
+        if ($suggestion->status !== 'pending') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Only pending suggestions can be deleted.',
+            ], 422);
+        }
+
+        $suggestion->votes()->delete();
+        $suggestion->delete();
+
+        return response()->json(['success' => true, 'message' => 'Suggestion deleted.']);
+    }
+
+    /**
      * Get suggestion statistics
      */
     public function stats()

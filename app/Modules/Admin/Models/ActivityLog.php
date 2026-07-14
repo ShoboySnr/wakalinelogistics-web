@@ -30,15 +30,19 @@ class ActivityLog extends Model
 
     public static function log(string $action, string $description, $model = null, array $properties = []): void
     {
-        self::create([
-            'user_id' => auth()->id(),
-            'action' => $action,
-            'model_type' => $model ? get_class($model) : null,
-            'model_id' => $model?->id ?? null,
-            'description' => $description,
-            'properties' => $properties,
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-        ]);
+        try {
+            self::create([
+                'user_id'    => auth()->id(),
+                'action'     => $action,
+                'model_type' => $model ? get_class($model) : null,
+                'model_id'   => $model?->id ?? null,
+                'description' => $description,
+                'properties' => $properties,
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+        } catch (\Throwable $e) {
+            \Log::warning('ActivityLog::log failed silently', ['action' => $action, 'error' => $e->getMessage()]);
+        }
     }
 }

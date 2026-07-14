@@ -39,11 +39,18 @@ return [
         'api_key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    'mapbox' => [
+        'key' => env('MAPBOX_API_KEY', ''),
+    ],
+
     'metter_api' => [
         'token' => env('METTER_API_TOKEN', 'your-secure-api-token-here'),
     ],
     'frontend_api' => [
         'token' => env('FRONTEND_API_TOKEN', 'your-frontend-api-token-here'),
+    ],
+    'whatsapp_bot_api' => [
+        'token' => env('WHATSAPP_BOT_API_KEY'),
     ],
 
     'frontend' => [

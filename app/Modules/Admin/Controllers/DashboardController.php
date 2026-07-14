@@ -16,6 +16,8 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
@@ -125,7 +127,7 @@ class DashboardController extends Controller
 
         // Status filtering - show all orders if no filter is specified
         $statusFilter = $request->get('status');
-        if ($statusFilter) {
+        if ($statusFilter && $statusFilter !== 'all') {
             $query->where('status', $statusFilter);
         }
 
@@ -134,12 +136,27 @@ class DashboardController extends Controller
             $query->whereNull('delivery_date');
         }
 
-        if ($request->has('search') && $request->search != '') {
+        // Filter by client
+        $clientFilter = null;
+        if ($request->filled('client_id')) {
+            $query->where('client_id', $request->client_id);
+            $clientFilter = Client::find($request->client_id);
+        }
+
+        if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('order_number', 'like', "%{$search}%")
                   ->orWhere('customer_name', 'like', "%{$search}%")
-                  ->orWhere('customer_phone', 'like', "%{$search}%");
+                  ->orWhere('customer_phone', 'like', "%{$search}%")
+                  ->orWhere('sender_name', 'like', "%{$search}%")
+                  ->orWhere('sender_phone', 'like', "%{$search}%")
+                  ->orWhere('sender_email', 'like', "%{$search}%")
+                  ->orWhere('receiver_name', 'like', "%{$search}%")
+                  ->orWhere('receiver_phone', 'like', "%{$search}%")
+                  ->orWhere('pickup_address', 'like', "%{$search}%")
+                  ->orWhere('delivery_address', 'like', "%{$search}%")
+                  ->orWhere('item_description', 'like', "%{$search}%");
             });
         }
 
@@ -220,7 +237,49 @@ class DashboardController extends Controller
                                             ->sum('price'),
         ];
 
-        return view('Admin::orders.index', compact('orders', 'stats'));
+        $clients = Client::where('is_active', true)->where('pod_remittance_enabled', true)->orderBy('name')->get(['id', 'name', 'company_name']);
+
+        return view('Admin::orders.index', compact('orders', 'stats', 'clientFilter', 'clients'));
+    }
+
+    public function getPodRemittanceData(Request $request)
+    {
+        $request->validate(['client_id' => 'required|integer|exists:clients,id']);
+
+        $client = Client::findOrFail($request->client_id);
+
+        if (!$client->pod_remittance_enabled) {
+            return response()->json(['error' => 'POD remittance is not enabled for this client.'], 403);
+        }
+
+        $orders = Order::where('client_id', $client->id)
+            ->where('payment_method', 'cash')
+            ->whereNull('remitted_at')
+            ->where(function ($q) {
+                $q->where(function ($inner) {
+                    $inner->where('status', 'delivered')->whereNotNull('amount_received');
+                })->orWhere('is_failed_delivery', true);
+            })
+            ->latest()
+            ->get(['id', 'order_number', 'delivery_address', 'price', 'amount_received', 'delivery_date', 'is_failed_delivery']);
+
+        $rows = $orders->map(fn($o) => [
+            'id'               => $o->id,
+            'order_number'     => $o->order_number,
+            'delivery_address' => $o->delivery_address,
+            'date'             => $o->delivery_date ? $o->delivery_date->format('M d, Y') : '—',
+            'amount_received'  => $o->is_failed_delivery ? 0 : (float) $o->amount_received,
+            'delivery_fee'     => (float) $o->price,
+            'to_remit'         => $o->is_failed_delivery ? -(float) $o->price : max(0, (float) $o->amount_received - (float) $o->price),
+            'is_failed'        => (bool) $o->is_failed_delivery,
+        ]);
+
+        return response()->json([
+            'client_name'      => $client->name . ($client->company_name ? ' (' . $client->company_name . ')' : ''),
+            'client_id'        => $client->id,
+            'orders'           => $rows,
+            'total_remittance' => $rows->sum('to_remit'),
+        ]);
     }
 
     public function showOrder($id)
@@ -388,6 +447,9 @@ class DashboardController extends Controller
             'quantity' => 'nullable|integer|min:1',
             'distance' => 'nullable|numeric|min:0',
             'price' => 'required|numeric|min:0',
+            'payment_method' => 'nullable|in:cash,credits,card,subscription',
+            'amount_received' => 'nullable|numeric|min:0',
+            'is_failed_delivery' => 'nullable|boolean',
             'delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'status' => 'required|in:pending,confirmed,in_transit,delivered,cancelled',
@@ -401,6 +463,8 @@ class DashboardController extends Controller
             'additional_file_2' => 'nullable|file|mimes:pdf,doc,docx,jpeg,png,jpg,gif|max:5120',
             'additional_file_3' => 'nullable|file|mimes:pdf,doc,docx,jpeg,png,jpg,gif|max:5120',
         ]);
+
+        $validated['is_failed_delivery'] = $request->boolean('is_failed_delivery');
 
         // Handle image uploads
         $imageFields = ['package_image_1', 'package_image_2', 'package_image_3', 'package_image_4'];
@@ -428,11 +492,16 @@ class DashboardController extends Controller
         $validated['customer_name'] = $validated['sender_name'];
         $validated['customer_phone'] = $validated['sender_phone'];
         $validated['customer_email'] = $validated['sender_email'];
-        
+
         // Record which admin created this order
         $validated['created_by'] = Auth::id();
 
         $order = Order::create($validated);
+
+        if ($request->boolean('mark_remitted') && $order->amount_received !== null) {
+            $order->remitted_at = now();
+            $order->save();
+        }
 
         ActivityLog::log('order_created', "Created order #{$order->order_number}", $order, [
             'order_number' => $order->order_number,
@@ -471,6 +540,9 @@ class DashboardController extends Controller
             'quantity' => 'nullable|integer|min:1',
             'distance' => 'nullable|numeric|min:0',
             'price' => 'required|numeric|min:0',
+            'payment_method' => 'nullable|in:cash,credits,card,subscription',
+            'amount_received' => 'nullable|numeric|min:0',
+            'is_failed_delivery' => 'nullable|boolean',
             'delivery_date' => 'nullable|date',
             'notes' => 'nullable|string',
             'status' => 'required|in:pending,confirmed,in_transit,delivered,cancelled',
@@ -484,6 +556,8 @@ class DashboardController extends Controller
             'additional_file_2' => 'nullable|file|mimes:pdf,doc,docx,jpeg,png,jpg,gif|max:5120',
             'additional_file_3' => 'nullable|file|mimes:pdf,doc,docx,jpeg,png,jpg,gif|max:5120',
         ]);
+
+        $validated['is_failed_delivery'] = $request->boolean('is_failed_delivery');
 
         // Handle image uploads
         $imageFields = ['package_image_1', 'package_image_2', 'package_image_3', 'package_image_4'];
@@ -513,6 +587,18 @@ class DashboardController extends Controller
         $validated['customer_email'] = $validated['sender_email'];
 
         $order->update($validated);
+
+        if ($request->boolean('mark_remitted')) {
+            if (!$order->remitted_at && $order->amount_received !== null) {
+                $order->remitted_at = now();
+                $order->save();
+            }
+        } else {
+            if ($order->remitted_at) {
+                $order->remitted_at = null;
+                $order->save();
+            }
+        }
 
         ActivityLog::log('order_updated', "Updated order #{$order->order_number}", $order, [
             'order_number' => $order->order_number,
@@ -1481,131 +1567,68 @@ class DashboardController extends Controller
     }
     
     /**
-     * Estimate distance between two addresses using Google Maps Distance Matrix API
+     * Estimate distance between two addresses using Google Geocoding + Haversine formula
      */
     private function estimateDistance($address1, $address2)
     {
-        $apiKey = env('GOOGLE_MAPS_API_KEY');
-        
-        // If API key is available, use Google Maps Distance Matrix API
-        if ($apiKey) {
-            try {
-                $distance = $this->getGoogleMapsDistance($address1, $address2, $apiKey);
-                if ($distance !== null) {
-                    return $distance;
-                }
-            } catch (\Exception $e) {
-                // Fall through to area-based estimation
+        try {
+            $geo1 = $this->geocodeWithGoogle($address1);
+            $geo2 = $this->geocodeWithGoogle($address2);
+
+            if ($geo1 && $geo2) {
+                return $this->haversineDistance($geo1['lat'], $geo1['lon'], $geo2['lat'], $geo2['lon']);
             }
+        } catch (\Exception $e) {
+            // Fall through to area-based estimation
         }
 
-        // Fallback to area-based estimation
         return $this->estimateDistanceByArea($address1, $address2);
     }
-    
+
     /**
-     * Get actual distance using Google Maps Distance Matrix API with caching
+     * Geocode an address using Google Maps Geocoding API, cached for 7 days
      */
-    private function getGoogleMapsDistance($origin, $destination, $apiKey)
+    private function geocodeWithGoogle(string $address): ?array
     {
-        // Create cache key based on normalized addresses
-        $cacheKey = 'gmaps_distance_' . md5(strtolower(trim($origin)) . '|' . strtolower(trim($destination)));
-        
-        // Check if we have cached result (valid for 7 days)
-        $cachedDistance = \Cache::get($cacheKey);
-        if ($cachedDistance !== null) {
-            return $cachedDistance;
-        }
-        
-        $origin = urlencode($origin);
-        $destination = urlencode($destination);
-        
-        $url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins={$origin}&destinations={$destination}&key={$apiKey}&mode=driving";
-        
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5); // 5 second timeout
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        if ($httpCode !== 200 || !$response) {
-            return null;
-        }
-        
-        $data = json_decode($response, true);
-        
-        if (!isset($data['status']) || $data['status'] !== 'OK') {
-            return null;
-        }
-        
-        if (!isset($data['rows'][0]['elements'][0]['distance']['value'])) {
-            // If Google can't find the address, try with simplified address (city/area only)
-            if ($data['status'] === 'OK' && isset($data['rows'][0]['elements'][0]['status']) && $data['rows'][0]['elements'][0]['status'] === 'NOT_FOUND') {
-                $simplifiedOrigin = $this->extractCityArea($origin);
-                $simplifiedDestination = $this->extractCityArea($destination);
-                
-                if ($simplifiedOrigin !== $origin || $simplifiedDestination !== $destination) {
-                    // Try again with simplified addresses
-                    return $this->getGoogleMapsDistance($simplifiedOrigin, $simplifiedDestination, $apiKey);
-                }
+        $cacheKey = 'google_geo_' . md5(strtolower(trim($address)));
+
+        return Cache::remember($cacheKey, 604800, function () use ($address) {
+            $lower = strtolower($address);
+            $query = (str_contains($lower, 'lagos') || str_contains($lower, 'ogun') || str_contains($lower, 'nigeria'))
+                ? $address
+                : $address . ', Nigeria';
+
+            $response = Http::timeout(5)
+                ->get('https://maps.googleapis.com/maps/api/geocode/json', [
+                    'address'    => $query,
+                    'key'        => config('services.google_maps.api_key'),
+                    'region'     => 'ng',
+                    'components' => 'country:NG',
+                ]);
+
+            $data = $response->json();
+            if (($data['status'] ?? '') === 'OK' && !empty($data['results'])) {
+                $loc = $data['results'][0]['geometry']['location'];
+                return ['lat' => (float) $loc['lat'], 'lon' => (float) $loc['lng']];
             }
+
             return null;
-        }
-        
-        // Distance is in meters, convert to kilometers
-        $distanceInMeters = $data['rows'][0]['elements'][0]['distance']['value'];
-        $distanceInKm = $distanceInMeters / 1000;
-        
-        // Cache the result for 7 days (604800 seconds)
-        \Cache::put($cacheKey, $distanceInKm, 604800);
-        
-        return $distanceInKm;
+        });
     }
-    
+
     /**
-     * Extract city/area from full address for fallback when Google can't find address
-     * Example: "21b Fatal Idowu Arobieke Lekki Phase 1 Lagos" -> "Lekki Phase 1 Lagos"
+     * Haversine great-circle distance × 1.35 road factor, returns km
      */
-    private function extractCityArea($address)
+    private function haversineDistance(float $lat1, float $lon1, float $lat2, float $lon2): float
     {
-        // Common Lagos areas and landmarks
-        $areas = [
-            'Lekki Phase 1', 'Lekki Phase 2', 'Lekki', 'Ajah', 'Victoria Island', 'VI', 'Ikoyi',
-            'Ikeja', 'Surulere', 'Yaba', 'Gbagada', 'Maryland', 'Ojota', 'Ketu', 'Ikorodu',
-            'Festac', 'Apapa', 'Isolo', 'Oshodi', 'Mushin', 'Bariga', 'Somolu', 'Agege',
-            'Egbeda', 'Alimosho', 'Ifako', 'Abule Egba', 'Iyana Ipaja', 'Badagry', 'Epe',
-            'Magodo', 'Omole', 'Berger', 'Ojodu', 'Ogba', 'Anthony', 'Obanikoro',
-            'Palmgrove', 'Onipanu', 'Fadeyi', 'Jibowu', 'Baruwa', 'Igando', 'Isheri',
-            'Iju Ishaga', 'Iju', 'Ishaga', 'Ejigbo', 'Idimu', 'Ikotun', 'Akowonjo'
-        ];
-        
-        $addressLower = strtolower($address);
-        
-        // Try to find area in address
-        foreach ($areas as $area) {
-            if (stripos($addressLower, strtolower($area)) !== false) {
-                // Extract from area onwards, include "Lagos" if present
-                $pattern = '/' . preg_quote($area, '/') . '.*?Lagos/i';
-                if (preg_match($pattern, $address, $matches)) {
-                    return trim($matches[0]);
-                }
-                // If no "Lagos" found, just return area + Lagos
-                return $area . ' Lagos';
-            }
-        }
-        
-        // If no specific area found, try to extract last 2-3 words (usually area + city)
-        $words = explode(' ', trim($address));
-        if (count($words) >= 2) {
-            return implode(' ', array_slice($words, -2));
-        }
-        
-        return $address; // Return original if can't simplify
+        $R    = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a    = sin($dLat / 2) ** 2
+              + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) ** 2;
+        return round($R * 2 * atan2(sqrt($a), sqrt(1 - $a)) * 1.35, 2);
     }
-    
+
     /**
      * Fallback: Estimate distance using area/location matching
      */
@@ -1765,7 +1788,45 @@ class DashboardController extends Controller
         $clientCredit = $client->getOrCreateCredits();
         $activeSubscription = $client->activeSubscription()->with('plan')->first();
 
-        return view('Admin::clients.show', compact('client', 'totalOrders', 'completedOrders', 'pendingOrders', 'totalRevenue', 'subscriptionPlans', 'clientCredit', 'activeSubscription'));
+        // POD remittance: cash orders pending settlement — successful deliveries with amount_received, plus failed deliveries charged to client
+        $podPendingOrders = $client->orders()
+            ->where('payment_method', 'cash')
+            ->whereNull('remitted_at')
+            ->where(function ($q) {
+                $q->where(function ($inner) {
+                    $inner->where('status', 'delivered')->whereNotNull('amount_received');
+                })->orWhere('is_failed_delivery', true);
+            })
+            ->latest()
+            ->get();
+
+        $podTotalRemittance = $podPendingOrders->sum(function ($o) {
+            if ($o->is_failed_delivery) {
+                return -(float) $o->price;
+            }
+            return max(0, (float) $o->amount_received - (float) $o->price);
+        });
+
+        return view('Admin::clients.show', compact(
+            'client', 'totalOrders', 'completedOrders', 'pendingOrders', 'totalRevenue',
+            'subscriptionPlans', 'clientCredit', 'activeSubscription',
+            'podPendingOrders', 'podTotalRemittance'
+        ));
+    }
+
+    public function markOrdersRemitted(Request $request, $id)
+    {
+        $request->validate([
+            'order_ids' => 'required|array|min:1',
+            'order_ids.*' => 'integer|exists:orders,id',
+        ]);
+
+        Order::whereIn('id', $request->order_ids)
+            ->where('client_id', $id)
+            ->whereNull('remitted_at')
+            ->update(['remitted_at' => now()]);
+
+        return back()->with('success', 'Orders marked as remitted successfully.');
     }
 
     public function manualSubscribe(Request $request, $id)
@@ -2113,6 +2174,18 @@ class DashboardController extends Controller
             'api_key' => $apiKey,
             'generated_at' => $client->api_key_generated_at->format('M d, Y h:i A'),
         ]);
+    }
+
+    public function togglePodRemittance($id)
+    {
+        $client = Client::findOrFail($id);
+        $client->pod_remittance_enabled = !$client->pod_remittance_enabled;
+        $client->save();
+
+        $state = $client->pod_remittance_enabled ? 'enabled' : 'disabled';
+        ActivityLog::log('pod_remittance_' . $state, "POD remittance {$state} for client: {$client->name}", $client);
+
+        return back()->with('success', "Daily remittance feature {$state} for {$client->name}.");
     }
 
     // Job Applications Management

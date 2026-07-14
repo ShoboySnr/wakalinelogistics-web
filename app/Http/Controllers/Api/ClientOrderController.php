@@ -746,7 +746,7 @@ class ClientOrderController extends Controller
         }
 
         $fileValidator = Validator::make($request->all(), [
-            'file'           => 'required|file|mimes:csv,txt|max:5120',
+            'file'           => 'required|file|mimes:csv,txt|max:102400',
             'payment_method' => 'nullable|in:credits,cash,card',
         ]);
 
@@ -798,8 +798,8 @@ class ClientOrderController extends Controller
             return response()->json(['success' => false, 'message' => 'The CSV file contains no data rows.'], 422);
         }
 
-        if (count($rawRows) > 100) {
-            return response()->json(['success' => false, 'message' => 'Maximum 100 orders per upload. Your file has ' . count($rawRows) . ' rows.'], 422);
+        if (count($rawRows) > 1000) {
+            return response()->json(['success' => false, 'message' => 'Maximum 1,000 orders per upload. Your file has ' . count($rawRows) . ' rows.'], 422);
         }
 
         // --- Phase 1: Field validation for ALL rows ---
@@ -1223,10 +1223,12 @@ class ClientOrderController extends Controller
             'data'    => [
                 'order_number'        => $order->order_number,
                 'status'              => $order->status,
+                'is_failed_delivery'  => (bool) $order->is_failed_delivery,
                 'pickup_address'      => $order->pickup_address,
                 'delivery_address'    => $order->delivery_address,
                 'receiver_name'       => $order->receiver_name,
                 'package_description' => $order->package_description,
+                'price'               => $order->price ? (float) $order->price : null,
                 'created_at'          => $order->created_at,
                 'updated_at'          => $order->updated_at,
                 'rider'               => $order->rider ? ['name' => $order->rider->name] : null,

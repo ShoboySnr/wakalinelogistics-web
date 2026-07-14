@@ -10,12 +10,10 @@ use Illuminate\Support\Facades\Cache;
 
 class DeliveryPriceService
 {
-    private string $googleApiKey;
     private array $config;
 
     public function __construct()
     {
-        $this->googleApiKey = config('services.google_maps.api_key');
         $this->loadConfiguration();
     }
 
@@ -54,40 +52,43 @@ class DeliveryPriceService
     public function geocodeAddress(string $address): ?array
     {
         try {
-            $addressWithLagos = $address;
-            if (!str_contains(strtolower($address), 'lagos') && !str_contains(strtolower($address), 'nigeria')) {
-                $addressWithLagos = $address . ', Lagos, Nigeria';
-            }
+            $cacheKey = 'google_geo_' . md5(strtolower(trim($address)));
 
-            $response = Http::get('https://maps.googleapis.com/maps/api/geocode/json', [
-                'address' => $addressWithLagos,
-                'key' => $this->googleApiKey,
-                'components' => 'country:NG'
-            ]);
+            return Cache::remember($cacheKey, 86400, function () use ($address) {
+                $lower = strtolower($address);
+                $query = (str_contains($lower, 'lagos') || str_contains($lower, 'ogun') || str_contains($lower, 'nigeria'))
+                    ? $address
+                    : $address . ', Nigeria';
 
-            $data = $response->json();
+                $response = Http::get('https://maps.googleapis.com/maps/api/geocode/json', [
+                    'address'    => $query,
+                    'key'        => config('services.google_maps.api_key'),
+                    'region'     => 'ng',
+                    'components' => 'country:NG',
+                ]);
 
-            if ($data['status'] === 'OK' && !empty($data['results'])) {
-                $location = $data['results'][0]['geometry']['location'];
-                $formattedAddress = $data['results'][0]['formatted_address'];
-                
-                return [
-                    'lat' => $location['lat'],
-                    'lng' => $location['lng'],
-                    'formatted_address' => $formattedAddress,
-                    'original_input' => $address
-                ];
-            }
+                $data = $response->json();
 
-            Log::error('Geocoding failed', [
-                'address' => $address,
-                'address_with_lagos' => $addressWithLagos,
-                'status' => $data['status'] ?? 'UNKNOWN',
-                'error_message' => $data['error_message'] ?? 'No error message',
-                'response' => $data
-            ]);
+                if (($data['status'] ?? '') === 'OK' && !empty($data['results'])) {
+                    $result    = $data['results'][0];
+                    $location  = $result['geometry']['location'];
+                    $formatted = $result['formatted_address'];
 
-            return null;
+                    return [
+                        'lat'               => (float) $location['lat'],
+                        'lng'               => (float) $location['lng'],
+                        'formatted_address' => $formatted,
+                        'original_input'    => $address,
+                    ];
+                }
+
+                Log::error('Google geocoding found no results', [
+                    'address' => $address,
+                    'status'  => $data['status'] ?? 'unknown',
+                ]);
+
+                return null;
+            });
         } catch (\Exception $e) {
             Log::error('Geocoding error: ' . $e->getMessage());
             return null;
@@ -97,24 +98,19 @@ class DeliveryPriceService
     public function calculateDistance(array $origin, array $destination): ?float
     {
         try {
-            $response = Http::get('https://maps.googleapis.com/maps/api/distancematrix/json', [
-                'origins' => "{$origin['lat']},{$origin['lng']}",
-                'destinations' => "{$destination['lat']},{$destination['lng']}",
-                'key' => $this->googleApiKey,
-                'mode' => 'driving'
-            ]);
+            $lat1 = $origin['lat'];
+            $lon1 = $origin['lng'];
+            $lat2 = $destination['lat'];
+            $lon2 = $destination['lng'];
 
-            $data = $response->json();
+            $R    = 6371;
+            $dLat = deg2rad($lat2 - $lat1);
+            $dLon = deg2rad($lon2 - $lon1);
+            $a    = sin($dLat / 2) ** 2
+                  + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) ** 2;
+            $c    = 2 * atan2(sqrt($a), sqrt(1 - $a));
 
-            if ($data['status'] === 'OK' && 
-                !empty($data['rows'][0]['elements'][0]) &&
-                $data['rows'][0]['elements'][0]['status'] === 'OK') {
-                
-                $distanceInMeters = $data['rows'][0]['elements'][0]['distance']['value'];
-                return round($distanceInMeters / 1000, 2);
-            }
-
-            return null;
+            return round($R * $c * 1.35, 2);
         } catch (\Exception $e) {
             Log::error('Distance calculation error: ' . $e->getMessage());
             return null;
@@ -303,7 +299,7 @@ class DeliveryPriceService
         $totalFee = 0;
         $failedPickups = [];
 
-        foreach ($pickupAddresses as $index => $pickupAddress) {
+        foreach ($pickupAddresses as $pickupAddress) {
             $pickupGeo = $this->geocodeAddress($pickupAddress);
             
             if (!$pickupGeo) {

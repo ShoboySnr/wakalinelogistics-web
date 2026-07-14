@@ -30,7 +30,8 @@ Route::prefix('super-admin')->group(function () {
         Route::get('/orders/{id}/invoice', [DashboardController::class, 'generateInvoice'])->name('admin.orders.invoice');
         Route::put('/orders/{id}', [DashboardController::class, 'updateOrder'])->name('admin.orders.update');
         Route::delete('/orders/{id}', [DashboardController::class, 'deleteOrder'])->name('admin.orders.delete');
-        
+        Route::get('/remittance/pod-data', [DashboardController::class, 'getPodRemittanceData'])->name('admin.remittance.pod-data');
+
         // Profile Routes
         Route::get('/profile', [DashboardController::class, 'profile'])->name('admin.profile');
         Route::put('/profile', [DashboardController::class, 'updateProfile'])->name('admin.profile.update');
@@ -122,7 +123,9 @@ Route::prefix('super-admin')->group(function () {
         Route::post('/clients/{id}/add-credits', [DashboardController::class, 'manualAddCredits'])->name('admin.clients.add-credits');
         Route::post('/clients/{id}/deduct-credits', [DashboardController::class, 'manualDeductCredits'])->name('admin.clients.deduct-credits');
         Route::post('/clients/{id}/verify-email', [DashboardController::class, 'manualVerifyEmail'])->name('admin.clients.verify-email');
-        
+        Route::post('/clients/{id}/mark-remitted', [DashboardController::class, 'markOrdersRemitted'])->name('admin.clients.mark-remitted');
+        Route::post('/clients/{id}/toggle-pod-remittance', [DashboardController::class, 'togglePodRemittance'])->name('admin.clients.toggle-pod-remittance');
+
         // Communications (subscriptions & contact messages)
         Route::get('/communications', [CommunicationsController::class, 'index'])->name('admin.communications');
 

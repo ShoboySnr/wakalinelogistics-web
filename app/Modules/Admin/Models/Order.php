@@ -63,14 +63,20 @@ class Order extends Model
         'additional_file_1',
         'additional_file_2',
         'additional_file_3',
+        'amount_received',
+        'remitted_at',
+        'is_failed_delivery',
     ];
 
     protected $casts = [
         'pickup_date' => 'datetime',
         'delivery_date' => 'datetime',
+        'remitted_at' => 'datetime',
         'price' => 'decimal:2',
+        'amount_received' => 'decimal:2',
         'weight' => 'decimal:2',
         'distance' => 'decimal:2',
+        'is_failed_delivery' => 'boolean',
         'paid_with_credits' => 'boolean',
         'credits_used' => 'integer',
         'package_quantity' => 'integer',

@@ -4,6 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Modules\Admin\Models\RouteShare;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 
 class RouteShareController extends Controller
 {
@@ -412,129 +414,66 @@ class RouteShareController extends Controller
     }
     
     /**
-     * Estimate distance between two addresses using Google Maps Distance Matrix API
+     * Estimate distance between two addresses using Google Geocoding + Haversine formula
      */
     private function estimateDistance($address1, $address2)
     {
-        $apiKey = env('GOOGLE_MAPS_API_KEY');
-        
-        // If API key is available, use Google Maps Distance Matrix API
-        if ($apiKey) {
-            try {
-                $distance = $this->getGoogleMapsDistance($address1, $address2, $apiKey);
-                if ($distance !== null) {
-                    return $distance;
-                }
-            } catch (\Exception $e) {
-                // Fall through to area-based estimation
+        try {
+            $geo1 = $this->geocodeWithGoogle($address1);
+            $geo2 = $this->geocodeWithGoogle($address2);
+
+            if ($geo1 && $geo2) {
+                return $this->haversineDistance($geo1['lat'], $geo1['lon'], $geo2['lat'], $geo2['lon']);
             }
+        } catch (\Exception $e) {
+            // Fall through to area-based estimation
         }
 
-        // Fallback to area-based estimation
         return $this->estimateDistanceByArea($address1, $address2);
     }
-    
+
     /**
-     * Get actual distance using Google Maps Distance Matrix API with caching
+     * Geocode an address using Google Maps Geocoding API, cached for 7 days
      */
-    private function getGoogleMapsDistance($origin, $destination, $apiKey)
+    private function geocodeWithGoogle(string $address): ?array
     {
-        // Create cache key based on normalized addresses
-        $cacheKey = 'gmaps_distance_' . md5(strtolower(trim($origin)) . '|' . strtolower(trim($destination)));
-        
-        // Check if we have cached result (valid for 7 days)
-        $cachedDistance = \Cache::get($cacheKey);
-        if ($cachedDistance !== null) {
-            return $cachedDistance;
-        }
-        
-        $origin = urlencode($origin);
-        $destination = urlencode($destination);
-        
-        $url = "https://maps.googleapis.com/maps/api/distancematrix/json?origins={$origin}&destinations={$destination}&key={$apiKey}&mode=driving";
-        
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5); // 5 second timeout
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        if ($httpCode !== 200 || !$response) {
-            return null;
-        }
-        
-        $data = json_decode($response, true);
-        
-        if (!isset($data['status']) || $data['status'] !== 'OK') {
-            return null;
-        }
-        
-        if (!isset($data['rows'][0]['elements'][0]['distance']['value'])) {
-            // If Google can't find the address, try with simplified address (city/area only)
-            if ($data['status'] === 'OK' && isset($data['rows'][0]['elements'][0]['status']) && $data['rows'][0]['elements'][0]['status'] === 'NOT_FOUND') {
-                $simplifiedOrigin = $this->extractCityArea($origin);
-                $simplifiedDestination = $this->extractCityArea($destination);
-                
-                if ($simplifiedOrigin !== $origin || $simplifiedDestination !== $destination) {
-                    // Try again with simplified addresses
-                    return $this->getGoogleMapsDistance($simplifiedOrigin, $simplifiedDestination, $apiKey);
-                }
+        $cacheKey = 'google_geo_' . md5(strtolower(trim($address)));
+
+        return Cache::remember($cacheKey, 604800, function () use ($address) {
+            $lower = strtolower($address);
+            $query = (str_contains($lower, 'lagos') || str_contains($lower, 'ogun') || str_contains($lower, 'nigeria'))
+                ? $address
+                : $address . ', Nigeria';
+
+            $response = Http::timeout(5)
+                ->get('https://maps.googleapis.com/maps/api/geocode/json', [
+                    'address'    => $query,
+                    'key'        => config('services.google_maps.api_key'),
+                    'region'     => 'ng',
+                    'components' => 'country:NG',
+                ]);
+
+            $data = $response->json();
+            if (($data['status'] ?? '') === 'OK' && !empty($data['results'])) {
+                $loc = $data['results'][0]['geometry']['location'];
+                return ['lat' => (float) $loc['lat'], 'lon' => (float) $loc['lng']];
             }
+
             return null;
-        }
-        
-        // Distance is in meters, convert to kilometers
-        $distanceInMeters = $data['rows'][0]['elements'][0]['distance']['value'];
-        $distanceInKm = $distanceInMeters / 1000;
-        
-        // Cache the result for 7 days (604800 seconds)
-        \Cache::put($cacheKey, $distanceInKm, 604800);
-        
-        return $distanceInKm;
+        });
     }
-    
+
     /**
-     * Extract city/area from full address for fallback when Google can't find address
-     * Example: "21b Fatal Idowu Arobieke Lekki Phase 1 Lagos" -> "Lekki Phase 1 Lagos"
+     * Haversine great-circle distance × 1.35 road factor, returns km
      */
-    private function extractCityArea($address)
+    private function haversineDistance(float $lat1, float $lon1, float $lat2, float $lon2): float
     {
-        // Common Lagos areas and landmarks
-        $areas = [
-            'Lekki Phase 1', 'Lekki Phase 2', 'Lekki', 'Ajah', 'Victoria Island', 'VI', 'Ikoyi',
-            'Ikeja', 'Surulere', 'Yaba', 'Gbagada', 'Maryland', 'Ojota', 'Ketu', 'Ikorodu',
-            'Festac', 'Apapa', 'Isolo', 'Oshodi', 'Mushin', 'Bariga', 'Somolu', 'Agege',
-            'Egbeda', 'Alimosho', 'Ifako', 'Abule Egba', 'Iyana Ipaja', 'Badagry', 'Epe',
-            'Magodo', 'Omole', 'Berger', 'Ojodu', 'Ogba', 'Anthony', 'Obanikoro',
-            'Palmgrove', 'Onipanu', 'Fadeyi', 'Jibowu', 'Baruwa', 'Igando', 'Isheri',
-            'Iju Ishaga', 'Iju', 'Ishaga', 'Ejigbo', 'Idimu', 'Ikotun', 'Akowonjo'
-        ];
-        
-        $addressLower = strtolower($address);
-        
-        // Try to find area in address
-        foreach ($areas as $area) {
-            if (stripos($addressLower, strtolower($area)) !== false) {
-                // Extract from area onwards, include "Lagos" if present
-                $pattern = '/' . preg_quote($area, '/') . '.*?Lagos/i';
-                if (preg_match($pattern, $address, $matches)) {
-                    return trim($matches[0]);
-                }
-                // If no "Lagos" found, just return area + Lagos
-                return $area . ' Lagos';
-            }
-        }
-        
-        // If no specific area found, try to extract last 2-3 words (usually area + city)
-        $words = explode(' ', trim($address));
-        if (count($words) >= 2) {
-            return implode(' ', array_slice($words, -2));
-        }
-        
-        return $address; // Return original if can't simplify
+        $R    = 6371;
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+        $a    = sin($dLat / 2) ** 2
+              + cos(deg2rad($lat1)) * cos(deg2rad($lat2)) * sin($dLon / 2) ** 2;
+        return round($R * 2 * atan2(sqrt($a), sqrt(1 - $a)) * 1.35, 2);
     }
     
     /**

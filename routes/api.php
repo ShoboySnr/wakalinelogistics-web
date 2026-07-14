@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\ClientSettingsController;
 use App\Http\Controllers\Api\RouteShareApiController;
 use App\Http\Controllers\Api\JobApplicationController;
 use App\Http\Controllers\ClientShareController;
+use App\Http\Controllers\Api\MetterApiController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -121,6 +122,7 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
         Route::post('suggestions',                [\App\Http\Controllers\Api\FeatureSuggestionController::class, 'store']);
         Route::post('suggestions/{id}/upvote',    [\App\Http\Controllers\Api\FeatureSuggestionController::class, 'upvote']);
         Route::delete('suggestions/{id}/upvote',  [\App\Http\Controllers\Api\FeatureSuggestionController::class, 'removeVote']);
+        Route::delete('suggestions/{id}',         [\App\Http\Controllers\Api\FeatureSuggestionController::class, 'destroy']);
 
         // Reports & Export
         Route::get('reports/branding',            [\App\Http\Controllers\Api\ReportsController::class, 'getBranding']);
@@ -133,6 +135,13 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
         Route::put('reports/templates/{id}',      [\App\Http\Controllers\Api\ReportsController::class, 'updateTemplate']);
         Route::delete('reports/templates/{id}',   [\App\Http\Controllers\Api\ReportsController::class, 'deleteTemplate']);
 
+        // Onboarding
+        Route::get('onboarding/status',           [\App\Http\Controllers\Api\OnboardingController::class, 'getStatus']);
+        Route::post('onboarding/progress',        [\App\Http\Controllers\Api\OnboardingController::class, 'updateProgress']);
+        Route::post('onboarding/complete',        [\App\Http\Controllers\Api\OnboardingController::class, 'complete']);
+        Route::post('onboarding/skip',            [\App\Http\Controllers\Api\OnboardingController::class, 'skip']);
+        Route::post('onboarding/reset',           [\App\Http\Controllers\Api\OnboardingController::class, 'reset']);
+
         // Help Center
         Route::prefix('help')->group(function () {
             Route::get('/faqs', [\App\Http\Controllers\Api\HelpController::class, 'getFaqs']);
@@ -144,6 +153,12 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
         });
     });
     
+    // Public Metter delivery fee calculator (no auth required — publicly accessible)
+    Route::prefix('metter')->middleware('api.token:metter')->group(function () {
+        Route::post('calculate', [MetterApiController::class, 'calculate']);
+        Route::post('quote',     [MetterApiController::class, 'quote']);
+    });
+
     Route::get('credits/plans/public', [\App\Http\Controllers\Api\CreditController::class, 'getPublicPlans']);
     Route::get('credits/stats/public', [\App\Http\Controllers\Api\CreditController::class, 'getPublicStats']);
     Route::get('orders/track/{orderNumber}', [ClientOrderController::class, 'publicTrack']);

@@ -10,7 +10,7 @@
 
 <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px 24px;margin:0 0 24px;">
   <p style="margin:0 0 4px;color:#166534;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Signup Bonus</p>
-  <p style="margin:0;color:#14532d;font-size:22px;font-weight:800;">3,500 Credits Added</p>
+  <p style="margin:0;color:#14532d;font-size:22px;font-weight:800;">2,000 Credits Added</p>
   <p style="margin:6px 0 0;color:#166534;font-size:13px;">Ready to use on your first delivery!</p>
 </div>
 

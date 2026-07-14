@@ -37,6 +37,7 @@
             color: var(--brand-accent);
         }
     </style>
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.api_key') }}&libraries=places&loading=async" async defer></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex h-screen overflow-hidden">

@@ -455,56 +455,127 @@
     </div>
 </div>
 
-<script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=places"></script>
 <script>
 let map;
-let directionsService;
-let directionsRenderer;
+const GOOGLE_MAPS_KEY = '{{ config("services.google_maps.api_key") }}';
 
-function initMap() {
-    const waypoints = @json($waypoints);
+function loadGoogleMapsScript(callback) {
+    if (typeof google !== 'undefined' && google.maps) { callback(); return; }
+    if (document.querySelector('script[data-gmaps]')) {
+        const poll = setInterval(() => {
+            if (typeof google !== 'undefined' && google.maps) { clearInterval(poll); callback(); }
+        }, 100);
+        return;
+    }
+    const s = document.createElement('script');
+    s.dataset.gmaps = '1';
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_KEY}&libraries=places,geometry`;
+    s.async = true;
+    s.onload = callback;
+    document.head.appendChild(s);
+}
+
+async function geocodeWithGoogle(address) {
+    return new Promise(resolve => {
+        const geocoder = new google.maps.Geocoder();
+        geocoder.geocode({ address: address + ', Nigeria', region: 'NG' }, (results, status) => {
+            if (status === 'OK' && results[0]) {
+                resolve({
+                    lat: results[0].geometry.location.lat(),
+                    lon: results[0].geometry.location.lng(),
+                });
+            } else {
+                resolve(null);
+            }
+        });
+    });
+}
+
+async function initMap() {
+    const waypoints     = @json($waypoints);
     const startingPoint = @json($startingPoint);
-    
+
     if (waypoints.length === 0) return;
-    
-    // Initialize map
-    map = new google.maps.Map(document.getElementById('route-map'), {
-        zoom: 12,
-        center: { lat: 6.5244, lng: 3.3792 } // Lagos coordinates
+
+    const mapEl = document.getElementById('route-map');
+    if (!mapEl) return;
+
+    map = new google.maps.Map(mapEl, {
+        center:    { lat: 6.5244, lng: 3.3792 },
+        zoom:      11,
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
     });
-    
-    directionsService = new google.maps.DirectionsService();
-    directionsRenderer = new google.maps.DirectionsRenderer({
-        map: map,
-        suppressMarkers: false,
-        polylineOptions: {
-            strokeColor: '#C1666B',
-            strokeWeight: 4
-        }
-    });
-    
-    // Build waypoints for Google Maps
-    const googleWaypoints = waypoints.slice(0, -1).map(wp => ({
-        location: wp.address,
-        stopover: true
+
+    const pinColors = { start: '#2F3437', pickup: '#3b82f6', delivery: '#C1666B', dropoff: '#C1666B' };
+
+    const allStops = [{ address: startingPoint, type: 'start', label: 'Depot (Start)' }];
+    waypoints.forEach((wp, i) => allStops.push({
+        address: wp.address,
+        type:    wp.type,
+        label:   `${i + 1}: ${wp.type === 'pickup' ? 'Pickup' : 'Delivery'} — ${wp.order_number || ''}`,
     }));
-    
-    const destination = waypoints[waypoints.length - 1].address;
-    
-    // Calculate and display route
-    directionsService.route({
-        origin: startingPoint,
-        destination: destination,
-        waypoints: googleWaypoints,
-        optimizeWaypoints: true,
-        travelMode: google.maps.TravelMode.DRIVING
-    }, (response, status) => {
-        if (status === 'OK') {
-            directionsRenderer.setDirections(response);
-        } else {
-            console.error('Directions request failed:', status);
-        }
+
+    const geoResults = await Promise.all(allStops.map(s => geocodeWithGoogle(s.address)));
+
+    const bounds   = new google.maps.LatLngBounds();
+    const wayLatLng = [];
+    const infoWindow = new google.maps.InfoWindow();
+
+    geoResults.forEach((geo, i) => {
+        if (!geo) return;
+        const stop    = allStops[i];
+        const color   = pinColors[stop.type] || '#6b7280';
+        const latLng  = new google.maps.LatLng(geo.lat, geo.lon);
+        bounds.extend(latLng);
+        wayLatLng.push(latLng);
+
+        const label = i === 0 ? '★' : String(i);
+        const marker = new google.maps.Marker({
+            position: latLng,
+            map:      map,
+            label:    { text: label, color: '#fff', fontWeight: '700', fontSize: '11px' },
+            icon: {
+                path:        google.maps.SymbolPath.CIRCLE,
+                scale:       14,
+                fillColor:   color,
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 2,
+            },
+            title: stop.label,
+        });
+
+        marker.addListener('click', () => {
+            infoWindow.setContent(`<strong>${stop.label}</strong><br><small>${stop.address}</small>`);
+            infoWindow.open(map, marker);
+        });
     });
+
+    if (wayLatLng.length > 1) {
+        const directionsService  = new google.maps.DirectionsService();
+        const directionsRenderer = new google.maps.DirectionsRenderer({
+            map:              map,
+            suppressMarkers:  true,
+            polylineOptions:  { strokeColor: '#C1666B', strokeWeight: 5, strokeOpacity: 0.85 },
+        });
+
+        const origin      = wayLatLng[0];
+        const destination = wayLatLng[wayLatLng.length - 1];
+        const midpoints   = wayLatLng.slice(1, -1).slice(0, 23).map(ll => ({ location: ll, stopover: true }));
+
+        directionsService.route({
+            origin,
+            destination,
+            waypoints:   midpoints,
+            travelMode:  google.maps.TravelMode.DRIVING,
+        }, (result, status) => {
+            if (status === 'OK') {
+                directionsRenderer.setDirections(result);
+            }
+        });
+    }
+
+    if (wayLatLng.length > 0) map.fitBounds(bounds, 60);
 }
 
 function shareRouteWhatsApp() {
@@ -727,30 +798,27 @@ function shareViaWhatsApp(url) {
     window.open(`https://wa.me/?text=${message}`, '_blank');
 }
 
-// Initialize map when page loads
+// Initialize route map when page loads
 if (document.getElementById('route-map')) {
-    initMap();
+    loadGoogleMapsScript(initMap);
 }
 
 // Live Tracking Map
 let trackingMap;
 let riderMarker;
-let accuracyCircle;
+let trackingInfoWindow;
 let trackingInterval;
 
 function initTrackingMap() {
     const mapElement = document.getElementById('rider-tracking-map');
     if (!mapElement) return;
 
-    const defaultCenter = { lat: 6.5244, lng: 3.3792 };
-    
     trackingMap = new google.maps.Map(mapElement, {
-        zoom: 17,
-        center: defaultCenter,
-        mapTypeControl: true,
-        streetViewControl: false,
-        fullscreenControl: true
+        center:    { lat: 6.5244, lng: 3.3792 },
+        zoom:      16,
+        mapTypeId: google.maps.MapTypeId.ROADMAP,
     });
+    trackingInfoWindow = new google.maps.InfoWindow();
 
     fetchRiderLocation();
     trackingInterval = setInterval(fetchRiderLocation, 30000);
@@ -760,14 +828,13 @@ async function fetchRiderLocation() {
     try {
         const response = await fetch(`/super-admin/riders/{{ $rider->id }}/location`);
         const data = await response.json();
-        
+
         if (data.success && data.current_latitude && data.current_longitude) {
             updateRiderMarker(
                 parseFloat(data.current_latitude),
                 parseFloat(data.current_longitude),
                 50
             );
-            
             if (data.last_location_update) {
                 document.getElementById('last-update').textContent = new Date(data.last_location_update).toLocaleString();
             } else {
@@ -784,66 +851,39 @@ async function fetchRiderLocation() {
 }
 
 function updateRiderMarker(lat, lng, accuracy) {
-    const position = { lat, lng };
-    
+    const latLng = new google.maps.LatLng(lat, lng);
+
     if (!riderMarker) {
         riderMarker = new google.maps.Marker({
-            position: position,
-            map: trackingMap,
-            title: '{{ $rider->name }}',
-            label: {
-                text: '{{ substr($rider->name, 0, 1) }}',
-                color: '#ffffff',
-                fontSize: '14px',
-                fontWeight: 'bold'
-            },
+            position: latLng,
+            map:      trackingMap,
+            label:    { text: '{{ substr($rider->name, 0, 1) }}', color: '#fff', fontWeight: '700', fontSize: '15px' },
             icon: {
-                path: google.maps.SymbolPath.CIRCLE,
-                scale: 15,
-                fillColor: '#C1666B',
+                path:        google.maps.SymbolPath.CIRCLE,
+                scale:       18,
+                fillColor:   '#C1666B',
                 fillOpacity: 1,
-                strokeColor: '#ffffff',
-                strokeWeight: 3
-            }
+                strokeColor: '#fff',
+                strokeWeight: 3,
+            },
+            title: '{{ $rider->name }}',
         });
-        
-        const infoWindow = new google.maps.InfoWindow({
-            content: `<div style="padding: 5px;"><strong>{{ $rider->name }}</strong><br><small>Current Location</small></div>`
-        });
-        
-        riderMarker.addListener('click', function() {
-            infoWindow.open(trackingMap, riderMarker);
+        riderMarker.addListener('click', () => {
+            trackingInfoWindow.setContent('<strong>{{ $rider->name }}</strong><br><small>Current Location</small>');
+            trackingInfoWindow.open(trackingMap, riderMarker);
         });
     } else {
-        riderMarker.setPosition(position);
+        riderMarker.setPosition(latLng);
     }
-    
-    trackingMap.panTo(position);
-    
-    if (accuracyCircle) {
-        accuracyCircle.setMap(null);
-    }
-    
-    accuracyCircle = new google.maps.Circle({
-        map: trackingMap,
-        center: position,
-        radius: accuracy,
-        fillColor: '#C1666B',
-        fillOpacity: 0.1,
-        strokeColor: '#C1666B',
-        strokeOpacity: 0.3,
-        strokeWeight: 1
-    });
-    
+
+    trackingMap.panTo(latLng);
     reverseGeocode(lat, lng);
 }
 
 function reverseGeocode(lat, lng) {
-    const geocoder = new google.maps.Geocoder();
-    const latlng = { lat, lng };
-    
-    geocoder.geocode({ location: latlng }, (results, status) => {
-        const addressEl = document.getElementById('current-address');
+    const addressEl = document.getElementById('current-address');
+    const geocoder  = new google.maps.Geocoder();
+    geocoder.geocode({ location: { lat, lng } }, (results, status) => {
         if (status === 'OK' && results[0]) {
             addressEl.textContent = results[0].formatted_address;
         } else {
@@ -851,8 +891,6 @@ function reverseGeocode(lat, lng) {
         }
     });
 }
-
-// Map will be initialized when modal is opened
 
 window.addEventListener('beforeunload', function() {
     if (trackingInterval) {
@@ -863,9 +901,9 @@ window.addEventListener('beforeunload', function() {
 function openLiveLocationModal() {
     document.getElementById('live-location-modal').classList.remove('hidden');
     document.getElementById('live-location-modal').classList.add('flex');
-    
+
     if (!trackingMap) {
-        initTrackingMap();
+        loadGoogleMapsScript(initTrackingMap);
     }
 }
 

@@ -135,6 +135,23 @@
                                 <label class="block text-sm font-medium text-gray-700">Price</label>
                                 <p class="mt-1 text-2xl font-bold text-gray-900">₦{{ number_format($order->price, 2) }}</p>
                             </div>
+                            @if($order->payment_method)
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Payment Method</label>
+                                <p class="mt-1 text-sm text-gray-900 capitalize">{{ str_replace('_', ' ', $order->payment_method) }}</p>
+                            </div>
+                            @endif
+                            @if($order->amount_received !== null)
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700">Amount Received</label>
+                                <p class="mt-1 text-lg font-semibold text-gray-900">₦{{ number_format($order->amount_received, 2) }}</p>
+                                @php $toRemit = max(0, $order->amount_received - $order->price); @endphp
+                                <p class="mt-0.5 text-xs text-gray-500">To remit: <span class="font-medium brand-accent-text">₦{{ number_format($toRemit, 2) }}</span></p>
+                                @if($order->remitted_at)
+                                <p class="mt-0.5 text-xs text-green-600">Remitted on {{ $order->remitted_at->format('M d, Y') }}</p>
+                                @endif
+                            </div>
+                            @endif
                             @if($order->distance)
                             <div>
                                 <label class="block text-sm font-medium text-gray-700">Distance</label>
@@ -242,7 +259,7 @@
                 <div class="px-6 py-4 space-y-3">
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full 
+                        <span class="px-3 py-1 inline-flex text-sm leading-5 font-semibold rounded-full
                             @if($order->status == 'pending') bg-yellow-100 text-yellow-800
                             @elseif($order->status == 'confirmed') bg-blue-100 text-blue-800
                             @elseif($order->status == 'in_transit') bg-purple-100 text-purple-800

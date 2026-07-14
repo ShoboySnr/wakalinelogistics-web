@@ -156,7 +156,7 @@
                             @forelse($client->orders as $order)
                             <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 text-sm font-medium">
-                                    <a href="{{ route('admin.orders.show', $order->id) }}" target="_blank" class="text-indigo-600 hover:text-indigo-900 hover:underline">
+                                    <a href="{{ route('admin.orders.show', $order->id) }}" target="_blank" class="brand-accent-text hover:underline" style="transition: color 0.2s ease;" onmouseover="this.style.color='#a8555a';" onmouseout="this.style.color='#C1666B';">
                                         #{{ $order->order_number }}
                                     </a>
                                 </td>
@@ -172,7 +172,7 @@
                                 </td>
                                 <td class="px-6 py-4 text-sm text-gray-900">₦{{ number_format($order->price, 2) }}</td>
                                 <td class="px-6 py-4 text-right text-sm">
-                                    <a href="{{ route('admin.orders.show', $order->id) }}" class="text-indigo-600 hover:text-indigo-900">View</a>
+                                    <a href="{{ route('admin.orders.show', $order->id) }}" class="brand-accent-text" style="transition: color 0.2s ease;" onmouseover="this.style.color='#a8555a';" onmouseout="this.style.color='#C1666B';">View</a>
                                 </td>
                             </tr>
                             @empty
@@ -185,6 +185,118 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+            <!-- POD Remittance -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">Pay on Delivery — Pending Remittance</h2>
+                        @if($podPendingOrders->count() > 0)
+                        <p class="text-sm text-gray-500 mt-0.5">
+                            {{ $podPendingOrders->count() }} order{{ $podPendingOrders->count() > 1 ? 's' : '' }} · Total to remit:
+                            <span class="font-semibold brand-accent-text">₦{{ number_format($podTotalRemittance, 2) }}</span>
+                        </p>
+                        @endif
+                    </div>
+                    @if($podPendingOrders->count() > 0)
+                    <div class="flex gap-2 shrink-0">
+                        <button onclick="copyRemittanceSummary()" type="button"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            Copy Summary
+                        </button>
+                        <form method="POST" action="{{ route('admin.clients.mark-remitted', $client->id) }}"
+                              onsubmit="return confirm('Mark all {{ $podPendingOrders->count() }} order(s) as remitted?')">
+                            @csrf
+                            @foreach($podPendingOrders as $podOrder)
+                            <input type="hidden" name="order_ids[]" value="{{ $podOrder->id }}">
+                            @endforeach
+                            <button type="submit"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-white rounded-md brand-accent-bg brand-accent-hover">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                Mark All Remitted
+                            </button>
+                        </form>
+                    </div>
+                    @endif
+                </div>
+
+                @if($podPendingOrders->count() > 0)
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200" id="pod-remittance-table">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order #</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Delivery Address</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Drop-off Date</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Received</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Delivery Fee</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">To Remit</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($podPendingOrders as $podOrder)
+                            @php
+                                $isFailed = $podOrder->is_failed_delivery;
+                                $toRemit = $isFailed ? -$podOrder->price : max(0, $podOrder->amount_received - $podOrder->price);
+                                $receivedFormatted = $isFailed ? '0.00' : number_format($podOrder->amount_received, 2);
+                            @endphp
+                            <tr class="{{ $isFailed ? 'bg-red-50' : 'hover:bg-gray-50' }}"
+                                data-order-number="{{ $podOrder->order_number }}"
+                                data-delivery-address="{{ $podOrder->delivery_address }}"
+                                data-received="{{ $receivedFormatted }}"
+                                data-fee="{{ number_format($podOrder->price, 2) }}"
+                                data-remit="{{ number_format(abs($toRemit), 2) }}"
+                                data-is-failed="{{ $isFailed ? '1' : '0' }}">
+                                <td class="px-6 py-4 text-sm font-medium">
+                                    <div class="flex items-center gap-2">
+                                        <a href="{{ route('admin.orders.show', $podOrder->id) }}" class="brand-accent-text hover:underline" target="_blank" style="transition: color 0.2s ease;" onmouseover="this.style.color='#a8555a';" onmouseout="this.style.color='#C1666B';">
+                                            #{{ $podOrder->order_number }}
+                                        </a>
+                                        @if($isFailed)
+                                        <span class="px-1.5 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-700">Failed</span>
+                                        @endif
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-600 max-w-xs">
+                                    <span class="block truncate">{{ $podOrder->delivery_address }}</span>
+                                </td>
+                                <td class="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{{ $podOrder->delivery_date ? $podOrder->delivery_date->format('M d, Y') : '—' }}</td>
+                                <td class="px-6 py-4 text-sm text-right whitespace-nowrap {{ $isFailed ? 'text-gray-400 italic' : 'text-gray-900' }}">
+                                    {{ $isFailed ? '—' : '₦' . number_format($podOrder->amount_received, 2) }}
+                                </td>
+                                <td class="px-6 py-4 text-sm text-right text-red-600 whitespace-nowrap">−₦{{ number_format($podOrder->price, 2) }}</td>
+                                <td class="px-6 py-4 text-sm text-right font-semibold whitespace-nowrap {{ $isFailed ? 'text-red-600' : 'brand-accent-text' }}">
+                                    {{ $isFailed ? '−₦' . number_format(abs($toRemit), 2) : '₦' . number_format($toRemit, 2) }}
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <a href="{{ route('admin.orders.edit', $podOrder->id) }}" class="text-xs text-gray-500 hover:text-gray-700 underline">Edit</a>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="bg-gray-50 border-t-2 border-gray-200">
+                            <tr>
+                                <td colspan="5" class="px-6 py-3 text-sm font-semibold text-gray-700 text-right">Total to Remit</td>
+                                <td class="px-6 py-3 text-sm font-bold text-right whitespace-nowrap brand-accent-text">₦{{ number_format($podTotalRemittance, 2) }}</td>
+                                <td></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                @else
+                <div class="px-6 py-8 text-center text-sm text-gray-500">
+                    <svg class="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    No pending POD remittances. All cash orders have been settled.
+                </div>
+                @endif
             </div>
         </div>
 
@@ -485,6 +597,40 @@
                 </div>
             </div>
 
+            <!-- Daily Remittance -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-semibold text-gray-900">Daily Remittance</h2>
+                    <p class="text-xs text-gray-500 mt-1">Enable to track Pay-on-Delivery remittances for this client</p>
+                </div>
+                <div class="px-6 py-4">
+                    @if($client->pod_remittance_enabled)
+                        <div class="rounded-lg p-4 mb-3" style="background-color: #fdf1f1; border: 1px solid #e8a0a4;">
+                            <p class="text-sm font-semibold brand-accent-text">POD Remittance: Enabled</p>
+                            <p class="text-xs text-gray-500 mt-1">This client appears in the Daily Remit modal and their cash orders are tracked for remittance.</p>
+                        </div>
+                        <form method="POST" action="{{ route('admin.clients.toggle-pod-remittance', $client->id) }}">
+                            @csrf
+                            <button type="submit" class="w-full px-4 py-2 bg-gray-200 text-gray-700 text-sm rounded-md hover:bg-gray-300 transition-colors"
+                                    onclick="return confirm('Disable daily remittance for {{ $client->name }}?')">
+                                Disable Daily Remittance
+                            </button>
+                        </form>
+                    @else
+                        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3">
+                            <p class="text-sm text-gray-600 font-semibold">POD Remittance: <span class="text-gray-400">Disabled</span></p>
+                            <p class="text-xs text-gray-500 mt-1">Enable to include this client in the Daily Remit tracking and modal.</p>
+                        </div>
+                        <form method="POST" action="{{ route('admin.clients.toggle-pod-remittance', $client->id) }}">
+                            @csrf
+                            <button type="submit" class="w-full px-4 py-2 text-white text-sm rounded-md brand-accent-bg brand-accent-hover transition-colors">
+                                Enable Daily Remittance
+                            </button>
+                        </form>
+                    @endif
+                </div>
+            </div>
+
             <!-- API Access Management -->
             <div class="bg-white rounded-lg shadow">
                 <div class="px-6 py-4 border-b border-gray-200">
@@ -714,6 +860,48 @@ function disableClientApiAccess(clientId) {
     .catch(error => {
         console.error('Error:', error);
         alert('An error occurred. Please try again.');
+    });
+}
+
+function copyRemittanceSummary() {
+    const clientName = "{{ $client->name }}{{ $client->company_name ? ' (' . $client->company_name . ')' : '' }}";
+    const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+    const rows = document.querySelectorAll('#pod-remittance-table tbody tr');
+    if (!rows.length) return;
+
+    let lines = [];
+    lines.push(`Remittance Summary — ${clientName}`);
+    lines.push(`Date: ${date}`);
+    lines.push('');
+
+    rows.forEach((row, i) => {
+        const addr = row.dataset.deliveryAddress;
+        const received = row.dataset.received;
+        const fee = row.dataset.fee;
+        const remit = row.dataset.remit;
+        const isFailed = row.dataset.isFailed === '1';
+        lines.push(`${i + 1}. ${addr}${isFailed ? ' [FAILED DELIVERY]' : ''}`);
+        if (isFailed) {
+            lines.push(`   Delivery Fee charged: ₦${fee} | Deducted: −₦${remit}`);
+        } else {
+            lines.push(`   Received: ₦${received} | Delivery Fee: ₦${fee} | Remit: ₦${remit}`);
+        }
+    });
+
+    lines.push('');
+    lines.push('─'.repeat(40));
+    lines.push(`Total Orders: ${rows.length}`);
+    @php $absTotal = abs($podTotalRemittance); @endphp
+    lines.push(`Total to Remit: {{ $podTotalRemittance < 0 ? '−₦' . number_format($absTotal, 2) : '₦' . number_format($absTotal, 2) }}`);
+
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+        const btn = document.querySelector('[onclick="copyRemittanceSummary()"]');
+        const original = btn.innerHTML;
+        btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Copied!';
+        btn.style.color = '#C1666B';
+        btn.style.borderColor = '#C1666B';
+        setTimeout(() => { btn.innerHTML = original; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
     });
 }
 </script>

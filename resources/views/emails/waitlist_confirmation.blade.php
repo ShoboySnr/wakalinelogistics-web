@@ -37,7 +37,7 @@
   <tr>
     <td style="padding:6px 0;">
       <span style="font-size:13px;font-weight:700;color:#c1666b;margin-right:10px;">03</span>
-      <span style="font-size:13px;color:#4b5563;">Start sending deliveries — pay-as-you-go or subscribe & save</span>
+      <span style="font-size:13px;color:#4b5563;">Start sending: pay-as-you-go or subscribe & save</span>
     </td>
   </tr>
 </table>

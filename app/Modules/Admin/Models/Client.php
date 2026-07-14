@@ -39,6 +39,7 @@ class Client extends Authenticatable
         'email_verified_at',
         'api_key',
         'api_enabled',
+        'pod_remittance_enabled',
         'api_key_generated_at',
         'api_last_used_at',
         'theme_preference',
@@ -72,12 +73,17 @@ class Client extends Authenticatable
         'tax_id',
         'registration_number',
         'report_settings',
+        'onboarding_completed',
+        'onboarding_skipped',
+        'onboarding_completed_at',
+        'onboarding_current_step',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'dashboard_enabled' => 'boolean',
         'api_enabled' => 'boolean',
+        'pod_remittance_enabled' => 'boolean',
         'two_factor_enabled' => 'boolean',
         'credit_limit' => 'decimal:2',
         'onboarded_date' => 'date',
@@ -92,6 +98,9 @@ class Client extends Authenticatable
         'two_factor_recovery_codes' => 'array',
         'signup_bonus_credited' => 'boolean',
         'report_settings' => 'array',
+        'onboarding_completed' => 'boolean',
+        'onboarding_skipped' => 'boolean',
+        'onboarding_completed_at' => 'datetime',
     ];
 
     protected $hidden = [

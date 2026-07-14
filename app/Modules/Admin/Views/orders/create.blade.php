@@ -246,6 +246,54 @@
                     </div>
                 </div>
 
+                <!-- Payment -->
+                <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
+                    <div>
+                        <label for="payment_method" class="block text-sm font-medium text-gray-700 mb-2">Payment Method</label>
+                        <select name="payment_method" id="payment_method"
+                                class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                                onchange="toggleAmountReceived(this.value)">
+                            <option value="">-- Select --</option>
+                            <option value="cash" {{ old('payment_method') == 'cash' ? 'selected' : '' }}>Cash (Pay on Delivery)</option>
+                            <option value="credits" {{ old('payment_method') == 'credits' ? 'selected' : '' }}>Credits</option>
+                            <option value="card" {{ old('payment_method') == 'card' ? 'selected' : '' }}>Card</option>
+                            <option value="subscription" {{ old('payment_method') == 'subscription' ? 'selected' : '' }}>Subscription</option>
+                        </select>
+                    </div>
+                    <div id="amount_received_wrapper" class="{{ old('payment_method') == 'cash' ? '' : 'hidden' }}">
+                        <label for="amount_received" class="block text-sm font-medium text-gray-700 mb-2">Amount Received (₦)</label>
+                        <input type="number" name="amount_received" id="amount_received" step="0.01" min="0"
+                               class="block w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500"
+                               value="{{ old('amount_received') }}"
+                               placeholder="Cash collected from customer">
+                    </div>
+                </div>
+
+                <!-- Remittance -->
+                <div id="remittance_wrapper" class="md:col-span-2 {{ old('payment_method') == 'cash' && old('amount_received') ? '' : 'hidden' }}">
+                    <div class="rounded-lg p-4" style="background-color: #fdf1f1; border: 1px solid #e8a0a4;">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" name="mark_remitted" id="mark_remitted" value="1"
+                                   class="w-4 h-4 rounded focus:ring-pink-500" style="accent-color: #C1666B;"
+                                   {{ old('mark_remitted') ? 'checked' : '' }}>
+                            <span class="text-sm font-medium text-gray-700">Mark as Remitted</span>
+                        </label>
+                        <p class="mt-1 ml-7 text-xs text-gray-500">Check this if the cash has already been handed over.</p>
+                    </div>
+                </div>
+
+                <!-- Failed Delivery -->
+                <div class="md:col-span-2">
+                    <div class="rounded-lg p-4 border border-red-200 bg-red-50">
+                        <label class="flex items-center gap-3 cursor-pointer">
+                            <input type="checkbox" name="is_failed_delivery" id="is_failed_delivery" value="1"
+                                   class="w-4 h-4 rounded focus:ring-red-500" style="accent-color: #dc2626;"
+                                   {{ old('is_failed_delivery') ? 'checked' : '' }}>
+                            <span class="text-sm font-medium text-red-700">Failed Delivery</span>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Status & Priority Row -->
                 <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
@@ -394,9 +442,33 @@
     </div>
 </div>
 
-<script src="https://maps.googleapis.com/maps/api/js?key={{ config('services.google_maps.api_key') }}&libraries=places"></script>
+<script src="/assets/js/nominatim-autocomplete.js"></script>
 <script>
+function toggleAmountReceived(value) {
+    const wrapper = document.getElementById('amount_received_wrapper');
+    const remitWrapper = document.getElementById('remittance_wrapper');
+    if (value === 'cash') {
+        wrapper.classList.remove('hidden');
+    } else {
+        wrapper.classList.add('hidden');
+        document.getElementById('amount_received').value = '';
+        remitWrapper.classList.add('hidden');
+        document.getElementById('mark_remitted').checked = false;
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
+    // Show remittance checkbox when amount_received is filled
+    document.getElementById('amount_received').addEventListener('input', function() {
+        const remitWrapper = document.getElementById('remittance_wrapper');
+        if (this.value && parseFloat(this.value) > 0) {
+            remitWrapper.classList.remove('hidden');
+        } else {
+            remitWrapper.classList.add('hidden');
+            document.getElementById('mark_remitted').checked = false;
+        }
+    });
+
     const clientSelect = document.getElementById('client_id');
     const pickupAddressInput = document.getElementById('pickup_address');
     const deliveryAddressInput = document.getElementById('delivery_address');
@@ -408,29 +480,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const priceInput = document.getElementById('price');
     const calculateBtn = document.getElementById('calculate-price-btn');
 
-    // Initialize Google Maps Autocomplete for Calculator Pickup
-    const calcPickupAutocomplete = new google.maps.places.Autocomplete(calcPickupInput, {
-        componentRestrictions: { country: 'ng' },
-        fields: ['formatted_address', 'geometry', 'name']
+    // Autocomplete on main form fields — also syncs into calculator and auto-calculates price
+    nominatimAutocomplete(pickupAddressInput, function(address) {
+        calcPickupInput.value = address;
+        if (calcPickupInput.value && calcDropoffInput.value) calculatePrice();
+    });
+    nominatimAutocomplete(deliveryAddressInput, function(address) {
+        calcDropoffInput.value = address;
+        if (calcPickupInput.value && calcDropoffInput.value) calculatePrice();
     });
 
-    // Initialize Google Maps Autocomplete for Calculator Dropoff
-    const calcDropoffAutocomplete = new google.maps.places.Autocomplete(calcDropoffInput, {
-        componentRestrictions: { country: 'ng' },
-        fields: ['formatted_address', 'geometry', 'name']
+    // Autocomplete on standalone calculator fields (for trying a different route)
+    nominatimAutocomplete(calcPickupInput, function(address) {
+        if (calcPickupInput.value && calcDropoffInput.value) calculatePrice();
     });
-
-    // Auto-calculate when both calculator addresses are selected
-    calcPickupAutocomplete.addListener('place_changed', function() {
-        if (calcPickupInput.value && calcDropoffInput.value) {
-            calculatePrice();
-        }
-    });
-
-    calcDropoffAutocomplete.addListener('place_changed', function() {
-        if (calcPickupInput.value && calcDropoffInput.value) {
-            calculatePrice();
-        }
+    nominatimAutocomplete(calcDropoffInput, function(address) {
+        if (calcPickupInput.value && calcDropoffInput.value) calculatePrice();
     });
 
     // Manual calculate button
