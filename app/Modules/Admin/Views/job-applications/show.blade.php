@@ -64,6 +64,63 @@
                 </div>
             </div>
 
+            <!-- Partner Details (partner riders & foot soldiers) -->
+            @if($application->isPartnerApplication())
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 brand-accent-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Partner Details
+                </h2>
+                <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 uppercase">Partner Type</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ $application->formatted_job_type }}</p>
+                    </div>
+                    @if(!is_null($application->owns_vehicle))
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 uppercase">Owns Vehicle</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ $application->owns_vehicle ? 'Yes' : 'No' }}</p>
+                    </div>
+                    @endif
+                    @if($application->vehicle_type)
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 uppercase">Vehicle Type</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ ucfirst($application->vehicle_type) }}</p>
+                    </div>
+                    @endif
+                    @if($application->vehicle_registration)
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 uppercase">Plate Number</label>
+                        <p class="mt-1 text-sm text-gray-900 font-mono">{{ $application->vehicle_registration }}</p>
+                    </div>
+                    @endif
+                    @if(!is_null($application->has_smartphone))
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 uppercase">Has Smartphone</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ $application->has_smartphone ? 'Yes' : 'No' }}</p>
+                    </div>
+                    @endif
+                    @if($application->guarantor_name)
+                    <div>
+                        <label class="text-xs font-medium text-gray-500 uppercase">Guarantor</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ $application->guarantor_name }}</p>
+                        @if($application->guarantor_phone)
+                        <a href="tel:{{ $application->guarantor_phone }}" class="text-sm brand-accent-text hover:underline">{{ $application->guarantor_phone }}</a>
+                        @endif
+                    </div>
+                    @endif
+                    @if($application->coverage_areas)
+                    <div class="sm:col-span-2">
+                        <label class="text-xs font-medium text-gray-500 uppercase">Areas Covered</label>
+                        <p class="mt-1 text-sm text-gray-900">{{ $application->coverage_areas }}</p>
+                    </div>
+                    @endif
+                </dl>
+            </div>
+            @endif
+
             <!-- License Information (for riders) -->
             @if($application->job_type === 'dispatch_rider' && $application->license_number)
             <div class="bg-white shadow rounded-lg p-6">

@@ -294,6 +294,43 @@
                     @enderror
                 </div>
 
+                <!-- Zone Pricing Section -->
+                <div class="md:col-span-2 mt-4">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-1 pb-2 border-b-2 border-gray-200">Zone Pricing (Fixed Rates)</h3>
+                    <p class="text-sm text-gray-500 mb-4">Set fixed delivery fees per destination zone for this client. Leave blank to use the standard distance-based pricing.</p>
+                </div>
+
+                @php
+                    $zoneLabels = [
+                        'Zone A' => 'Zone A — Mainland (Ikeja, Ogba, Agege, Ikotun, Alimosho…)',
+                        'Zone B' => 'Zone B — Mainland (Ketu, Gbagada, Maryland, Mushin, Mile 12…)',
+                        'Zone C' => 'Zone C — Mainland (Yaba, Surulere, Ebute Metta…)',
+                        'Zone D' => 'Zone D — Mainland (Festac, Amuwo Odofin, Mile 2, Ago Palace…)',
+                        'Zone E' => 'Zone E — Island (Ikoyi, Victoria Island, Lagos Island…)',
+                        'Zone F' => 'Zone F — Island (Lekki Phase 1 & 2, VGC, Chevron, Orchid…)',
+                        'Zone G' => 'Zone G — Island (Sangotedo, Awoyaya, Epe, Ibeju-Lekki…)',
+                        'Zone H' => 'Zone H — Interstate (Ojodu Berger, Warewa, Arepo, Magboro…)',
+                        'Zone I' => 'Zone I — Interstate (Ikorodu, Ota, Agbara, Ogijo…)',
+                        'Zone J' => 'Zone J — Mainland (Ojo, Badagry, Satellite Town, Iyana Iba…)',
+                        'Zone K' => 'Zone K — Island (Ajah, Alpha Beach, Badore, Abraham Adesanya…)',
+                        'Zone L' => 'Zone L — Mainland (Oshodi, Isolo, Okota, Apapa, Ajegunle…)',
+                    ];
+                    $savedRates = old('zone_rates', $client->zone_rates ?? []);
+                @endphp
+
+                @foreach($zoneLabels as $zoneKey => $zoneLabel)
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">{{ $zoneLabel }}</label>
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500 text-sm">₦</span>
+                        <input type="number" name="zone_rates[{{ $zoneKey }}]"
+                            value="{{ $savedRates[$zoneKey] ?? '' }}"
+                            min="0" step="50" placeholder="Dynamic pricing"
+                            class="w-full pl-7 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500">
+                    </div>
+                </div>
+                @endforeach
+
                 <!-- Status -->
                 <div class="md:col-span-2">
                     <label class="flex items-center">

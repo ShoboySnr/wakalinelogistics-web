@@ -55,19 +55,24 @@ class DeliveryPriceService
             $cacheKey = 'google_geo_' . md5(strtolower(trim($address)));
 
             return Cache::remember($cacheKey, 86400, function () use ($address) {
-                $lower = strtolower($address);
-                $query = (str_contains($lower, 'lagos') || str_contains($lower, 'ogun') || str_contains($lower, 'nigeria'))
-                    ? $address
-                    : $address . ', Nigeria';
+                $key = config('services.google_maps.api_key');
 
                 $response = Http::get('https://maps.googleapis.com/maps/api/geocode/json', [
-                    'address'    => $query,
-                    'key'        => config('services.google_maps.api_key'),
-                    'region'     => 'ng',
-                    'components' => 'country:NG',
+                    'address' => $address,
+                    'key'     => $key,
+                    'region'  => 'ng',
                 ]);
 
                 $data = $response->json();
+
+                if (($data['status'] ?? '') !== 'OK' || empty($data['results'])) {
+                    $response = Http::get('https://maps.googleapis.com/maps/api/geocode/json', [
+                        'address' => $address.', Nigeria',
+                        'key'     => $key,
+                        'region'  => 'ng',
+                    ]);
+                    $data = $response->json();
+                }
 
                 if (($data['status'] ?? '') === 'OK' && !empty($data['results'])) {
                     $result    = $data['results'][0];
@@ -215,20 +220,20 @@ class DeliveryPriceService
         $remaining -= $band;
         if ($remaining <= 0) return $cost;
 
-        // Tier 3: 20–35km at 40%
+        // Tier 3: 20–35km at 50%
         $band = min($remaining, 15.0);
-        $cost += $band * ($perKmRate * 0.30);
+        $cost += $band * ($perKmRate * 0.50);
         $remaining -= $band;
         if ($remaining <= 0) return $cost;
 
-        // Tier 4: 35–50km at 25%
+        // Tier 4: 35–50km at 45%
         $band = min($remaining, 15.0);
-        $cost += $band * ($perKmRate * 0.15);
+        $cost += $band * ($perKmRate * 0.45);
         $remaining -= $band;
         if ($remaining <= 0) return $cost;
 
-        // Tier 5: 50km+ at 18%
-        $cost += $remaining * ($perKmRate * 0.5);
+        // Tier 5: 50km+ at 40%
+        $cost += $remaining * ($perKmRate * 0.40);
 
         return $cost;
     }

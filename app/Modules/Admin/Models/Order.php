@@ -15,6 +15,15 @@ class Order extends Model
             if (empty($order->order_number)) {
                 $order->order_number = self::generateOrderNumber();
             }
+            
+            $detector = app(\App\Services\ZoneBatchDiscountService::class);
+
+            if (empty($order->pickup_zone) && ! empty($order->pickup_address)) {
+                $order->pickup_zone = $detector->detectZone($order->pickup_address);
+            }
+            if (empty($order->delivery_zone) && ! empty($order->delivery_address)) {
+                $order->delivery_zone = $detector->detectZone($order->delivery_address);
+            }
         });
     }
 
@@ -45,6 +54,12 @@ class Order extends Model
         'quantity',
         'distance',
         'price',
+        'pickup_zone',
+        'delivery_zone',
+        'base_price',
+        'zone_discount_percent',
+        'zone_discount_amount',
+        'zone_batch_size',
         'status',
         'payment_method',
         'paid_with_credits',

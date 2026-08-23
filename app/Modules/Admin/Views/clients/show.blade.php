@@ -298,6 +298,53 @@
                 </div>
                 @endif
             </div>
+
+            <!-- Invoice history -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900">Invoices</h2>
+                    <span class="text-sm text-gray-500">{{ $invoices->count() }} generated</span>
+                </div>
+                @if($invoices->isEmpty())
+                    <div class="px-6 py-8 text-center">
+                        <p class="text-sm text-gray-500">No invoices generated for this client yet.</p>
+                    </div>
+                @else
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Orders</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Total</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($invoices as $invoice)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $invoice->invoice_number }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $invoice->invoice_date?->format('d M Y') }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $invoice->orders_count }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">&#8358;{{ number_format((float) $invoice->total, 2) }}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-right space-x-3">
+                                    <a href="{{ route('admin.invoices.preview', $invoice->id) }}" target="_blank" class="brand-accent-text hover:underline">Preview</a>
+                                    <a href="{{ route('admin.invoices.download', $invoice->id) }}" class="brand-accent-text hover:underline">PDF</a>
+                                    <form method="POST" action="{{ route('admin.invoices.destroy', $invoice->id) }}" class="inline"
+                                          onsubmit="return confirm('Delete {{ $invoice->invoice_number }}? The orders themselves are not affected.');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-gray-400 hover:text-red-600">Delete</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                @endif
+            </div>
         </div>
 
         <!-- Sidebar -->
@@ -311,6 +358,10 @@
                     <a href="{{ route('admin.orders.create') }}?client_id={{ $client->id }}" class="block w-full px-4 py-2 text-center text-white rounded-md brand-accent-bg brand-accent-hover">
                         Create Order
                     </a>
+                    <button type="button" id="openInvoiceModal"
+                            class="block w-full px-4 py-2 text-center text-white rounded-md brand-accent-bg brand-accent-hover">
+                        Generate Invoice
+                    </button>
                     <a href="{{ route('admin.clients.edit', $client->id) }}" class="block w-full px-4 py-2 text-center text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200">
                         Edit Client
                     </a>
@@ -694,6 +745,163 @@
     </div>
 </div>
 
+<!-- Generate invoice modal -->
+<div id="invoiceModal" class="fixed inset-0 z-50 hidden">
+    <div class="absolute inset-0 bg-black bg-opacity-50" data-close-invoice></div>
+    <div class="relative mx-auto my-6 w-full max-w-4xl px-4">
+        <form method="POST" action="{{ route('admin.invoices.store', $client->id) }}" id="invoiceForm"
+              class="bg-white rounded-lg shadow-xl flex flex-col" style="max-height: calc(100vh - 3rem);">
+            @csrf
+            <input type="hidden" name="action" id="invoiceAction" value="preview">
+
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900">Generate Invoice</h2>
+                    <p class="text-sm text-gray-500 mt-0.5">{{ $client->company_name ?: $client->name }}</p>
+                </div>
+                <button type="button" data-close-invoice class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+
+            <div class="px-6 py-4 overflow-y-auto">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-5">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Invoice date</label>
+                        <input type="date" name="invoice_date" value="{{ now()->toDateString() }}" required
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#C1666B] focus:border-[#C1666B]">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Due date</label>
+                        <input type="date" name="due_date"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#C1666B] focus:border-[#C1666B]">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Discount %</label>
+                        <input type="number" name="discount_percent" id="invDiscount" value="0" min="0" max="100" step="0.01"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#C1666B] focus:border-[#C1666B]">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">VAT %</label>
+                        <input type="number" name="tax_percent" id="invTax" value="0" min="0" max="100" step="0.01"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#C1666B] focus:border-[#C1666B]">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Deduction (&#8358;)</label>
+                        <input type="number" name="deduction_amount" id="invDeduction" value="0" min="0" step="0.01"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#C1666B] focus:border-[#C1666B]">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Deduction label</label>
+                        <input type="text" name="deduction_label" id="invDeductionLabel" maxlength="120"
+                               placeholder="e.g. Less: POD cash held on your behalf"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-[#C1666B] focus:border-[#C1666B]">
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center justify-between gap-3 mb-2">
+                    <h3 class="text-sm font-semibold text-gray-900">Select orders</h3>
+                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                        <input type="text" id="invSearch" placeholder="Filter by order no. or address"
+                               class="px-2 py-1.5 border border-gray-300 rounded w-56 focus:outline-none focus:ring-1 focus:ring-[#C1666B]">
+                        <select id="invStatusFilter" class="px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-[#C1666B]">
+                            <option value="">All statuses</option>
+                            @foreach(['pending','confirmed','in_transit','delivered','cancelled'] as $st)
+                                <option value="{{ $st }}">{{ ucfirst(str_replace('_',' ',$st)) }}</option>
+                            @endforeach
+                        </select>
+                        <label class="flex items-center gap-1.5 text-gray-600">
+                            <input type="checkbox" id="invHideInvoiced" class="rounded border-gray-300 text-[#C1666B] focus:ring-[#C1666B]">
+                            Hide already invoiced
+                        </label>
+                        <button type="button" id="invSelectAll" class="brand-accent-text hover:underline">Select all</button>
+                        <button type="button" id="invClear" class="text-gray-500 hover:underline">Clear</button>
+                    </div>
+                </div>
+
+                <div class="border border-gray-200 rounded-md overflow-hidden">
+                    <div class="max-h-72 overflow-y-auto">
+                        <table class="min-w-full text-sm">
+                            <thead class="bg-gray-50 sticky top-0">
+                                <tr>
+                                    <th class="px-3 py-2 w-10"></th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Order</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                                    <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Route</th>
+                                    <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                @forelse($invoiceableOrders as $o)
+                                @php $already = $invoicedOrderIds->has($o->id); @endphp
+                                <tr class="inv-row hover:bg-gray-50"
+                                    data-status="{{ $o->status }}"
+                                    data-invoiced="{{ $already ? '1' : '0' }}"
+                                    data-search="{{ strtolower($o->order_number.' '.$o->pickup_address.' '.$o->delivery_address) }}">
+                                    <td class="px-3 py-2">
+                                        <input type="checkbox" name="order_ids[]" value="{{ $o->id }}"
+                                               class="inv-check rounded border-gray-300 text-[#C1666B] focus:ring-[#C1666B]"
+                                               data-amount="{{ (float) $o->price }}">
+                                    </td>
+                                    <td class="px-3 py-2 whitespace-nowrap">
+                                        <span class="font-medium text-gray-900">{{ $o->order_number }}</span>
+                                        @if($already)
+                                            <span class="ml-1 px-1.5 py-0.5 bg-gray-100 text-gray-500 text-[10px] rounded">invoiced</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2 whitespace-nowrap text-gray-500">{{ optional($o->delivery_date ?: $o->created_at)->format('d M Y') }}</td>
+                                    <td class="px-3 py-2 whitespace-nowrap">
+                                        <span class="px-2 py-0.5 text-xs rounded-full
+                                            @if($o->status === 'delivered') bg-green-100 text-green-800
+                                            @elseif($o->status === 'cancelled') bg-red-100 text-red-800
+                                            @elseif($o->status === 'in_transit') bg-blue-100 text-blue-800
+                                            @else bg-yellow-100 text-yellow-800 @endif">
+                                            {{ ucfirst(str_replace('_',' ',$o->status)) }}
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-2 text-gray-500 text-xs">{{ Str::limit($o->pickup_address, 28) }} &rarr; {{ Str::limit($o->delivery_address, 28) }}</td>
+                                    <td class="px-3 py-2 text-right whitespace-nowrap">&#8358;{{ number_format((float) $o->price, 2) }}</td>
+                                </tr>
+                                @empty
+                                <tr><td colspan="6" class="px-3 py-6 text-center text-gray-500">This client has no orders yet.</td></tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Payment terms</label>
+                        <textarea name="payment_terms" rows="3" placeholder="e.g. Payment due within 14 days."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#C1666B] focus:border-[#C1666B]"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea name="notes" rows="3" placeholder="Anything else to print on the invoice."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-[#C1666B] focus:border-[#C1666B]"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-6 py-4 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3">
+                <p class="text-sm text-gray-600">
+                    <span id="invCount">0</span> selected &middot;
+                    <span id="invTotalLabel">Total</span>
+                    <span class="font-semibold text-gray-900">&#8358;<span id="invTotal">0.00</span></span>
+                </p>
+                <div class="flex gap-2">
+                    <button type="button" data-close-invoice class="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm">Cancel</button>
+                    <button type="submit" id="invPreviewBtn" class="px-5 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm font-medium">Preview</button>
+                    <button type="submit" id="invDownloadBtn" class="px-5 py-2 text-white rounded-md brand-accent-bg brand-accent-hover text-sm font-medium">Download as PDF</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 const clientId = {{ $client->id }};
 
@@ -904,5 +1112,108 @@ function copyRemittanceSummary() {
         setTimeout(() => { btn.innerHTML = original; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
     });
 }
+
+(function () {
+    const modal = document.getElementById('invoiceModal');
+    if (!modal) return;
+
+    const form = document.getElementById('invoiceForm');
+    const rows = Array.from(modal.querySelectorAll('.inv-row'));
+    const checks = Array.from(modal.querySelectorAll('.inv-check'));
+    const search = document.getElementById('invSearch');
+    const statusFilter = document.getElementById('invStatusFilter');
+    const hideInvoiced = document.getElementById('invHideInvoiced');
+    const countEl = document.getElementById('invCount');
+    const totalEl = document.getElementById('invTotal');
+    const discountEl = document.getElementById('invDiscount');
+    const taxEl = document.getElementById('invTax');
+    const dedEl = document.getElementById('invDeduction');
+
+    const money = (n) => n.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+    function refreshTotals() {
+        let n = 0, subtotal = 0;
+        checks.forEach(c => {
+            if (c.checked) { n++; subtotal += parseFloat(c.dataset.amount || '0'); }
+        });
+        const discount = subtotal * (parseFloat(discountEl.value || '0') / 100);
+        const taxable = subtotal - discount;
+        const tax = taxable * (parseFloat(taxEl.value || '0') / 100);
+        const deduction = parseFloat(dedEl.value || '0');
+        countEl.textContent = n;
+        totalEl.textContent = money(taxable + tax - deduction);
+        document.getElementById('invTotalLabel').textContent = deduction > 0 ? 'amount due' : 'total';
+    }
+
+    function applyFilters() {
+        const term = (search.value || '').toLowerCase().trim();
+        const status = statusFilter.value;
+        rows.forEach(row => {
+            let show = true;
+            if (term && !row.dataset.search.includes(term)) show = false;
+            if (status && row.dataset.status !== status) show = false;
+            if (hideInvoiced.checked && row.dataset.invoiced === '1') show = false;
+            row.style.display = show ? '' : 'none';
+        });
+    }
+
+    function open() {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+    function close() {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+
+    document.getElementById('openInvoiceModal').addEventListener('click', open);
+    modal.querySelectorAll('[data-close-invoice]').forEach(el => el.addEventListener('click', close));
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+    });
+
+    checks.forEach(c => c.addEventListener('change', refreshTotals));
+    [discountEl, taxEl, dedEl].forEach(el => el.addEventListener('input', refreshTotals));
+    [search, statusFilter, hideInvoiced].forEach(el => el.addEventListener('input', applyFilters));
+
+    // Only touch rows the current filter leaves visible.
+    document.getElementById('invSelectAll').addEventListener('click', () => {
+        rows.forEach(row => {
+            if (row.style.display === 'none') return;
+            const c = row.querySelector('.inv-check');
+            if (c) c.checked = true;
+        });
+        refreshTotals();
+    });
+    document.getElementById('invClear').addEventListener('click', () => {
+        checks.forEach(c => { c.checked = false; });
+        refreshTotals();
+    });
+
+    // Preview opens a new tab; download must stay in this one or the browser
+    // blocks the file. target is set per button, then reset.
+    document.getElementById('invPreviewBtn').addEventListener('click', () => {
+        document.getElementById('invoiceAction').value = 'preview';
+        form.target = '_blank';
+    });
+    document.getElementById('invDownloadBtn').addEventListener('click', () => {
+        document.getElementById('invoiceAction').value = 'download';
+        form.target = '_self';
+    });
+
+    form.addEventListener('submit', e => {
+        if (!checks.some(c => c.checked)) {
+            e.preventDefault();
+            alert('Select at least one order to invoice.');
+            return;
+        }
+        if (form.target === '_blank') {
+            setTimeout(() => { form.target = '_self'; close(); window.location.reload(); }, 400);
+        }
+    });
+
+    refreshTotals();
+})();
+
 </script>
 @endsection

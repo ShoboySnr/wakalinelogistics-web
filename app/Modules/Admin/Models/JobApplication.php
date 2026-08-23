@@ -17,6 +17,13 @@ class JobApplication extends Model
         'address',
         'age',
         'license_number',
+        'owns_vehicle',
+        'vehicle_type',
+        'vehicle_registration',
+        'coverage_areas',
+        'has_smartphone',
+        'guarantor_name',
+        'guarantor_phone',
         'experience_years',
         'previous_work',
         'availability',
@@ -27,6 +34,8 @@ class JobApplication extends Model
     ];
 
     protected $casts = [
+        'owns_vehicle' => 'boolean',
+        'has_smartphone' => 'boolean',
         'reviewed_at' => 'datetime',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
@@ -82,8 +91,24 @@ class JobApplication extends Model
     /**
      * Get formatted job type
      */
+    public const PARTNER_TYPES = ['partner_rider', 'foot_soldier'];
+
     public function getFormattedJobTypeAttribute(): string
     {
-        return ucwords(str_replace('_', ' ', $this->job_type));
+        return match ($this->job_type) {
+            'partner_rider' => 'Partner Rider',
+            'foot_soldier' => 'Foot Soldier',
+            default => ucwords(str_replace('_', ' ', (string) $this->job_type)),
+        };
+    }
+
+    public function isPartnerApplication(): bool
+    {
+        return in_array($this->job_type, self::PARTNER_TYPES, true);
+    }
+
+    public function scopePartners($query)
+    {
+        return $query->whereIn('job_type', self::PARTNER_TYPES);
     }
 }

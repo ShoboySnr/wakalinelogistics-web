@@ -17,10 +17,10 @@ class JobApplicationController extends Controller
     public function submit(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'job_type' => 'required|string|in:dispatch_rider,warehouse_staff,customer_service',
+            'job_type' => 'required|string|in:dispatch_rider,warehouse_staff,customer_service,partner_rider,foot_soldier',
             'full_name' => 'required|string|min:2|max:255|regex:/^[a-zA-Z\s\-\.]+$/',
             'phone' => 'required|string|min:10|max:20|regex:/^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/',
-            'email' => 'nullable|email:rfc,dns|max:255',
+            'email' => 'required_if:job_type,partner_rider,foot_soldier|nullable|email:rfc,dns|max:255',
             'address' => 'required|string|min:10|max:500',
             'age' => 'required|integer|min:18|max:60',
             'license_number' => 'nullable|string|max:100',
@@ -28,6 +28,13 @@ class JobApplicationController extends Controller
             'previous_work' => 'nullable|string|max:2000',
             'availability' => 'nullable|string|max:100',
             'why_join' => 'nullable|string|max:2000',
+            'owns_vehicle' => 'nullable|boolean',
+            'vehicle_type' => 'nullable|string|max:100',
+            'vehicle_registration' => 'nullable|string|max:100',
+            'coverage_areas' => 'nullable|string|max:1000',
+            'has_smartphone' => 'nullable|boolean',
+            'guarantor_name' => 'nullable|string|max:255',
+            'guarantor_phone' => 'nullable|string|max:20',
         ], [
             'job_type.required' => 'Job type is required',
             'job_type.in' => 'Invalid job type selected',
@@ -37,6 +44,7 @@ class JobApplicationController extends Controller
             'phone.required' => 'Phone number is required',
             'phone.min' => 'Phone number must be at least 10 digits',
             'phone.regex' => 'Please enter a valid phone number',
+            'email.required_if' => 'Email address is required',
             'email.email' => 'Please enter a valid email address',
             'address.required' => 'Address is required',
             'address.min' => 'Address must be at least 10 characters',

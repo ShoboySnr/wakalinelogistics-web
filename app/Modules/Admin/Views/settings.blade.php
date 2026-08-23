@@ -4,9 +4,15 @@
 
 @section('content')
 <div class="px-4 sm:px-6 lg:px-0">
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold text-gray-900">System Settings</h1>
-        <p class="text-sm text-gray-500 mt-1">Configure general system preferences and company information</p>
+    <div class="mb-6 flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+        <div>
+            <h1 class="text-2xl font-bold text-gray-900">System Settings</h1>
+            <p class="text-sm text-gray-500 mt-1">Configure general system preferences and company information</p>
+        </div>
+        <a href="{{ route('admin.settings.batch-discount') }}"
+           class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 whitespace-nowrap">
+            Same-zone batch discount
+        </a>
     </div>
 
     @if(session('cache_cleared'))

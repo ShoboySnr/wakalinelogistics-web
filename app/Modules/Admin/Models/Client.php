@@ -77,6 +77,7 @@ class Client extends Authenticatable
         'onboarding_skipped',
         'onboarding_completed_at',
         'onboarding_current_step',
+        'zone_rates',
     ];
 
     protected $casts = [
@@ -101,6 +102,7 @@ class Client extends Authenticatable
         'onboarding_completed' => 'boolean',
         'onboarding_skipped' => 'boolean',
         'onboarding_completed_at' => 'datetime',
+        'zone_rates' => 'array',
     ];
 
     protected $hidden = [
@@ -116,6 +118,12 @@ class Client extends Authenticatable
         return $this->hasMany(Order::class);
     }
 
+    public function getZoneRate(string $zone): ?float
+    {
+        $rates = $this->zone_rates ?? [];
+        return isset($rates[$zone]) ? (float) $rates[$zone] : null;
+    }
+
     public function clientShare()
     {
         return $this->hasOne(\App\Models\ClientShare::class);
@@ -126,7 +134,7 @@ class Client extends Authenticatable
      */
     public function generateApiKey(): string
     {
-        $apiKey = 'wkl_' . bin2hex(random_bytes(32));
+        $apiKey = 'waka_' . bin2hex(random_bytes(32));
         
         $this->update([
             'api_key' => $apiKey,

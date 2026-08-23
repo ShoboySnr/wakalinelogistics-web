@@ -195,15 +195,23 @@
                         </button>
                         
                         <div x-show="open" x-collapse class="ml-4 mt-2 space-y-1">
-                            <a href="{{ route('admin.settings') }}" 
-                               class="sidebar-link flex items-center px-4 py-2 text-gray-400 text-sm rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.settings*') && !request()->routeIs('metter*') ? 'active' : '' }}">
+                            <a href="{{ route('admin.settings') }}"
+                               class="sidebar-link flex items-center px-4 py-2 text-gray-400 text-sm rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.settings*') && !request()->routeIs('admin.settings.batch-discount*') && !request()->routeIs('metter*') ? 'active' : '' }}">
                                 <svg class="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
                                 </svg>
                                 <span class="font-medium">General Settings</span>
                             </a>
-                            
-                            <a href="{{ route('metter.settings') }}" 
+
+                            <a href="{{ route('admin.settings.batch-discount') }}"
+                               class="sidebar-link flex items-center px-4 py-2 text-gray-400 text-sm rounded-lg border-l-4 border-transparent {{ request()->routeIs('admin.settings.batch-discount*') ? 'active' : '' }}">
+                                <svg class="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/>
+                                </svg>
+                                <span class="font-medium">Batch Discount</span>
+                            </a>
+
+                            <a href="{{ route('metter.settings') }}"
                                class="sidebar-link flex items-center px-4 py-2 text-gray-400 text-sm rounded-lg border-l-4 border-transparent {{ request()->routeIs('metter*') ? 'active' : '' }}">
                                 <svg class="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>

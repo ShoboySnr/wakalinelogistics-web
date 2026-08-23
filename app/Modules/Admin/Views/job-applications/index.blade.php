@@ -19,6 +19,8 @@
             <select name="job_type" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#C1666B] focus:border-[#C1666B]">
                 <option value="">All Job Types</option>
                 <option value="dispatch_rider" {{ request('job_type') === 'dispatch_rider' ? 'selected' : '' }}>Dispatch Rider</option>
+                <option value="partner_rider" {{ request('job_type') === 'partner_rider' ? 'selected' : '' }}>Partner Rider</option>
+                <option value="foot_soldier" {{ request('job_type') === 'foot_soldier' ? 'selected' : '' }}>Foot Soldier</option>
             </select>
             
             <select name="status" class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-[#C1666B] focus:border-[#C1666B]">
@@ -83,7 +85,12 @@
                 @forelse($applications as $application)
                 <tr class="hover:bg-gray-50">
                     <td class="px-6 py-4">
-                        <div class="text-sm font-medium text-gray-900">{{ $application->full_name }}</div>
+                        <a href="{{ route('admin.job-applications.show', $application->id) }}"
+                           class="text-sm font-medium brand-accent-text hover:underline"
+                           style="transition: color 0.2s ease;"
+                           onmouseover="this.style.color='#a8555a';" onmouseout="this.style.color='#C1666B';">
+                            {{ $application->full_name }}
+                        </a>
                         <div class="text-xs text-gray-500">{{ $application->address }}</div>
                     </td>
                     <td class="px-6 py-4">

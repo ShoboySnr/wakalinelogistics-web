@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Modules\Admin\Models\Order;
 use App\Modules\DeliveryCalculator\Services\DeliveryPriceService;
+use App\Services\ZoneBatchDiscountService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
@@ -13,9 +14,14 @@ class OrderController extends Controller
 {
     private DeliveryPriceService $priceService;
 
-    public function __construct(DeliveryPriceService $priceService)
-    {
+    private ZoneBatchDiscountService $batchDiscount;
+
+    public function __construct(
+        DeliveryPriceService $priceService,
+        ZoneBatchDiscountService $batchDiscount,
+    ) {
         $this->priceService = $priceService;
+        $this->batchDiscount = $batchDiscount;
     }
 
     public function submitOrder(Request $request)
@@ -76,15 +82,16 @@ class OrderController extends Controller
         $client = $request->attributes->get('client');
         
         try {
-            // Calculate price using delivery calculator service
-            $pickupAddress = $orderData['pickup_address'] . ($orderData['pickup_area'] ? ', ' . $orderData['pickup_area'] : '');
-            $deliveryAddress = $orderData['delivery_address'] . ($orderData['delivery_area'] ? ', ' . $orderData['delivery_area'] : '');
-            
+            $pickupArea = $orderData['pickup_area'] ?? null;
+            $deliveryArea = $orderData['delivery_area'] ?? null;
+            $pickupAddress = $orderData['pickup_address'] . ($pickupArea ? ', ' . $pickupArea : '');
+            $deliveryAddress = $orderData['delivery_address'] . ($deliveryArea ? ', ' . $deliveryArea : '');
+
             $priceCalculation = $this->priceService->processDeliveryCalculation(
                 $pickupAddress,
                 $deliveryAddress
             );
-            
+
             if (isset($priceCalculation['error'])) {
                 return response()->json([
                     'success' => false,
@@ -92,13 +99,21 @@ class OrderController extends Controller
                     'error' => $priceCalculation['error']
                 ], 400);
             }
-            
-            $calculatedPrice = $priceCalculation['delivery_fee'];
-            $calculatedDistance = $priceCalculation['distance_km'];
-            
-            // Use calculated price or override if provided
-            $finalPrice = $orderData['price'] ?? $calculatedPrice;
-            $finalDistance = $orderData['distance'] ?? $calculatedDistance;
+
+            $finalDistance = $priceCalculation['distance_km'];
+            $deliveryZone = $priceCalculation['delivery_zone'];
+            $fixedRate = $client ? $client->getZoneRate($deliveryZone) : null;
+            $finalPrice = $fixedRate ?? $priceCalculation['delivery_fee'];
+
+            // Same-zone batch discount: only ever comes off an agreed fixed
+            // zone rate, never off a distance-calculated fee.
+            $pricing = $this->batchDiscount->apply(
+                $fixedRate !== null ? $client : null,
+                $deliveryZone,
+                (float) $finalPrice,
+            );
+            $finalPrice = $pricing['price'];
+
             // Prepare order data
             $orderCreateData = [
                 'client_id' => $client ? $client->id : null,
@@ -119,6 +134,12 @@ class OrderController extends Controller
                 'quantity' => $orderData['quantity'] ?? null,
                 'distance' => $finalDistance,
                 'price' => $finalPrice,
+                'pickup_zone' => $priceCalculation['pickup_zone'],
+                'delivery_zone' => $deliveryZone,
+                'base_price' => $pricing['base_price'],
+                'zone_discount_percent' => $pricing['zone_discount_percent'],
+                'zone_discount_amount' => $pricing['zone_discount_amount'],
+                'zone_batch_size' => $pricing['zone_batch_size'],
                 'status' => 'confirmed',
                 'priority_level' => 'normal',
                 'notes' => $orderData['notes'] ?? ($orderData['delivery_notes'] ?? null),
@@ -147,12 +168,12 @@ class OrderController extends Controller
                     'sender' => [
                         'name' => $order->sender_name,
                         'phone' => $order->sender_phone,
-                        'email' => $order->sender_email,
+                        'email' => $order->sender_email ?? '',
                     ],
                     'receiver' => [
                         'name' => $order->receiver_name,
                         'phone' => $order->receiver_phone,
-                        'email' => $order->receiver_email,
+                        'email' => $order->receiver_email ?? '',
                     ],
                     'pickup_address' => $order->pickup_address,
                     'delivery_address' => $order->delivery_address,
@@ -162,9 +183,17 @@ class OrderController extends Controller
                     'quantity' => $order->quantity,
                     'price' => $order->price,
                     'currency' => 'NGN',
+                    'delivery_zone' => $order->delivery_zone,
+                    'batch_discount' => $pricing['zone_discount_percent'] === null ? null : [
+                        'percent' => (float) $pricing['zone_discount_percent'],
+                        'amount' => (float) $pricing['zone_discount_amount'],
+                        'base_price' => (float) $pricing['base_price'],
+                        'orders_in_zone' => $pricing['zone_batch_size'],
+                        'reason' => $pricing['evaluation']['reason'],
+                    ],
                     'priority_level' => $order->priority_level,
-                    'pickup_date' => $order->pickup_date,
-                    'delivery_date' => $order->delivery_date,
+                    'pickup_date' => $order->pickup_date ?? '',
+                    'delivery_date' => $order->delivery_date ?? '',
                     'notes' => $order->notes,
                     'created_at' => $order->created_at->toIso8601String(),
                     'updated_at' => $order->updated_at->toIso8601String(),
@@ -182,6 +211,46 @@ class OrderController extends Controller
                 'message' => 'An error occurred while processing your order. Please try again.'
             ], 500);
         }
+    }
+
+    public function getQuote(Request $request)
+    {
+        $validated = $request->validate([
+            'pickup_address'  => 'required|string|max:500',
+            'dropoff_address' => 'required|string|max:500',
+        ]);
+
+        $result = $this->priceService->processDeliveryCalculation(
+            $validated['pickup_address'],
+            $validated['dropoff_address']
+        );
+
+        if (isset($result['error'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to calculate delivery price',
+                'error'   => $result['error'],
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'pickup' => [
+                    'address'           => $result['pickup'],
+                    'formatted_address' => $result['pickup_formatted'] ?? $result['pickup'],
+                    'zone'              => $result['pickup_zone'],
+                ],
+                'delivery' => [
+                    'address'           => $result['delivery'],
+                    'formatted_address' => $result['delivery_formatted'] ?? $result['delivery'],
+                    'zone'              => $result['delivery_zone'],
+                ],
+                'distance_km'  => (float) number_format($result['distance_km'], 2, '.', ''),
+                'delivery_fee' => $result['delivery_fee'],
+                'currency'     => 'NGN',
+            ],
+        ]);
     }
 
     public function getOrderStatus(Request $request, $orderNumber)
@@ -214,24 +283,24 @@ class OrderController extends Controller
                 'sender' => [
                     'name' => $order->sender_name,
                     'phone' => $order->sender_phone,
-                    'email' => $order->sender_email,
+                    'email' => $order->sender_email ?? '',
                 ],
                 'receiver' => [
                     'name' => $order->receiver_name,
                     'phone' => $order->receiver_phone,
-                    'email' => $order->receiver_email,
+                    'email' => $order->receiver_email ?? '',
                 ],
                 'pickup_address' => $order->pickup_address,
                 'delivery_address' => $order->delivery_address,
                 'item_description' => $order->item_description,
                 'item_size' => $order->item_size,
-                'weight' => $order->weight,
+                'weight' => $order->weight !== null ? (float) $order->weight : null,
                 'quantity' => $order->quantity,
-                'price' => $order->price,
+                'price' => $order->price !== null ? (float) $order->price : null,
                 'currency' => 'NGN',
                 'priority_level' => $order->priority_level,
-                'pickup_date' => $order->pickup_date,
-                'delivery_date' => $order->delivery_date,
+                'pickup_date' => $order->pickup_date ?? '',
+                'delivery_date' => $order->delivery_date ?? '',
                 'notes' => $order->notes,
                 'rider' => $order->rider ? [
                     'id' => $order->rider->id,

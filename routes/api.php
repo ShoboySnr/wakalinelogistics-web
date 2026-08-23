@@ -10,7 +10,7 @@ use App\Http\Controllers\Api\ClientSettingsController;
 use App\Http\Controllers\Api\RouteShareApiController;
 use App\Http\Controllers\Api\JobApplicationController;
 use App\Http\Controllers\ClientShareController;
-use App\Http\Controllers\Api\MetterApiController;
+use App\Modules\DeliveryCalculator\Controllers\DeliveryCalculatorApiController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -31,8 +31,6 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
         Route::get('{token}/orders', [ClientShareController::class, 'getOrders']);
         Route::get('{token}/info', [ClientShareController::class, 'getInfo']);
     });
-    Route::post('orders/submit-public', [\App\Http\Controllers\Api\OrderController::class, 'submitOrder'])->middleware('client.api');
-    
     Route::post('auth/register', [AuthController::class, 'register']);
     Route::post('auth/client-register', [AuthController::class, 'clientRegister']);
     Route::post('auth/verify-email', [AuthController::class, 'verifyEmail']);
@@ -153,19 +151,18 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
         });
     });
     
-    // Public Metter delivery fee calculator (no auth required — publicly accessible)
-    Route::prefix('metter')->middleware('api.token:metter')->group(function () {
-        Route::post('calculate', [MetterApiController::class, 'calculate']);
-        Route::post('quote',     [MetterApiController::class, 'quote']);
-    });
-
     Route::get('credits/plans/public', [\App\Http\Controllers\Api\CreditController::class, 'getPublicPlans']);
     Route::get('credits/stats/public', [\App\Http\Controllers\Api\CreditController::class, 'getPublicStats']);
     Route::get('orders/track/{orderNumber}', [ClientOrderController::class, 'publicTrack']);
     Route::get('help/faqs', [\App\Http\Controllers\Api\HelpController::class, 'getFaqs']);
 
-    Route::post('orders/submit', [OrderController::class, 'submitOrder'])->middleware('client.api');
-    Route::get('orders/{orderNumber}/status', [OrderController::class, 'getOrderStatus'])->middleware('client.api');
+    Route::middleware('client.api')->group(function () {
+        Route::post('metter/calculate', [DeliveryCalculatorApiController::class, 'calculatePrice']);
+        Route::post('metter/quote',     [DeliveryCalculatorApiController::class, 'quickQuote']);
+        Route::post('orders/quote',     [OrderController::class, 'getQuote']);
+        Route::post('orders/submit',    [OrderController::class, 'submitOrder']);
+        Route::get('orders/{orderNumber}/status', [OrderController::class, 'getOrderStatus']);
+    });
 
     // Admin Routes (Protected by admin middleware)
     Route::prefix('admin')->middleware(['auth:sanctum', 'admin'])->group(function () {

@@ -9,7 +9,7 @@ class ZoneDetector
             // Ikeja & Environs
             'Ikeja', 'Alausa', 'Allen', 'Opebi', 'Oregun', 'Toyin', 'Awolowo Way', 'Obafemi Awolowo',
             'Mobolaji Bank Anthony', 'Acme', 'Anifowoshe', 'Adeniyi Jones', 'GRA Ikeja', 'Ikeja GRA',
-            'Kay Farms', 'Kayfarm', 'Kay Farm', 'Rotimi Williams', 'Chief Rotimi Williams', 
+            'Kay Farms', 'Kayfarm', 'Kay Farm', 'Rotimi Williams', 'Chief Rotimi Williams',
             'Computer Village', 'Oba Akran', 'Kudirat Abiola',
             // Agege & Environs
             'Agege', 'Dopemu', 'Pen Cinema', 'Oke-Koto', 'Orile Agege', 'Mangoro', 'Cement', 'Abattoir',
@@ -18,11 +18,11 @@ class ZoneDetector
             // Iju & Environs
             'Iju', 'Iju Ishaga', 'Iju Fagba', 'Ifako', 'Ijaiye', 'Fagba', 'Abule Egba',
             // Ojokoro & Environs
-            'Ojokoro', 'Isheri Olofin', 'Isheri', 'Oke Ira', 'Agbado', 'Akute', 'Lambe', 'Ajuwon',
+            'Ojokoro', 'Isheri Olofin', 'Oke Ira', 'Agbado', 'Akute', 'Lambe', 'Ajuwon',
             // Alimosho Areas
             'Akowonjo', 'Shasha', 'Egbeda', 'Idimu', 'Ikotun', 'Igando', 'Isheri Osun', 'Iyana Ipaja',
-            'Ayobo', 'Ipaja', 'Command', 'Meiran', 'Abule Egba', 'Ekoro', 'Alagbado', 'Pleasure',
-            'Powerline', 'Ile Epo', 'Oke Odo', 'Aboru', 'Iyana Ipaja', 'Gowon Estate'
+            'Ayobo', 'Ipaja', 'Command', 'Meiran', 'Ekoro', 'Alagbado', 'Pleasure',
+            'Powerline', 'Ile Epo', 'Oke Odo', 'Aboru', 'Gowon Estate'
         ],
         'Zone B' => [
             // Ketu & Environs
@@ -30,7 +30,7 @@ class ZoneDetector
             // Ojota & Environs
             'Ojota', 'Ogudu', 'Ogudu GRA', 'Kosofe', 'Owode Onirin', 'Ojota Interchange',
             // Maryland & Environs
-            'Maryland', 'Mende', 'Onigbongbo', 'Ikeja Along', 'Oshodi', 'Mafoluku',
+            'Maryland', 'Mende', 'Onigbongbo', 'Ikeja Along', 'Mafoluku',
             // Gbagada & Environs
             'Gbagada', 'Gbagada Phase 1', 'Gbagada Phase 2', 'Ifako Gbagada', 'New Garage', 'Soluyi',
             // Magodo & Environs
@@ -46,31 +46,21 @@ class ZoneDetector
         ],
         'Zone C' => [
             // Yaba & Environs
-            'Yaba', 'Akoka', 'Abule Ijesha', 'Makoko', 'Iwaya', 'Sabo Yaba', 'Tejuosho',
+            'Yaba', 'Abule Ijesha', 'Makoko', 'Iwaya', 'Sabo Yaba', 'Tejuosho',
             // Surulere & Environs
             'Surulere', 'Itire', 'Lawanson', 'Ijeshatedo', 'Shitta', 'Adeniran Ogunsanya',
             'Bode Thomas', 'Randle', 'Aguda Surulere', 'Ojuelegba', 'Iponri', 'Costain',
             'Eric Moore', 'Alaka', 'Masha', 'Kilo', 'Barracks', 'Stadium', 'National Stadium',
-            // Isolo & Environs
-            'Isolo', 'Okota', 'Ago Palace', 'Ejigbo', 'Jakande', 'Isolo Road', 'Oke Afa',
-            'Bucknor', 'Cele', 'Ijesha', 'Ire Akari', 'Ajao Estate', 'Aswani',
-            // Festac & Environs
-            'Festac', 'Festac Town', 'Amuwo Odofin', 'Mile 2', 'Okota', 'Apple Junction',
-            'Satellite Town', 'Alaba', 'Alaba International', 'Ojo', 'Okokomaiko',
-            // Oshodi & Environs
-            'Oshodi', 'Bolade', 'Mafoluku', 'Shogunle', 'Ladipo', 'Oshodi Oke',
-            // Mushin & Environs
-            'Mushin', 'Idi Oro', 'Idi Araba', 'Papa Ajao', 'Olateju', 'Alakara', 'Odi Olowo',
-            // Badagry & Environs
-            'Badagry', 'Ajangbadi', 'Ojo Alaba', 'Iyana Iba', 'Iba', 'Igbo Elerin', 'Agbara Badagry',
-            'Topo', 'Ibereko', 'Ikoga', 'Aradagun', 'Mowo', 'Gbaji', 'Ajara',
-            // Apapa & Environs
-            'Apapa', 'Ajegunle', 'Kirikiri', 'Boundary', 'Orile', 'Iganmu', 'Liverpool', 'Tincan',
-            'Wharf', 'Port', 'Apapa Wharf', 'Apapa Road', 'Creek Road', 'Point Road',
             // Ebute Metta & Environs
-            'Ebute Metta', 'Oyingbo', 'Yaba Tech', 'Jibowu', 'Fadeyi', 'Otto', 'Ijora'
+            'Ebute Metta', 'Oyingbo', 'Yaba Tech', 'Otto', 'Ijora'
         ],
         'Zone D' => [
+            // Festac & Amuwo Axis
+            'Festac', 'Festac Town', 'Amuwo Odofin', 'Mile 2', 'Apple Junction',
+            // Ago Palace
+            'Ago Palace',
+        ],
+        'Zone E' => [
             // Ikoyi
             'Ikoyi', 'Old Ikoyi', 'Ikoyi Crescent', 'Bourdillon', 'Queens Drive', 'Kingsway',
             'Glover', 'Awolowo Road', 'Alexander', 'Banana Island', 'Parkview', 'Dolphin Estate',
@@ -88,59 +78,83 @@ class ZoneDetector
             'Alakoro', 'Ita Faji', 'Lafiaji', 'Campos', 'Nnamdi Azikiwe', 'Apongbon',
             'Eko Bridge', 'Carter Bridge', 'Third Mainland Bridge', 'Ikoyi Bridge'
         ],
-        'Zone E' => [
+        'Zone F' => [
             // Lekki Phase 1
             'Lekki', 'Lekki Phase 1', 'Lekki 1', 'Admiralty Way', 'Admiralty', 'Marwa',
             'Ikate', 'Ikate Elegushi', 'Elegushi', 'Chisco', 'Jakande', 'Lekki Right',
-            // Lekki Phase 2 & Beyond
+            // Lekki Phase 2 & Nearby
             'Lekki Phase 2', 'Lekki 2', 'Ilasan', 'Igbo Efon', 'Idado', 'Agungi',
             'Osapa London', 'Osapa', 'Chisco Bus Stop', 'Oral Estate', 'Greensprings',
-            // Ajah & Environs
-            'Ajah', 'Badore', 'Addo', 'Langbasa', 'Ado', 'Ajah Roundabout',
-            'Abraham Adesanya', 'Lekki Gardens', 'Coscharis', 'Mega Chicken',
+            // VGC & Environs
+            'VGC', 'Victoria Garden City', 'Ikota', 'Ikota Villa', 'Ikota Complex',
+            'Pinnock Beach', 'Eti Osa', 'Conservation Centre',
+            // Chevron & Environs
+            'Chevron', 'Chevron Drive', 'Chevron Roundabout', 'Igbo Efon Roundabout',
+            'Orchid', 'Orchid Road', 'Ologolo', 'Jakande Lekki',
+        ],
+        'Zone G' => [
             // Sangotedo & Beyond
             'Sangotedo', 'Monastery', 'Novare Mall', 'Shoprite Sangotedo', 'Abijo',
             'Lakowe', 'Lakowe Lakes', 'Awoyaya', 'Majek', 'Shapati', 'Ibeju',
-            // VGC & Environs
-            'VGC', 'Victoria Garden City', 'Ikota', 'Ikota Villa', 'Ikota Complex',
-            'Oniru', 'Oniru Estate', 'Pinnock Beach', 'Eti Osa', 'Conservation Centre',
-            // Chevron & Environs
-            'Chevron', 'Chevron Drive', 'Chevron Roundabout', 'Igbo Efon Roundabout',
-            'Orchid', 'Orchid Road', 'Lafiaji', 'Ologolo', 'Jakande Lekki',
-            // Alpha Beach & Environs
-            'Alpha Beach', 'Alpha Beach Road', 'Igbo Efon Lekki', 'Okun Ajah',
             // Epe & Far Lekki
             'Epe', 'Ibeju Lekki', 'Bogije', 'Eleko', 'Akodo', 'Magbon Alade',
             'Dangote Refinery', 'Dangote', 'Refinery', 'Free Trade Zone', 'Lekki Free Zone',
             'Idasho', 'Oriyanrin', 'Igbogun', 'Itoikin', 'Poka', 'Ejirin'
         ],
-        'Zone F' => [
+        'Zone H' => [
+            // Ojodu & Berger (nearer interstate)
+            'Ojodu', 'Akiode', 'Isheri Olowora',
+            // Berger & Environs
+            'Berger', 'Ojodu Berger', 'Kara',
+            // Warewa / Arepo / Magboro axis
+            'Warewa', 'Arepo', 'Magboro',
+        ],
+        'Zone I' => [
             // Ikorodu & Environs
             'Ikorodu', 'Ikorodu Town', 'Ikorodu Garage', 'Agric', 'Owutu', 'Igbogbo',
             'Ebute', 'Ijede', 'Erikorodo', 'Isiu', 'Baiyeku', 'Erunwen', 'Gberigbe',
             'Ipakodo', 'Majidun', 'Odogunyan', 'Sabo Ikorodu', 'Itamaga', 'Ewu Elepe',
             'Ibeshe', 'Imota', 'Agura', 'Ishawo', 'Ogolonto', 'Odonla', 'Odoragushin',
-            'Ijede Ikorodu', 'Agbowa', 'Igbokuta', 'Maya', 'Odogunyan', 'Parafa',
-            // Mowe & Environs
-            'Mowe', 'Mowe Ofada', 'Mowe Ibafo', 'Magboro', 'Arepo', 'Warewa',
-            'Isheri North', 'Berger', 'Ojodu Berger', 'Kara', 'Ibafo', 'Redemption Camp',
-            'RCCG Camp', 'Camp', 'Simawa', 'Ofada', 'Obafemi Owode',
-            // Sango Ota & Environs
-            'Sango Ota', 'Sango', 'Ota', 'Joju', 'Atan', 'Agbara', 'Lusada',
-            'Ijoko', 'Ilogbo', 'Iju Ota', 'Toll Gate', 'Sango Toll Gate',
+            'Ijede Ikorodu', 'Agbowa', 'Igbokuta', 'Maya', 'Parafa',
+            // Ota & Environs
+            'Ota', 'Joju', 'Atan', 'Agbara', 'Lusada',
+            'Ijoko', 'Ilogbo', 'Iju Ota', 'Toll Gate',
             'Owode', 'Onipanu Ota', 'Itori', 'Ewekoro', 'Papalanto',
-            // Ojodu & Environs
-            'Ojodu', 'Berger Ojodu', 'Ogba Ojodu', 'Omole', 'Akiode', 'Isheri Olowora',
-            // Sagamu & Environs
-            'Sagamu', 'Ogijo', 'Odongunyan Ikorodu', 'Iperu', 'Makun', 'Sabo Sagamu'
-        ]
+            // Ogijo & Environs
+            'Ogijo', 'Odongunyan Ikorodu', 'Iperu', 'Makun'
+        ],
+        'Zone J' => [
+            // Ojo & Satellite Town Axis
+            'Satellite Town', 'Alaba', 'Alaba International', 'Ojo', 'Okokomaiko',
+            // Badagry & Environs
+            'Badagry', 'Ajangbadi', 'Ojo Alaba', 'Iyana Iba', 'Iba', 'Igbo Elerin', 'Agbara Badagry',
+            'Topo', 'Ibereko', 'Ikoga', 'Aradagun', 'Mowo', 'Gbaji', 'Ajara',
+        ],
+        'Zone K' => [
+            // Ajah & Environs
+            'Ajah', 'Badore', 'Addo', 'Langbasa', 'Ado', 'Ajah Roundabout',
+            'Abraham Adesanya', 'Lekki Gardens', 'Coscharis', 'Mega Chicken',
+            // Alpha Beach & Environs
+            'Alpha Beach', 'Alpha Beach Road', 'Igbo Efon Lekki', 'Okun Ajah',
+        ],
+        'Zone L' => [
+            // Oshodi & Environs
+            'Oshodi', 'Bolade', 'Shogunle', 'Oshodi Oke',
+            // Mushin inner
+            'Idi Oro', 'Olateju', 'Alakara', 'Odi Olowo',
+            // Isolo & Environs
+            'Isolo', 'Okota', 'Ejigbo', 'Jakande', 'Isolo Road', 'Oke Afa',
+            'Bucknor', 'Cele', 'Ijesha', 'Ire Akari', 'Ajao Estate', 'Aswani',
+            // Apapa & Environs
+            'Apapa', 'Ajegunle', 'Kirikiri', 'Boundary', 'Orile', 'Iganmu', 'Liverpool', 'Tincan',
+            'Wharf', 'Port', 'Apapa Wharf', 'Apapa Road', 'Creek Road', 'Point Road',
+        ],
     ];
 
     public static function detectZone(string $address): string
     {
         $address = strtolower($address);
 
-        // First pass: exact substring matching
         foreach (self::$zones as $zoneName => $locations) {
             foreach ($locations as $location) {
                 if (str_contains($address, strtolower($location))) {
@@ -149,11 +163,7 @@ class ZoneDetector
             }
         }
 
-        // Second pass: fallback for common patterns if no match found
-        // Check for Lagos State - default to Zone C (Central Lagos) as fallback
         if (str_contains($address, 'lagos') && !str_contains($address, 'ogun')) {
-            // If it contains "lagos" but no specific zone matched, 
-            // it's likely a valid Lagos address - default to Zone C
             return 'Zone C';
         }
 
@@ -162,12 +172,12 @@ class ZoneDetector
 
     public static function isMainland(string $zone): bool
     {
-        return in_array($zone, ['Zone A', 'Zone B', 'Zone C', 'Zone F']);
+        return in_array($zone, ['Zone A', 'Zone B', 'Zone C', 'Zone D', 'Zone H', 'Zone I', 'Zone J', 'Zone L']);
     }
 
     public static function isIsland(string $zone): bool
     {
-        return in_array($zone, ['Zone D', 'Zone E']);
+        return in_array($zone, ['Zone E', 'Zone F', 'Zone G', 'Zone K']);
     }
 
     public static function getAllZones(): array

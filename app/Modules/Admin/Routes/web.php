@@ -8,6 +8,7 @@ use App\Modules\Admin\Controllers\UserController;
 use App\Modules\Admin\Controllers\TransactionController;
 use App\Modules\Admin\Controllers\CreditsController;
 use App\Modules\Admin\Controllers\HelpController;
+use App\Modules\Admin\Controllers\InvoiceController;
 
 // Admin Login at root
 Route::get('/', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
@@ -40,6 +41,8 @@ Route::prefix('super-admin')->group(function () {
         // Settings Routes
         Route::get('/settings', [DashboardController::class, 'settings'])->name('admin.settings');
         Route::put('/settings', [DashboardController::class, 'updateSettings'])->name('admin.settings.update');
+        Route::get('/settings/batch-discount', [DashboardController::class, 'batchDiscountSettings'])->name('admin.settings.batch-discount');
+        Route::post('/settings/batch-discount', [DashboardController::class, 'updateBatchDiscountSettings'])->name('admin.settings.batch-discount.update');
         Route::post('/settings/clear-cache', [DashboardController::class, 'clearCache'])->name('admin.settings.clear-cache');
         
         // Expenses
@@ -76,8 +79,11 @@ Route::prefix('super-admin')->group(function () {
         Route::post('/credits/clients/{id}/adjust', [CreditsController::class, 'adjustCredits'])->name('admin.credits.adjust');
         Route::get('/credits/clients/{id}/history', [CreditsController::class, 'clientHistory'])->name('admin.credits.client-history');
         
-        // Business Intelligence & Analytics
+        // Business Intelligence — AI analyst
         Route::get('/business-intelligence', [DashboardController::class, 'businessIntelligence'])->name('admin.business-intelligence');
+        Route::post('/business-intelligence/ask', [DashboardController::class, 'askAnalyst'])->name('admin.business-intelligence.ask');
+        Route::post('/business-intelligence/confirm', [DashboardController::class, 'confirmAnalystActions'])->name('admin.business-intelligence.confirm');
+        Route::post('/business-intelligence/reset', [DashboardController::class, 'resetAnalyst'])->name('admin.business-intelligence.reset');
         
         // Rider Routes
         Route::get('/riders', [DashboardController::class, 'riders'])->name('admin.riders');
@@ -125,6 +131,12 @@ Route::prefix('super-admin')->group(function () {
         Route::post('/clients/{id}/verify-email', [DashboardController::class, 'manualVerifyEmail'])->name('admin.clients.verify-email');
         Route::post('/clients/{id}/mark-remitted', [DashboardController::class, 'markOrdersRemitted'])->name('admin.clients.mark-remitted');
         Route::post('/clients/{id}/toggle-pod-remittance', [DashboardController::class, 'togglePodRemittance'])->name('admin.clients.toggle-pod-remittance');
+
+        // Client invoices
+        Route::post('/clients/{id}/invoices', [InvoiceController::class, 'store'])->name('admin.invoices.store');
+        Route::get('/invoices/{id}/preview', [InvoiceController::class, 'preview'])->name('admin.invoices.preview');
+        Route::get('/invoices/{id}/download', [InvoiceController::class, 'download'])->name('admin.invoices.download');
+        Route::delete('/invoices/{id}', [InvoiceController::class, 'destroy'])->name('admin.invoices.destroy');
 
         // Communications (subscriptions & contact messages)
         Route::get('/communications', [CommunicationsController::class, 'index'])->name('admin.communications');

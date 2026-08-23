@@ -244,31 +244,50 @@
             </div>
 
             <div class="mt-8 bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-                <h3 class="text-lg font-bold text-gray-900 mb-4">Delivery Zones</h3>
+                <h3 class="text-lg font-bold text-gray-900 mb-1">Delivery Zones</h3>
+                <p class="text-xs text-gray-500 mb-4">Lagos is divided into 6 zones. Your delivery fee is based on the zones of your pickup and dropoff locations.</p>
                 <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-                    <div class="p-3 bg-gray-50 rounded-lg">
-                        <p class="font-semibold text-primary mb-1">Zone A - Mainland (Ikeja/Alimosho)</p>
-                        <p class="text-gray-600 text-xs">Ikeja, Alausa, Allen, Oregun, Agege, Ogba, Omole, Iju, Abule Egba, Egbeda, Idimu, Ikotun, Igando, Ayobo, Ipaja, Command, Alagbado, Dopemu, Akute, Lambe, Kay Farms</p>
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex-shrink-0">A</span>
+                            <p class="font-semibold text-gray-800 text-sm">Mainland — Ikeja &amp; Alimosho</p>
+                        </div>
+                        <p class="text-gray-500 text-xs leading-relaxed">Ikeja, Allen, Alausa, Oregun, Opebi, Agege, Dopemu, Ogba, Omole, Iju, Abule Egba, Ojokoro, Akute, Lambe, Ajuwon, Ikotun, Egbeda, Idimu, Igando, Ayobo, Ipaja, Iyana Ipaja, Shasha, Akowonjo, Alagbado, Gowon Estate</p>
                     </div>
-                    <div class="p-3 bg-gray-50 rounded-lg">
-                        <p class="font-semibold text-primary mb-1">Zone B - Mainland (Southwest)</p>
-                        <p class="text-gray-600 text-xs">Ketu, Ojota, Maryland, Gbagada, Ogudu, Magodo, Anthony, Palmgroove, Shomolu, Bariga, Ilupeju, Mile 12, Alapere, Kosofe, Fadeyi, Jibowu, Onipanu</p>
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex-shrink-0">B</span>
+                            <p class="font-semibold text-gray-800 text-sm">Mainland — Ketu &amp; Gbagada</p>
+                        </div>
+                        <p class="text-gray-500 text-xs leading-relaxed">Ketu, Alapere, Ojota, Ogudu, Kosofe, Maryland, Mende, Gbagada, Magodo, Shangisha, Anthony, Palmgroove, Onipanu, Fadeyi, Shomolu, Bariga, Oworonshoki, Ilupeju, Mile 12</p>
                     </div>
-                    <div class="p-3 bg-gray-50 rounded-lg">
-                        <p class="font-semibold text-primary mb-1">Zone C - Mainland (Central/East)</p>
-                        <p class="text-gray-600 text-xs">Yaba, Surulere, Isolo, Festac, Oshodi, Mushin, Apapa, Ajegunle, Ebute Metta, Satellite Town, Alaba, Badagry, Ejigbo, Okota, Ago Palace, Ojuelegba, Lawanson, Costain, Okokomaiko</p>
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex-shrink-0">C</span>
+                            <p class="font-semibold text-gray-800 text-sm">Mainland — Surulere &amp; Apapa</p>
+                        </div>
+                        <p class="text-gray-500 text-xs leading-relaxed">Yaba, Surulere, Ojuelegba, Lawanson, Costain, Isolo, Ejigbo, Okota, Ago Palace, Festac, Amuwo Odofin, Mile 2, Satellite Town, Alaba, Ojo, Okokomaiko, Oshodi, Apapa, Ajegunle, Orile, Ebute Metta, Oyingbo, Badagry</p>
                     </div>
-                    <div class="p-3 bg-gray-50 rounded-lg">
-                        <p class="font-semibold text-primary mb-1">Zone D - Island (VI/Ikoyi/Lagos Island)</p>
-                        <p class="text-gray-600 text-xs">Ikoyi, Victoria Island, Lagos Island, Marina, CMS, Adeola Odeku, Ozumba Mbadiwe, Bourdillon, Banana Island, Parkview, Obalende, Falomo, Balogun, Idumota, Tinubu</p>
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex-shrink-0">D</span>
+                            <p class="font-semibold text-gray-800 text-sm">Island — VI, Ikoyi &amp; Lagos Island</p>
+                        </div>
+                        <p class="text-gray-500 text-xs leading-relaxed">Ikoyi, Banana Island, Parkview, Dolphin Estate, Osborne, Falomo, Obalende, Victoria Island, Adeola Odeku, Ozumba Mbadiwe, Ahmadu Bello, Oniru, Lagos Island, Marina, CMS, Broad Street, Onikan, Balogun, Idumota, Tinubu</p>
                     </div>
-                    <div class="p-3 bg-gray-50 rounded-lg">
-                        <p class="font-semibold text-primary mb-1">Zone E - Island (Lekki/Eti-Osa)</p>
-                        <p class="text-gray-600 text-xs">Lekki, Ajah, Sangotedo, VGC, Chevron, Ikate, Oniru, Osapa London, Ikota, Elegushi, Epe, Awoyaya, Bogije, Alpha Beach, Ilasan, Igbo Efon, Lakowe, Dangote Refinery, Ibeju-Lekki</p>
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex-shrink-0">E</span>
+                            <p class="font-semibold text-gray-800 text-sm">Island — Lekki &amp; Eti-Osa</p>
+                        </div>
+                        <p class="text-gray-500 text-xs leading-relaxed">Lekki Phase 1 &amp; 2, Ikate, Elegushi, Ilasan, Ajah, Badore, Abraham Adesanya, Sangotedo, Monastery, Novare Mall, Awoyaya, Abijo, VGC, Ikota, Chevron, Orchid Road, Osapa London, Igbo Efon, Alpha Beach, Epe, Ibeju-Lekki, Bogije, Dangote Refinery</p>
                     </div>
-                    <div class="p-3 bg-gray-50 rounded-lg">
-                        <p class="font-semibold text-primary mb-1">Zone F - Interstate (Ikorodu/Ogun)</p>
-                        <p class="text-gray-600 text-xs">Ikorodu, Mowe, Sango Ota, Agbara, Arepo, Redemption Camp, Sagamu, Ogijo, Imota, Ibafo, Magboro, Ojodu, Igbogbo, Ijede, Berger, Kara, Simawa, Lusada</p>
+                    <div class="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold flex-shrink-0">F</span>
+                            <p class="font-semibold text-gray-800 text-sm">Interstate — Ikorodu &amp; Ogun State</p>
+                        </div>
+                        <p class="text-gray-500 text-xs leading-relaxed">Ikorodu, Agric, Owutu, Ijede, Imota, Ibeshe, Mowe, Magboro, Arepo, Warewa, Berger, Ojodu Berger, Ibafo, Redemption Camp, Simawa, Ofada, Sango Ota, Ota, Agbara, Lusada, Ijoko, Toll Gate, Ojodu, Sagamu, Ogijo</p>
                     </div>
                 </div>
             </div>

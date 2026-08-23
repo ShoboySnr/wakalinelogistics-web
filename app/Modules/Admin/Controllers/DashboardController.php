@@ -11,6 +11,8 @@ use App\Modules\Admin\Models\Expense;
 use App\Modules\Admin\Models\RouteShare;
 use App\Modules\Admin\Models\Client;
 use App\Modules\Admin\Models\JobApplication;
+use App\Services\Ai\AiAnalystService;
+use App\Services\ZoneBatchDiscountService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
@@ -685,6 +687,65 @@ class DashboardController extends Controller
         ActivityLog::log('settings_updated', 'Updated system settings');
 
         return redirect()->route('admin.settings')->with('success', 'Settings updated successfully');
+    }
+
+    /** Same-zone batch discount configuration. */
+    public function batchDiscountSettings(ZoneBatchDiscountService $service)
+    {
+        return view('Admin::settings.batch-discount', [
+            'enabled' => $service->isEnabled(),
+            'tiers' => $service->tiers(),
+        ]);
+    }
+
+    public function updateBatchDiscountSettings(Request $request, ZoneBatchDiscountService $service)
+    {
+        $validated = $request->validate([
+            'enabled' => 'nullable|boolean',
+            'tiers' => 'nullable|array',
+            'tiers.*.min' => 'nullable|integer|min:2',
+            'tiers.*.max' => 'nullable|integer|min:2',
+            'tiers.*.percent' => 'nullable|numeric|min:0|max:100',
+        ], [
+            'tiers.*.min.min' => 'The smallest band must start at 2 — a single order has nothing to pool with.',
+        ]);
+
+        $tiers = $service->normaliseTiers($validated['tiers'] ?? []);
+
+        // Overlapping bands would make the discount depend on row order rather
+        // than on the batch size, so reject them rather than silently pick one.
+        foreach ($tiers as $i => $tier) {
+            $next = $tiers[$i + 1] ?? null;
+            if ($next === null) {
+                continue;
+            }
+            if ($tier['max'] === null || $next['min'] <= $tier['max']) {
+                return back()
+                    ->withInput()
+                    ->with('error', 'Discount bands overlap or an open-ended band is not last. Each band must start above the previous band\'s upper limit.');
+            }
+        }
+
+        Setting::set(
+            ZoneBatchDiscountService::SETTING_ENABLED,
+            $request->boolean('enabled') ? '1' : '0',
+            'boolean',
+            ZoneBatchDiscountService::SETTING_GROUP,
+            'Discount repeat deliveries into a zone a rider is already visiting',
+        );
+
+        Setting::set(
+            ZoneBatchDiscountService::SETTING_TIERS,
+            $tiers,
+            'json',
+            ZoneBatchDiscountService::SETTING_GROUP,
+            'Discount bands keyed on how many open orders are heading to the same zone',
+        );
+
+        ActivityLog::log('settings_updated', 'Updated same-zone batch discount settings');
+
+        return redirect()->route('admin.settings.batch-discount')
+            ->with('success', 'Batch discount settings saved.');
     }
 
     public function clearCache(Request $request)
@@ -1384,67 +1445,101 @@ class DashboardController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
-    // Business Intelligence & Analytics
-    public function businessIntelligence(Request $request)
+    // Business Intelligence — AI analyst
+    public function businessIntelligence(Request $request, AiAnalystService $analyst)
     {
-        // Get date range from request
-        $dateRange = $request->get('date_range', 'this_month');
-        $startDate = null;
-        $endDate = null;
+        $conversationId = $request->session()->get('ai_analyst_conversation');
 
-        // Handle predefined ranges
-        switch ($dateRange) {
-            case 'today':
-                $startDate = now()->startOfDay();
-                $endDate = now()->endOfDay();
-                break;
-            case 'yesterday':
-                $startDate = now()->subDay()->startOfDay();
-                $endDate = now()->subDay()->endOfDay();
-                break;
-            case 'this_week':
-                $startDate = now()->startOfWeek();
-                $endDate = now()->endOfWeek();
-                break;
-            case 'last_week':
-                $startDate = now()->subWeek()->startOfWeek();
-                $endDate = now()->subWeek()->endOfWeek();
-                break;
-            case 'this_month':
-                $startDate = now()->startOfMonth();
-                $endDate = now()->endOfMonth();
-                break;
-            case 'last_month':
-                $startDate = now()->subMonth()->startOfMonth();
-                $endDate = now()->subMonth()->endOfMonth();
-                break;
-            case 'this_year':
-                $startDate = now()->startOfYear();
-                $endDate = now()->endOfYear();
-                break;
-            case 'custom':
-                if ($request->has('start_date') && $request->has('end_date')) {
-                    $startDate = \Carbon\Carbon::parse($request->start_date)->startOfDay();
-                    $endDate = \Carbon\Carbon::parse($request->end_date)->endOfDay();
-                } else {
-                    // Default to this month if custom dates not provided
-                    $startDate = now()->startOfMonth();
-                    $endDate = now()->endOfMonth();
-                }
-                break;
-            default:
-                $startDate = now()->startOfMonth();
-                $endDate = now()->endOfMonth();
+        if (! $conversationId) {
+            $conversationId = $analyst->newConversationId();
+            $request->session()->put('ai_analyst_conversation', $conversationId);
         }
 
-        $biService = new \App\Services\BusinessIntelligenceService();
-        $analytics = $biService->getBusinessAnalytics($startDate, $endDate);
+        return view('Admin::business-intelligence.index', [
+            'conversationId' => $conversationId,
+            'transcript' => $analyst->transcript($conversationId),
+            'aiConfigured' => $analyst->isConfigured(),
+            'kpis' => $this->headlineKpis(),
+        ]);
+    }
 
-        // Advanced analytics
-        $advancedService = new \App\Services\AdvancedAnalyticsService($startDate, $endDate);
-        $advancedAnalytics = $advancedService->getAdvancedAnalytics();
+    /**
+     * The handful of numbers worth showing without being asked. Everything
+     * else is a question for the analyst.
+     */
+    private function headlineKpis(): array
+    {
+        $monthStart = now()->startOfMonth();
+        $monthEnd = now()->endOfMonth();
 
-        return view('Admin::business-intelligence.index', compact('analytics', 'advancedAnalytics', 'dateRange', 'startDate', 'endDate'));
+        $revenue = (float) Order::whereBetween('delivery_date', [$monthStart, $monthEnd])
+            ->where('status', 'delivered')
+            ->sum('price');
+
+        $expenses = (float) Expense::whereBetween('expense_date', [$monthStart, $monthEnd])->sum('amount');
+
+        return [
+            'month_label' => now()->format('F Y'),
+            'revenue' => $revenue,
+            'expenses' => $expenses,
+            'profit' => $revenue - $expenses,
+            'orders_this_month' => Order::whereBetween('created_at', [$monthStart, $monthEnd])->count(),
+            'delivered_this_month' => Order::whereBetween('delivery_date', [$monthStart, $monthEnd])
+                ->where('status', 'delivered')->count(),
+            'pending_orders' => Order::where('status', 'pending')->count(),
+            'unassigned_orders' => Order::whereNull('rider_id')
+                ->whereIn('status', ['pending', 'confirmed'])->count(),
+            'active_riders' => Rider::where('status', 'active')->count(),
+        ];
+    }
+
+    /** Ask the analyst a question. */
+    public function askAnalyst(Request $request, AiAnalystService $analyst)
+    {
+        $validated = $request->validate([
+            'message' => 'required|string|max:4000',
+        ]);
+
+        $conversationId = $request->session()->get('ai_analyst_conversation');
+        if (! $conversationId) {
+            $conversationId = $analyst->newConversationId();
+            $request->session()->put('ai_analyst_conversation', $conversationId);
+        }
+
+        return response()->json(
+            $analyst->ask($conversationId, $validated['message'], (int) auth()->id())
+        );
+    }
+
+    /** Approve or deny the write actions the analyst proposed. */
+    public function confirmAnalystActions(Request $request, AiAnalystService $analyst)
+    {
+        $validated = $request->validate([
+            'decisions' => 'required|array',
+            'decisions.*' => 'required|in:approve,deny',
+        ]);
+
+        $conversationId = $request->session()->get('ai_analyst_conversation');
+        if (! $conversationId) {
+            return response()->json(['status' => 'error', 'message' => 'This conversation has expired. Start a new one.'], 422);
+        }
+
+        return response()->json(
+            $analyst->resume($conversationId, $validated['decisions'], (int) auth()->id())
+        );
+    }
+
+    /** Clear the conversation and start fresh. */
+    public function resetAnalyst(Request $request, AiAnalystService $analyst)
+    {
+        $existing = $request->session()->get('ai_analyst_conversation');
+        if ($existing) {
+            $analyst->reset($existing);
+        }
+
+        $request->session()->put('ai_analyst_conversation', $analyst->newConversationId());
+
+        return redirect()->route('admin.business-intelligence');
     }
     
     /**
@@ -1807,10 +1902,26 @@ class DashboardController extends Controller
             return max(0, (float) $o->amount_received - (float) $o->price);
         });
 
+        $invoiceableOrders = $client->orders()
+            ->latest()
+            ->get(['id', 'order_number', 'status', 'price', 'created_at', 'delivery_date', 'pickup_address', 'delivery_address', 'item_description']);
+
+        $invoicedOrderIds = \Illuminate\Support\Facades\DB::table('invoice_order')
+            ->whereIn('order_id', $invoiceableOrders->pluck('id'))
+            ->pluck('order_id')
+            ->unique()
+            ->flip();
+
+        $invoices = \App\Modules\Admin\Models\Invoice::where('client_id', $client->id)
+            ->withCount('orders')
+            ->latest()
+            ->get();
+
         return view('Admin::clients.show', compact(
             'client', 'totalOrders', 'completedOrders', 'pendingOrders', 'totalRevenue',
             'subscriptionPlans', 'clientCredit', 'activeSubscription',
-            'podPendingOrders', 'podTotalRemittance'
+            'podPendingOrders', 'podTotalRemittance',
+            'invoiceableOrders', 'invoicedOrderIds', 'invoices'
         ));
     }
 
@@ -2037,7 +2148,18 @@ class DashboardController extends Controller
             'special_instructions' => 'nullable|string',
             'onboarded_date' => 'nullable|date',
             'is_active' => 'boolean',
+            'zone_rates' => 'nullable|array',
+            'zone_rates.*' => 'nullable|numeric|min:0',
         ]);
+
+        $rawZoneRates = $request->input('zone_rates', []);
+        $zoneRates = [];
+        foreach ($rawZoneRates as $zone => $rate) {
+            if ($rate !== null && $rate !== '') {
+                $zoneRates[$zone] = (float) $rate;
+            }
+        }
+        $validated['zone_rates'] = empty($zoneRates) ? null : $zoneRates;
 
         $client->update($validated);
 

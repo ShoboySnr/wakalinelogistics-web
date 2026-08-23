@@ -25,13 +25,6 @@ class WhatsAppBotController extends Controller
         $this->pricer = $pricer;
     }
 
-    // ─── Orders ───────────────────────────────────────────────────────────────
-
-    /**
-     * GET /api/bot/v1/orders
-     *
-     * List orders with optional filters: status, client_id, client_phone, date (today|week|month), search.
-     */
     public function listOrders(Request $request): JsonResponse
     {
         $request->validate([
@@ -115,11 +108,6 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/bot/v1/orders/quote
-     *
-     * Preview price for a pickup → delivery route without creating an order.
-     */
     public function quote(Request $request): JsonResponse
     {
         $request->validate([
@@ -170,12 +158,6 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/bot/v1/orders
-     *
-     * Create an order. Client details and pickup address are auto-filled from
-     * the matched client. Price is auto-calculated unless explicitly provided.
-     */
     public function createOrder(Request $request): JsonResponse
     {
         $request->validate([
@@ -195,7 +177,7 @@ class WhatsAppBotController extends Controller
             'notes'            => 'nullable|string',
             'source_contact'   => 'nullable|string|max:255',
             'priority_level'   => 'nullable|in:normal,high,urgent',
-            'sender_email'     => 'nullable|email|max:255',
+            'force'            => 'nullable|boolean',
         ]);
 
         $client        = $this->resolveClient($request->client_phone, $request->client_id);
@@ -220,6 +202,39 @@ class WhatsAppBotController extends Controller
             ], 422);
         }
 
+        if (!$request->boolean('force')) {
+            $dupQuery = Order::where('created_at', '>=', now()->subHours(24))
+                ->whereNotIn('status', ['cancelled', 'delivered'])
+                ->where('delivery_address', $request->delivery_address)
+                ->where('receiver_phone', $request->receiver_phone)
+                ->where('item_description', $request->item_description);
+
+            if ($client) {
+                $dupQuery->where('client_id', $client->id);
+            } elseif ($senderPhone) {
+                $dupQuery->where('sender_phone', $senderPhone);
+            }
+
+            $duplicate = $dupQuery->latest()->first(['id', 'order_number', 'status', 'created_at', 'delivery_address', 'receiver_name', 'receiver_phone', 'item_description']);
+
+            if ($duplicate) {
+                return response()->json([
+                    'success'        => false,
+                    'message'        => "A similar order was created recently (#{$duplicate->order_number}). Pass force=true to create anyway.",
+                    'error'          => 'POSSIBLE_DUPLICATE',
+                    'existing_order' => [
+                        'order_number'     => $duplicate->order_number,
+                        'status'           => $duplicate->status,
+                        'created_at'       => $duplicate->created_at->toISOString(),
+                        'delivery_address' => $duplicate->delivery_address,
+                        'receiver_name'    => $duplicate->receiver_name,
+                        'receiver_phone'   => $duplicate->receiver_phone,
+                        'item_description' => $duplicate->item_description,
+                    ],
+                ], 409);
+            }
+        }
+
         $price    = null;
         $distance = null;
         $calcData = null;
@@ -240,7 +255,6 @@ class WhatsAppBotController extends Controller
             $calcData = $calc;
         }
 
-        // Resolve or create a user account for the sender so the order is linked
         $user = null;
         if ($senderPhone) {
             $normalised = $this->normalisePhone($senderPhone);
@@ -315,11 +329,6 @@ class WhatsAppBotController extends Controller
         return response()->json($response, 201);
     }
 
-    /**
-     * GET /api/bot/v1/orders/{order_number}
-     *
-     * Get full details of a single order.
-     */
     public function getOrder(string $orderNumber): JsonResponse
     {
         $order = $this->resolveOrder($orderNumber);
@@ -332,12 +341,6 @@ class WhatsAppBotController extends Controller
         return response()->json(['success' => true, 'order' => $this->orderDetail($order)]);
     }
 
-    /**
-     * PATCH /api/bot/v1/orders/{order_number}
-     *
-     * Partial update — only the fields you send will be changed.
-     * Useful for correcting addresses, notes, price, payment method, etc.
-     */
     public function updateOrder(Request $request, string $orderNumber): JsonResponse
     {
         $request->validate([
@@ -375,7 +378,6 @@ class WhatsAppBotController extends Controller
             }
         }
 
-        // Recalculate price if addresses changed and recalculate_price=true
         if ($request->boolean('recalculate_price')) {
             $calc = $this->pricer->processDeliveryCalculation($order->pickup_address, $order->delivery_address);
             if (!isset($calc['error'])) {
@@ -391,12 +393,6 @@ class WhatsAppBotController extends Controller
         return response()->json(['success' => true, 'message' => 'Order updated.', 'order' => $this->orderDetail($order->fresh(['rider', 'client']))]);
     }
 
-    /**
-     * PATCH /api/bot/v1/orders/{order_number}/status
-     *
-     * Update order status. Auto-stamps pickup_date/delivery_date as appropriate.
-     * Pass failed_delivery=true to mark as a failed delivery.
-     */
     public function updateStatus(Request $request, string $orderNumber): JsonResponse
     {
         $request->validate([
@@ -460,11 +456,6 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    /**
-     * PATCH /api/bot/v1/orders/{order_number}/rider
-     *
-     * Assign or unassign a rider. Pass rider_id to assign, omit (or null) to unassign.
-     */
     public function assignRider(Request $request, string $orderNumber): JsonResponse
     {
         $request->validate([
@@ -488,7 +479,6 @@ class WhatsAppBotController extends Controller
             'source'    => 'whatsapp_bot',
         ]);
 
-        // Email the client if a rider is newly assigned
         if ($newRider && $order->client_id) {
             try {
                 $client = Client::find($order->client_id);
@@ -510,11 +500,6 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    /**
-     * GET /api/bot/v1/orders/remit-summary?client_phone=...
-     *
-     * Return all unremitted COD orders for a client so the bot can display (and copy) a remittance summary.
-     */
     public function remitSummary(Request $request): JsonResponse
     {
         $request->validate([
@@ -559,11 +544,6 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/bot/v1/orders/bulk-remit
-     *
-     * Mark all unremitted COD orders for a client as remitted in one shot.
-     */
     public function bulkRemit(Request $request): JsonResponse
     {
         $request->validate([
@@ -611,12 +591,6 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    /**
-     * PATCH /api/bot/v1/orders/{order_number}/remit
-     *
-     * Toggle remitted status. Sets remitted_at = now() if not yet remitted; clears it if already remitted.
-     * to_remit = amount_received - price (positive = rider owes company, negative = company owes rider).
-     */
     public function remitOrder(string $orderNumber): JsonResponse
     {
         $order = $this->resolveOrder($orderNumber);
@@ -669,11 +643,6 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    /**
-     * DELETE /api/bot/v1/orders/{order_number}
-     *
-     * Permanently delete an order.
-     */
     public function deleteOrder(string $orderNumber): JsonResponse
     {
         $order = $this->resolveOrder($orderNumber);
@@ -692,23 +661,29 @@ class WhatsAppBotController extends Controller
         return response()->json(['success' => true, 'message' => "Order #{$orderNumber} deleted successfully."]);
     }
 
-    // ─── Riders ───────────────────────────────────────────────────────────────
-
-    /**
-     * GET /api/bot/v1/riders
-     *
-     * List active riders. Useful for the bot to show who is available to assign.
-     */
     public function listRiders(Request $request): JsonResponse
     {
         $request->validate([
             'status' => 'nullable|in:active,inactive,suspended',
+            'search' => 'nullable|string|max:100',
         ]);
 
         $riders = Rider::when($request->filled('status'), fn ($q) => $q->where('status', $request->status))
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $s = $request->search;
+                $q->where(function ($inner) use ($s) {
+                    $inner->where('name', 'like', "%{$s}%")
+                          ->orWhere('phone', 'like', "%{$s}%")
+                          ->orWhere('vehicle_type', 'like', "%{$s}%")
+                          ->orWhere('email', 'like', "%{$s}%");
+                    if (is_numeric($s)) {
+                        $inner->orWhere('id', (int) $s);
+                    }
+                });
+            })
             ->withCount(['orders as active_orders_count' => fn ($q) => $q->whereIn('status', ['confirmed', 'in_transit'])])
             ->orderBy('name')
-            ->get(['id', 'name', 'phone', 'status', 'vehicle_type']);
+            ->get(['id', 'name', 'phone', 'email', 'status', 'vehicle_type']);
 
         return response()->json([
             'success' => true,
@@ -717,6 +692,7 @@ class WhatsAppBotController extends Controller
                 'id'                  => $r->id,
                 'name'                => $r->name,
                 'phone'               => $r->phone,
+                'email'               => $r->email,
                 'status'              => $r->status,
                 'vehicle_type'        => $r->vehicle_type,
                 'active_orders_count' => $r->active_orders_count,
@@ -724,13 +700,6 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    // ─── Clients ──────────────────────────────────────────────────────────────
-
-    /**
-     * PATCH /api/bot/v1/clients/{ref}   (ref = numeric ID or phone number)
-     *
-     * Update editable fields on a client.
-     */
     public function updateClient(Request $request, string $ref): JsonResponse
     {
         $request->validate([
@@ -769,11 +738,6 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    /**
-     * DELETE /api/bot/v1/clients/{ref}   (ref = numeric ID or phone number)
-     *
-     * Deactivate (soft-delete) a client.
-     */
     public function deactivateClient(string $ref): JsonResponse
     {
         $client = is_numeric($ref)
@@ -794,35 +758,45 @@ class WhatsAppBotController extends Controller
         return response()->json(['success' => true, 'message' => "Client {$client->name} has been deactivated."]);
     }
 
-    /**
-     * GET /api/bot/v1/clients
-     *
-     * List all active clients (id, name, company, phone, pickup address).
-     */
-    public function listClients(): JsonResponse
+    public function listClients(Request $request): JsonResponse
     {
+        $request->validate([
+            'search' => 'nullable|string|max:100',
+        ]);
+
         $clients = Client::where('is_active', true)
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $s = $request->search;
+                $q->where(function ($inner) use ($s) {
+                    $inner->where('name', 'like', "%{$s}%")
+                          ->orWhere('company_name', 'like', "%{$s}%")
+                          ->orWhere('phone', 'like', "%{$s}%")
+                          ->orWhere('alternate_phone', 'like', "%{$s}%")
+                          ->orWhere('email', 'like', "%{$s}%")
+                          ->orWhere('pickup_address', 'like', "%{$s}%");
+                    if (is_numeric($s)) {
+                        $inner->orWhere('id', (int) $s);
+                    }
+                });
+            })
             ->orderBy('name')
-            ->get(['id', 'name', 'company_name', 'phone', 'pickup_address']);
+            ->get(['id', 'name', 'company_name', 'phone', 'alternate_phone', 'email', 'pickup_address']);
 
         return response()->json([
             'success' => true,
             'count'   => $clients->count(),
             'clients' => $clients->map(fn ($c) => [
-                'id'             => $c->id,
-                'name'           => $c->name,
-                'company_name'   => $c->company_name,
-                'phone'          => $c->phone,
-                'pickup_address' => $c->pickup_address,
+                'id'              => $c->id,
+                'name'            => $c->name,
+                'company_name'    => $c->company_name,
+                'phone'           => $c->phone,
+                'alternate_phone' => $c->alternate_phone,
+                'email'           => $c->email,
+                'pickup_address'  => $c->pickup_address,
             ]),
         ]);
     }
 
-    /**
-     * GET /api/bot/v1/clients/lookup?phone=080XXXXXXXX
-     *
-     * Look up a registered client by phone number.
-     */
     public function lookupClient(Request $request): JsonResponse
     {
         $request->validate(['phone' => 'required|string|max:20']);
@@ -847,11 +821,6 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    /**
-     * GET /api/bot/v1/clients/{id}
-     *
-     * Get a client by ID (used by bot admin commands to validate when linking a group).
-     */
     public function getClient(string $ref): JsonResponse
     {
         $cols = ['id', 'name', 'company_name', 'phone', 'pickup_address', 'pod_remittance_enabled'];
@@ -878,14 +847,6 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    // ─── Users ────────────────────────────────────────────────────────────────
-
-    /**
-     * GET /api/bot/v1/users/lookup?phone=080XXXXXXXX
-     *
-     * Check whether a registered user account exists for a given phone number.
-     * Used by the bot to decide whether to ask the sender for their email.
-     */
     public function lookupUser(Request $request): JsonResponse
     {
         $request->validate(['phone' => 'required|string|max:20']);
@@ -906,17 +867,10 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    // ─── Stats & Expenses ─────────────────────────────────────────────────────
-
-    /**
-     * GET /api/bot/v1/stats?period=today|yesterday|week|month|all_time
-     *
-     * Return revenue, expenses, profit, and order counts for the given period.
-     */
     public function getStats(Request $request): JsonResponse
     {
         $request->validate([
-            'period'     => 'nullable|in:today,yesterday,week,month,all_time',
+            'period'     => 'nullable|in:today,yesterday,week,month,all_time,last_week,last_month,custom',
             'start_date' => 'nullable|date',
             'end_date'   => 'nullable|date',
         ]);
@@ -951,15 +905,10 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    /**
-     * GET /api/bot/v1/expenses?period=...&limit=20
-     *
-     * List expenses for a period.
-     */
     public function listExpenses(Request $request): JsonResponse
     {
         $request->validate([
-            'period'     => 'nullable|in:today,yesterday,week,month,all_time',
+            'period'     => 'nullable|in:today,yesterday,week,month,all_time,last_week,last_month,custom',
             'start_date' => 'nullable|date',
             'end_date'   => 'nullable|date',
             'category'   => 'nullable|string|max:100',
@@ -996,11 +945,6 @@ class WhatsAppBotController extends Controller
         ]);
     }
 
-    /**
-     * POST /api/bot/v1/expenses
-     *
-     * Record a new expense.
-     */
     public function addExpense(Request $request): JsonResponse
     {
         $request->validate([
@@ -1032,9 +976,6 @@ class WhatsAppBotController extends Controller
         ], 201);
     }
 
-    /**
-     * DELETE /api/bot/v1/expenses/{id}
-     */
     public function deleteExpense(int $id): JsonResponse
     {
         $expense = \App\Modules\Admin\Models\Expense::find($id);
@@ -1062,6 +1003,12 @@ class WhatsAppBotController extends Controller
                 return [$d->copy()->startOfDay(), $d->copy()->endOfDay(), 'Yesterday (' . $d->format('M d, Y') . ')'];
             case 'week':
                 return [now()->startOfWeek(), now()->endOfWeek(), 'This Week'];
+            case 'last_week':
+                $lw = now()->subWeek();
+                return [$lw->copy()->startOfWeek(), $lw->copy()->endOfWeek(), 'Last Week'];
+            case 'last_month':
+                $lm = now()->subMonth();
+                return [$lm->copy()->startOfMonth(), $lm->copy()->endOfMonth(), $lm->format('F Y')];
             case 'all_time':
                 return [\Carbon\Carbon::parse('2000-01-01'), now()->endOfDay(), 'All Time'];
             case 'custom':
@@ -1073,15 +1020,6 @@ class WhatsAppBotController extends Controller
         }
     }
 
-    // ─── Rider Applications ───────────────────────────────────────────────────
-
-    /**
-     * POST /api/bot/v1/rider-applications
-     *
-     * Submit a dispatch-rider job application collected via the WhatsApp bot.
-     * Field names coming from the bot differ slightly from the JobApplication
-     * table columns, so we normalise them here before persisting.
-     */
     public function submitRiderApplication(Request $request): JsonResponse
     {
         $request->validate([
@@ -1136,7 +1074,353 @@ class WhatsAppBotController extends Controller
         }
     }
 
-    // ─── Helpers ──────────────────────────────────────────────────────────────
+    public function clientOrders(Request $request, string $ref): JsonResponse
+    {
+        $request->validate([
+            'status' => 'nullable|in:pending,confirmed,in_transit,delivered,cancelled',
+            'limit'  => 'nullable|integer|min:1|max:50',
+            'page'   => 'nullable|integer|min:1',
+        ]);
+
+        $client = is_numeric($ref)
+            ? Client::where('id', $ref)->first()
+            : Client::where('phone', $ref)->orWhere('alternate_phone', $ref)->first();
+
+        if (!$client) {
+            return response()->json(['success' => false, 'message' => "Client '{$ref}' not found.", 'error' => 'CLIENT_NOT_FOUND'], 404);
+        }
+
+        $query = Order::with('rider:id,name,phone')->where('client_id', $client->id);
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        $limit       = $request->integer('limit', 10);
+        $page        = max(1, $request->integer('page', 1));
+        $total       = $query->count();
+        $orders      = $query->latest()->skip(($page - 1) * $limit)->take($limit)->get();
+
+        return response()->json([
+            'success'     => true,
+            'client'      => ['id' => $client->id, 'name' => $client->name, 'phone' => $client->phone],
+            'total'       => $total,
+            'page'        => $page,
+            'total_pages' => (int) ceil($total / $limit),
+            'orders'      => $orders->map(fn ($o) => $this->orderSummary($o)),
+        ]);
+    }
+
+    public function cloneOrder(string $orderNumber): JsonResponse
+    {
+        $original = $this->resolveOrder($orderNumber);
+
+        if (!$original) {
+            return response()->json(['success' => false, 'message' => "Order #{$orderNumber} not found.", 'error' => 'ORDER_NOT_FOUND'], 404);
+        }
+
+        $clone = Order::create([
+            'user_id'          => $original->user_id,
+            'client_id'        => $original->client_id,
+            'source'           => $original->source,
+            'source_contact'   => $original->source_contact,
+            'sender_name'      => $original->sender_name,
+            'sender_phone'     => $original->sender_phone,
+            'sender_email'     => $original->sender_email,
+            'customer_name'    => $original->customer_name,
+            'customer_phone'   => $original->customer_phone,
+            'customer_email'   => $original->customer_email,
+            'pickup_address'   => $original->pickup_address,
+            'receiver_name'    => $original->receiver_name,
+            'receiver_phone'   => $original->receiver_phone,
+            'delivery_address' => $original->delivery_address,
+            'item_description' => $original->item_description,
+            'price'            => $original->price,
+            'distance'         => $original->distance,
+            'payment_method'   => $original->payment_method,
+            'notes'            => $original->notes,
+            'priority_level'   => $original->priority_level,
+            'status'           => 'pending',
+        ]);
+
+        ActivityLog::log('order_cloned', "WhatsApp bot cloned order #{$original->order_number} → #{$clone->order_number}", $clone, ['source' => 'whatsapp_bot', 'cloned_from' => $original->order_number]);
+
+        return response()->json([
+            'success'      => true,
+            'message'      => "Order cloned from #{$original->order_number}.",
+            'order_number' => $clone->order_number,
+            'order_id'     => $clone->id,
+            'original'     => $original->order_number,
+        ], 201);
+    }
+
+    public function riderReport(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'period'     => 'nullable|in:today,yesterday,week,month,all_time,last_week,last_month,custom',
+            'start_date' => 'nullable|date',
+            'end_date'   => 'nullable|date',
+        ]);
+
+        $rider = Rider::find($id);
+        if (!$rider) {
+            return response()->json(['success' => false, 'message' => "Rider #{$id} not found.", 'error' => 'RIDER_NOT_FOUND'], 404);
+        }
+
+        $period = $request->get('period', 'month');
+        [$startDate, $endDate, $label] = $this->resolvePeriod($period, $request->start_date, $request->end_date);
+
+        $orders = Order::where('rider_id', $id)
+            ->whereBetween('created_at', [$startDate, $endDate])
+            ->get(['id', 'status', 'price', 'delivery_date', 'is_failed_delivery']);
+
+        $delivered   = $orders->where('status', 'delivered')->count();
+        $inTransit   = $orders->where('status', 'in_transit')->count();
+        $cancelled   = $orders->where('status', 'cancelled')->count();
+        $failed      = $orders->where('is_failed_delivery', true)->count();
+        $total       = $orders->count();
+        $earnings    = $orders->where('status', 'delivered')->sum('price');
+        $successRate = $total > 0 ? round(($delivered / $total) * 100, 1) : null;
+
+        return response()->json([
+            'success'      => true,
+            'period'       => $label,
+            'rider'        => ['id' => $rider->id, 'name' => $rider->name, 'phone' => $rider->phone, 'status' => $rider->status, 'vehicle_type' => $rider->vehicle_type],
+            'orders_total' => $total,
+            'delivered'    => $delivered,
+            'in_transit'   => $inTransit,
+            'cancelled'    => $cancelled,
+            'failed'       => $failed,
+            'success_rate' => $successRate,
+            'earnings'     => (float) $earnings,
+            'currency'     => 'NGN',
+        ]);
+    }
+
+    public function setRiderStatus(Request $request, int $id): JsonResponse
+    {
+        $request->validate([
+            'status' => 'required|in:active,inactive,suspended',
+        ]);
+
+        $rider = Rider::find($id);
+        if (!$rider) {
+            return response()->json(['success' => false, 'message' => "Rider #{$id} not found.", 'error' => 'RIDER_NOT_FOUND'], 404);
+        }
+
+        $old = $rider->status;
+        $rider->status = $request->status;
+        $rider->save();
+
+        ActivityLog::log('rider_status_updated', "WhatsApp bot set rider #{$id} ({$rider->name}) status: {$old} → {$rider->status}", $rider, ['source' => 'whatsapp_bot']);
+
+        return response()->json([
+            'success'  => true,
+            'message'  => "Rider {$rider->name} is now {$rider->status}.",
+            'rider_id' => $rider->id,
+            'name'     => $rider->name,
+            'status'   => $rider->status,
+        ]);
+    }
+
+    public function expenseBreakdown(Request $request): JsonResponse
+    {
+        $request->validate([
+            'period'     => 'nullable|in:today,yesterday,week,month,all_time,last_week,last_month,custom',
+            'start_date' => 'nullable|date',
+            'end_date'   => 'nullable|date',
+        ]);
+
+        $period = $request->get('period', 'month');
+        [$startDate, $endDate, $label] = $this->resolvePeriod($period, $request->start_date, $request->end_date);
+
+        $rows = \App\Modules\Admin\Models\Expense::whereBetween('expense_date', [$startDate, $endDate])
+            ->selectRaw('category, COUNT(*) as count, SUM(amount) as total')
+            ->groupBy('category')
+            ->orderByDesc('total')
+            ->get();
+
+        $grandTotal = $rows->sum('total');
+
+        return response()->json([
+            'success'     => true,
+            'period'      => $label,
+            'grand_total' => (float) $grandTotal,
+            'breakdown'   => $rows->map(fn ($r) => [
+                'category' => $r->category,
+                'count'    => (int) $r->count,
+                'total'    => (float) $r->total,
+                'pct'      => $grandTotal > 0 ? round(($r->total / $grandTotal) * 100, 1) : 0,
+            ]),
+        ]);
+    }
+
+    public function topClients(Request $request): JsonResponse
+    {
+        $request->validate([
+            'period'     => 'nullable|in:today,yesterday,week,month,all_time,last_week,last_month,custom',
+            'start_date' => 'nullable|date',
+            'end_date'   => 'nullable|date',
+            'limit'      => 'nullable|integer|min:1|max:20',
+        ]);
+
+        $period = $request->get('period', 'month');
+        [$startDate, $endDate, $label] = $this->resolvePeriod($period, $request->start_date, $request->end_date);
+        $limit = $request->integer('limit', 10);
+
+        $rows = Order::where('status', 'delivered')
+            ->whereNotNull('client_id')
+            ->whereNotNull('delivery_date')
+            ->whereBetween('delivery_date', [$startDate, $endDate])
+            ->selectRaw('client_id, COUNT(*) as deliveries, SUM(price) as revenue')
+            ->groupBy('client_id')
+            ->orderByDesc('revenue')
+            ->limit($limit)
+            ->with('client:id,name,company_name,phone')
+            ->get();
+
+        return response()->json([
+            'success'    => true,
+            'period'     => $label,
+            'top_clients' => $rows->map(fn ($r) => [
+                'rank'         => null,
+                'client_id'    => $r->client_id,
+                'name'         => $r->client?->name ?? '—',
+                'company_name' => $r->client?->company_name,
+                'phone'        => $r->client?->phone,
+                'deliveries'   => (int) $r->deliveries,
+                'revenue'      => (float) $r->revenue,
+            ])->values()->map(function ($item, $i) {
+                $item['rank'] = $i + 1;
+                return $item;
+            }),
+        ]);
+    }
+
+    public function riderEarnings(Request $request): JsonResponse
+    {
+        $request->validate([
+            'period'     => 'nullable|in:today,yesterday,week,month,all_time,last_week,last_month,custom',
+            'start_date' => 'nullable|date',
+            'end_date'   => 'nullable|date',
+        ]);
+
+        $period = $request->get('period', 'month');
+        [$startDate, $endDate, $label] = $this->resolvePeriod($period, $request->start_date, $request->end_date);
+
+        $rows = Order::where('status', 'delivered')
+            ->whereNotNull('rider_id')
+            ->whereNotNull('delivery_date')
+            ->whereBetween('delivery_date', [$startDate, $endDate])
+            ->selectRaw('rider_id, COUNT(*) as deliveries, SUM(price) as earnings')
+            ->groupBy('rider_id')
+            ->orderByDesc('earnings')
+            ->with('rider:id,name,phone,vehicle_type')
+            ->get();
+
+        return response()->json([
+            'success'  => true,
+            'period'   => $label,
+            'earnings' => $rows->map(fn ($r) => [
+                'rider_id'     => $r->rider_id,
+                'name'         => $r->rider?->name ?? '—',
+                'phone'        => $r->rider?->phone,
+                'vehicle_type' => $r->rider?->vehicle_type,
+                'deliveries'   => (int) $r->deliveries,
+                'earnings'     => (float) $r->earnings,
+            ]),
+        ]);
+    }
+
+    public function createClient(Request $request): JsonResponse
+    {
+        $request->validate([
+            'name'            => 'required|string|max:255',
+            'phone'           => 'required|string|max:20',
+            'company_name'    => 'nullable|string|max:255',
+            'alternate_phone' => 'nullable|string|max:20',
+            'email'           => 'nullable|email|max:255',
+            'pickup_address'  => 'nullable|string',
+        ]);
+
+        $existing = Client::where('phone', $request->phone)->first();
+        if ($existing) {
+            return response()->json([
+                'success' => false,
+                'message' => "A client with phone {$request->phone} already exists (ID: {$existing->id}).",
+                'error'   => 'DUPLICATE_PHONE',
+                'client'  => ['id' => $existing->id, 'name' => $existing->name],
+            ], 409);
+        }
+
+        $client = Client::create([
+            'name'            => $request->name,
+            'phone'           => $request->phone,
+            'company_name'    => $request->company_name,
+            'alternate_phone' => $request->alternate_phone,
+            'email'           => $request->email,
+            'pickup_address'  => $request->pickup_address,
+            'is_active'       => true,
+        ]);
+
+        ActivityLog::log('client_created', "WhatsApp bot created client #{$client->id}: {$client->name}", $client, ['source' => 'whatsapp_bot']);
+
+        return response()->json([
+            'success'   => true,
+            'message'   => "Client {$client->name} created.",
+            'client_id' => $client->id,
+            'client'    => ['id' => $client->id, 'name' => $client->name, 'phone' => $client->phone, 'company_name' => $client->company_name, 'pickup_address' => $client->pickup_address],
+        ], 201);
+    }
+
+    public function universalSearch(Request $request): JsonResponse
+    {
+        $request->validate(['q' => 'required|string|min:2|max:100']);
+        $s = $request->q;
+
+        $orders = Order::with('rider:id,name', 'client:id,name')
+            ->where(function ($q) use ($s) {
+                $q->where('order_number', 'like', "%{$s}%")
+                  ->orWhere('receiver_name', 'like', "%{$s}%")
+                  ->orWhere('sender_name', 'like', "%{$s}%")
+                  ->orWhere('delivery_address', 'like', "%{$s}%")
+                  ->orWhere('receiver_phone', 'like', "%{$s}%");
+                if (is_numeric($s)) {
+                    $q->orWhere('id', (int) $s);
+                }
+            })
+            ->latest()->limit(5)->get();
+
+        $clients = Client::where('is_active', true)
+            ->where(function ($q) use ($s) {
+                $q->where('name', 'like', "%{$s}%")
+                  ->orWhere('company_name', 'like', "%{$s}%")
+                  ->orWhere('phone', 'like', "%{$s}%")
+                  ->orWhere('email', 'like', "%{$s}%");
+                if (is_numeric($s)) {
+                    $q->orWhere('id', (int) $s);
+                }
+            })
+            ->limit(5)->get(['id', 'name', 'company_name', 'phone', 'pickup_address']);
+
+        $riders = Rider::where(function ($q) use ($s) {
+                $q->where('name', 'like', "%{$s}%")
+                  ->orWhere('phone', 'like', "%{$s}%");
+                if (is_numeric($s)) {
+                    $q->orWhere('id', (int) $s);
+                }
+            })
+            ->limit(5)->get(['id', 'name', 'phone', 'status', 'vehicle_type']);
+
+        return response()->json([
+            'success' => true,
+            'query'   => $s,
+            'orders'  => $orders->map(fn ($o) => array_merge($this->orderSummary($o), ['_type' => 'order'])),
+            'clients' => $clients->map(fn ($c) => ['_type' => 'client', 'id' => $c->id, 'name' => $c->name, 'company_name' => $c->company_name, 'phone' => $c->phone, 'pickup_address' => $c->pickup_address]),
+            'riders'  => $riders->map(fn ($r) => ['_type' => 'rider', 'id' => $r->id, 'name' => $r->name, 'phone' => $r->phone, 'status' => $r->status, 'vehicle_type' => $r->vehicle_type]),
+            'total'   => $orders->count() + $clients->count() + $riders->count(),
+        ]);
+    }
 
     private function resolveOrder(string $ref): ?Order
     {

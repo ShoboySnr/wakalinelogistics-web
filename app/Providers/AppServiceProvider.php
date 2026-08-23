@@ -22,6 +22,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        ini_set('serialize_precision', -1);
+
         Mail::extend('sendgrid', function (array $config = []) {
             return new SendgridTransport($config['key'], new Client());
         });

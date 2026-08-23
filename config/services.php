@@ -63,4 +63,8 @@ return [
         'merchant_email' => env('PAYSTACK_MERCHANT_EMAIL'),
     ],
 
+    'anthropic' => [
+        'key' => env('ANTHROPIC_API_KEY'),
+    ],
+
 ];
