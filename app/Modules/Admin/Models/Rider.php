@@ -2,12 +2,31 @@
 
 namespace App\Modules\Admin\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
-class Rider extends Model
+class Rider extends Authenticatable
 {
+    use HasApiTokens, Notifiable;
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+        'login_otp',
+    ];
+
     protected $fillable = [
+        'password',
+        'phone_verified_at',
+        'login_otp',
+        'login_otp_expires_at',
+        'last_login_at',
+        'is_online',
+        'last_seen_at',
+        'app_version',
         'user_id',
         'name',
         'email',
@@ -79,6 +98,11 @@ class Rider extends Model
     ];
 
     protected $casts = [
+        'phone_verified_at' => 'datetime',
+        'login_otp_expires_at' => 'datetime',
+        'last_login_at' => 'datetime',
+        'last_seen_at' => 'datetime',
+        'is_online' => 'boolean',
         'rating' => 'decimal:2',
         'total_deliveries' => 'integer',
         'guarantor1_dob' => 'date',
@@ -155,5 +179,31 @@ class Rider extends Model
             && $this->daily_code_date 
             && $this->daily_code_date->isToday()
             && strtoupper($code) === strtoupper($this->daily_code);
+    }
+
+    public function deviceTokens(): MorphMany
+    {
+        return $this->morphMany(\App\Models\DeviceToken::class, 'tokenable');
+    }
+
+    public function goOnline(?float $latitude = null, ?float $longitude = null): void
+    {
+        $this->forceFill([
+            'is_online' => true,
+            'last_seen_at' => now(),
+            'current_latitude' => $latitude ?? $this->current_latitude,
+            'current_longitude' => $longitude ?? $this->current_longitude,
+            'last_location_update' => $latitude !== null ? now() : $this->last_location_update,
+        ])->save();
+    }
+
+    public function goOffline(): void
+    {
+        $this->forceFill(['is_online' => false, 'last_seen_at' => now()])->save();
+    }
+
+    public function canLogIn(): bool
+    {
+        return $this->status === 'active' && ! empty($this->password);
     }
 }

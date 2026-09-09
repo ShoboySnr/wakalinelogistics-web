@@ -22,8 +22,16 @@ class JobApplication extends Model
         'vehicle_registration',
         'coverage_areas',
         'has_smartphone',
-        'guarantor_name',
-        'guarantor_phone',
+        'guarantor1_full_name',
+        'guarantor1_phone',
+        'guarantor1_relationship',
+        'guarantor1_occupation',
+        'guarantor1_residential_address',
+        'guarantor2_full_name',
+        'guarantor2_phone',
+        'guarantor2_relationship',
+        'guarantor2_occupation',
+        'guarantor2_residential_address',
         'experience_years',
         'previous_work',
         'availability',
@@ -100,6 +108,22 @@ class JobApplication extends Model
             'foot_soldier' => 'Foot Soldier',
             default => ucwords(str_replace('_', ' ', (string) $this->job_type)),
         };
+    }
+
+    public function guarantors(): array
+    {
+        return collect([1, 2])
+            ->map(fn (int $index) => [
+                'index' => $index,
+                'full_name' => $this->{"guarantor{$index}_full_name"},
+                'phone' => $this->{"guarantor{$index}_phone"},
+                'relationship' => $this->{"guarantor{$index}_relationship"},
+                'occupation' => $this->{"guarantor{$index}_occupation"},
+                'residential_address' => $this->{"guarantor{$index}_residential_address"},
+            ])
+            ->filter(fn (array $guarantor) => ! empty($guarantor['full_name']))
+            ->values()
+            ->all();
     }
 
     public function isPartnerApplication(): bool

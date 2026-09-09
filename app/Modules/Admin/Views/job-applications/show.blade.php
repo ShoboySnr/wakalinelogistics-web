@@ -102,15 +102,6 @@
                         <p class="mt-1 text-sm text-gray-900">{{ $application->has_smartphone ? 'Yes' : 'No' }}</p>
                     </div>
                     @endif
-                    @if($application->guarantor_name)
-                    <div>
-                        <label class="text-xs font-medium text-gray-500 uppercase">Guarantor</label>
-                        <p class="mt-1 text-sm text-gray-900">{{ $application->guarantor_name }}</p>
-                        @if($application->guarantor_phone)
-                        <a href="tel:{{ $application->guarantor_phone }}" class="text-sm brand-accent-text hover:underline">{{ $application->guarantor_phone }}</a>
-                        @endif
-                    </div>
-                    @endif
                     @if($application->coverage_areas)
                     <div class="sm:col-span-2">
                         <label class="text-xs font-medium text-gray-500 uppercase">Areas Covered</label>
@@ -118,6 +109,60 @@
                     </div>
                     @endif
                 </dl>
+            </div>
+            @endif
+
+            <!-- Guarantors -->
+            @if(count($application->guarantors()))
+            <div class="bg-white shadow rounded-lg p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 brand-accent-text" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                    </svg>
+                    Guarantors
+                    <span class="ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-600">{{ count($application->guarantors()) }} of 2</span>
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    @foreach($application->guarantors() as $guarantor)
+                    <div class="border border-gray-200 rounded-lg p-4">
+                        <div class="text-xs font-medium text-gray-500 uppercase mb-2">Guarantor {{ $guarantor['index'] }}</div>
+
+                        <p class="text-sm font-medium text-gray-900">{{ $guarantor['full_name'] }}</p>
+
+                        @if($guarantor['phone'])
+                        <a href="tel:{{ $guarantor['phone'] }}" class="text-sm brand-accent-text hover:underline" style="transition: color 0.2s ease;" onmouseover="this.style.color='#a8555a';" onmouseout="this.style.color='#C1666B';">
+                            {{ $guarantor['phone'] }}
+                        </a>
+                        @endif
+
+                        <dl class="mt-3 space-y-2">
+                            @if($guarantor['relationship'])
+                            <div>
+                                <dt class="text-xs font-medium text-gray-500 uppercase">Relationship</dt>
+                                <dd class="text-sm text-gray-900">{{ $guarantor['relationship'] }}</dd>
+                            </div>
+                            @endif
+                            @if($guarantor['occupation'])
+                            <div>
+                                <dt class="text-xs font-medium text-gray-500 uppercase">Occupation</dt>
+                                <dd class="text-sm text-gray-900">{{ $guarantor['occupation'] }}</dd>
+                            </div>
+                            @endif
+                            @if($guarantor['residential_address'])
+                            <div>
+                                <dt class="text-xs font-medium text-gray-500 uppercase">Address</dt>
+                                <dd class="text-sm text-gray-900">{{ $guarantor['residential_address'] }}</dd>
+                            </div>
+                            @endif
+                        </dl>
+                    </div>
+                    @endforeach
+                </div>
+
+                @if(count($application->guarantors()) < 2)
+                <p class="mt-4 text-sm text-gray-500">Only one guarantor was supplied. Follow up before verifying this partner.</p>
+                @endif
             </div>
             @endif
 

@@ -33,8 +33,16 @@ class JobApplicationController extends Controller
             'vehicle_registration' => 'nullable|string|max:100',
             'coverage_areas' => 'nullable|string|max:1000',
             'has_smartphone' => 'nullable|boolean',
-            'guarantor_name' => 'nullable|string|max:255',
-            'guarantor_phone' => 'nullable|string|max:20',
+            'guarantor1_full_name' => 'required_if:job_type,partner_rider,foot_soldier|nullable|string|min:2|max:255',
+            'guarantor1_phone' => 'required_if:job_type,partner_rider,foot_soldier|nullable|string|min:10|max:20',
+            'guarantor1_relationship' => 'required_if:job_type,partner_rider,foot_soldier|nullable|string|max:100',
+            'guarantor1_occupation' => 'nullable|string|max:150',
+            'guarantor1_residential_address' => 'nullable|string|max:500',
+            'guarantor2_full_name' => 'required_if:job_type,partner_rider,foot_soldier|nullable|string|min:2|max:255|different:guarantor1_full_name',
+            'guarantor2_phone' => 'required_if:job_type,partner_rider,foot_soldier|nullable|string|min:10|max:20|different:guarantor1_phone',
+            'guarantor2_relationship' => 'required_if:job_type,partner_rider,foot_soldier|nullable|string|max:100',
+            'guarantor2_occupation' => 'nullable|string|max:150',
+            'guarantor2_residential_address' => 'nullable|string|max:500',
         ], [
             'job_type.required' => 'Job type is required',
             'job_type.in' => 'Invalid job type selected',
@@ -52,6 +60,14 @@ class JobApplicationController extends Controller
             'age.min' => 'You must be at least 18 years old',
             'age.max' => 'Age cannot exceed 60 years',
             'age.integer' => 'Age must be a valid number',
+            'guarantor1_full_name.required_if' => "The first guarantor's name is required",
+            'guarantor1_phone.required_if' => "The first guarantor's phone number is required",
+            'guarantor1_relationship.required_if' => 'Tell us how you know your first guarantor',
+            'guarantor2_full_name.required_if' => "The second guarantor's name is required",
+            'guarantor2_phone.required_if' => "The second guarantor's phone number is required",
+            'guarantor2_relationship.required_if' => 'Tell us how you know your second guarantor',
+            'guarantor2_full_name.different' => 'Your two guarantors must be different people',
+            'guarantor2_phone.different' => 'Each guarantor needs their own phone number',
         ]);
 
         if ($validator->fails()) {
