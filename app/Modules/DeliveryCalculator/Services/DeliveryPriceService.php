@@ -100,6 +100,54 @@ class DeliveryPriceService
         }
     }
 
+    public function resolveDistanceKm(array $origin, array $destination): ?float
+    {
+        $road = $this->roadDistance($origin, $destination);
+
+        if ($road !== null) {
+            return $road;
+        }
+
+        // Google unavailable — fall back to the straight-line estimate.
+        return $this->calculateDistance($origin, $destination);
+    }
+
+    public function roadDistance(array $origin, array $destination): ?float
+    {
+        $cacheKey = 'google_distmatrix_' . md5(sprintf(
+            '%.5f,%.5f|%.5f,%.5f',
+            $origin['lat'], $origin['lng'], $destination['lat'], $destination['lng']
+        ));
+
+        return Cache::remember($cacheKey, 86400, function () use ($origin, $destination) {
+            try {
+                $response = Http::get('https://maps.googleapis.com/maps/api/distancematrix/json', [
+                    'origins'      => $origin['lat'] . ',' . $origin['lng'],
+                    'destinations' => $destination['lat'] . ',' . $destination['lng'],
+                    'mode'         => 'driving',
+                    'region'       => 'ng',
+                    'key'          => config('services.google_maps.api_key'),
+                ]);
+
+                $data = $response->json();
+                $element = $data['rows'][0]['elements'][0] ?? [];
+
+                if (($data['status'] ?? '') === 'OK' && ($element['status'] ?? '') === 'OK') {
+                    return round($element['distance']['value'] / 1000, 2);
+                }
+
+                Log::warning('Distance Matrix returned no route, using Haversine fallback', [
+                    'status'         => $data['status'] ?? 'unknown',
+                    'element_status' => $element['status'] ?? 'unknown',
+                ]);
+            } catch (\Exception $e) {
+                Log::error('Distance Matrix error: ' . $e->getMessage());
+            }
+
+            return null;
+        });
+    }
+
     public function calculateDistance(array $origin, array $destination): ?float
     {
         try {
@@ -158,32 +206,30 @@ class DeliveryPriceService
             $basePrice += $interZoneSurcharge;
         }
 
-        $deliveryLower = strtolower($deliveryAddress);
-
         // Lekki/Ajah/Sangotedo premium
-        if (str_contains($deliveryLower, 'lekki') || 
-            str_contains($deliveryLower, 'ajah') || 
-            str_contains($deliveryLower, 'sangotedo')) {
-            $basePrice += 500; // Lekki premium
+        if ($this->addressMentions($deliveryAddress, 'lekki')
+            || $this->addressMentions($deliveryAddress, 'ajah')
+            || $this->addressMentions($deliveryAddress, 'sangotedo')) {
+            $basePrice += 500;
         }
 
         // Apapa/Ajegunle premium
-        if (str_contains($deliveryLower, 'apapa') || 
-            str_contains($deliveryLower, 'ajegunle')) {
-            $basePrice += 1000; // Apapa premium
+        if ($this->addressMentions($deliveryAddress, 'apapa')
+            || $this->addressMentions($deliveryAddress, 'ajegunle')) {
+            $basePrice += 1000;
         }
 
-        // Interstate premium (Mowe/Sango Ota)
-        if (str_contains($deliveryLower, 'mowe') || 
-            str_contains($deliveryLower, 'sango ota') || 
-            str_contains($deliveryLower, 'ota')) {
-            $basePrice += 1000; // Interstate premium
+        // Interstate premium (Mowe / Sango Ota / Ota, Ogun State)
+        if ($this->addressMentions($deliveryAddress, 'mowe')
+            || $this->addressMentions($deliveryAddress, 'sango ota')
+            || $this->addressMentions($deliveryAddress, 'ota')) {
+            $basePrice += 1000;
         }
 
-        // Round to nearest 500 if round_up_price is enabled
+        // Round UP to the next 500 if round_up_price is enabled
         $roundUpPrice = $this->getConfig('round_up_price', true);
         if ($roundUpPrice) {
-            $finalPrice = (int) (round($basePrice / 500) * 500);
+            $finalPrice = (int) (ceil($basePrice / 500) * 500);
         } else {
             $finalPrice = (int) round($basePrice);
         }
@@ -250,7 +296,7 @@ class DeliveryPriceService
             return ['error' => 'Could not geocode delivery address'];
         }
 
-        $distance = $this->calculateDistance($pickupGeo, $deliveryGeo);
+        $distance = $this->resolveDistanceKm($pickupGeo, $deliveryGeo);
         if ($distance === null) {
             return ['error' => 'Could not calculate distance'];
         }
@@ -315,7 +361,7 @@ class DeliveryPriceService
                 continue;
             }
 
-            $distance = $this->calculateDistance($pickupGeo, $deliveryGeo);
+            $distance = $this->resolveDistanceKm($pickupGeo, $deliveryGeo);
             if ($distance === null) {
                 $failedPickups[] = [
                     'address' => $pickupAddress,
@@ -368,5 +414,14 @@ class DeliveryPriceService
                 'currency' => 'NGN'
             ]
         ];
+    }
+
+    /**
+     * True when the address mentions the term as a whole word, so a premium for
+     * "ota" (Ogun State) does not fire on Ojota, Ikota or Toyota.
+     */
+    private function addressMentions(string $address, string $term): bool
+    {
+        return (bool) preg_match('/\\b' . preg_quote($term, '/') . '\\b/i', $address);
     }
 }
