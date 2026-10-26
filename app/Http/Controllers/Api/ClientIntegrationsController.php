@@ -18,11 +18,35 @@ class ClientIntegrationsController extends Controller
     private function getAvailableIntegrations(): array
     {
         return [
+            'webhook' => [
+                'name' => 'Webhook',
+                'description' => 'Receive real-time order notifications',
+                'category' => 'automation',
+                'icon' => '🔔',
+                'fields' => [
+                    ['name' => 'webhook_url', 'label' => 'Webhook URL', 'type' => 'url', 'required' => true],
+                    ['name' => 'secret', 'label' => 'Webhook Secret (for signature verification)', 'type' => 'password', 'required' => false],
+                ],
+                'features' => [
+                    'Order created notifications',
+                    'Order status updates',
+                    'Rider assigned notifications',
+                    'Delivery completed notifications',
+                ],
+                'events' => [
+                    'order.created' => 'Order Created',
+                    'order.confirmed' => 'Order Confirmed',
+                    'order.in_transit' => 'Order In Transit',
+                    'order.delivered' => 'Order Delivered',
+                    'order.cancelled' => 'Order Cancelled',
+                    'order.rider_assigned' => 'Rider Assigned',
+                ],
+            ],
             'mailchimp' => [
                 'name' => 'Mailchimp',
                 'description' => 'Email marketing and automation',
                 'category' => 'email_marketing',
-                'icon' => '',
+                'icon' => '📧',
                 'fields' => [
                     ['name' => 'api_key', 'label' => 'API Key', 'type' => 'password', 'required' => true],
                     ['name' => 'server_prefix', 'label' => 'Server Prefix (e.g., us1)', 'type' => 'text', 'required' => true],

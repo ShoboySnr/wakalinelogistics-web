@@ -4,9 +4,13 @@ namespace App\Modules\Client\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Admin\Models\Order;
+use App\Modules\Admin\Models\ClientIntegration;
+use App\Modules\Admin\Models\IntegrationLog;
+use App\Services\WebhookService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 
 class ClientDashboardController extends Controller
 {
@@ -231,5 +235,174 @@ class ClientDashboardController extends Controller
         ]);
 
         return back()->with('success', 'Password updated successfully');
+    }
+
+    public function webhookSettings()
+    {
+        $client = Auth::guard('client')->user();
+        
+        $webhook = ClientIntegration::where('client_id', $client->id)
+            ->where('integration_type', 'webhook')
+            ->first();
+
+        $logs = [];
+        if ($webhook) {
+            $logs = IntegrationLog::where('client_integration_id', $webhook->id)
+                ->orderByDesc('created_at')
+                ->limit(50)
+                ->get();
+        }
+
+        $events = [
+            'order.created' => 'Order Created',
+            'order.confirmed' => 'Order Confirmed',
+            'order.in_transit' => 'Order In Transit',
+            'order.delivered' => 'Order Delivered',
+            'order.cancelled' => 'Order Cancelled',
+            'order.rider_assigned' => 'Rider Assigned',
+        ];
+
+        return view('Client::settings.webhook', compact('webhook', 'logs', 'events'));
+    }
+
+    public function updateWebhookSettings(Request $request)
+    {
+        $client = Auth::guard('client')->user();
+
+        $validated = $request->validate([
+            'webhook_url' => 'required|url|max:500',
+            'secret' => 'nullable|string|max:255',
+        ]);
+
+        $credentials = [
+            'webhook_url' => $validated['webhook_url'],
+        ];
+
+        if (!empty($validated['secret'])) {
+            $credentials['secret'] = $validated['secret'];
+        }
+
+        ClientIntegration::updateOrCreate(
+            [
+                'client_id' => $client->id,
+                'integration_type' => 'webhook',
+            ],
+            [
+                'credentials' => $credentials,
+                'is_active' => true,
+            ]
+        );
+
+        return back()->with('success', 'Webhook settings saved successfully');
+    }
+
+    public function toggleWebhook()
+    {
+        $client = Auth::guard('client')->user();
+
+        $webhook = ClientIntegration::where('client_id', $client->id)
+            ->where('integration_type', 'webhook')
+            ->firstOrFail();
+
+        $webhook->is_active = !$webhook->is_active;
+        $webhook->save();
+
+        $status = $webhook->is_active ? 'enabled' : 'disabled';
+        
+        return back()->with('success', "Webhook {$status} successfully");
+    }
+
+    public function testWebhook(WebhookService $webhookService)
+    {
+        $client = Auth::guard('client')->user();
+
+        $webhook = ClientIntegration::where('client_id', $client->id)
+            ->where('integration_type', 'webhook')
+            ->where('is_active', true)
+            ->first();
+
+        if (!$webhook) {
+            return back()->with('error', 'No active webhook configured');
+        }
+
+        $webhookUrl = $webhook->credentials['webhook_url'] ?? null;
+        if (!$webhookUrl) {
+            return back()->with('error', 'Webhook URL not configured');
+        }
+
+        $testPayload = [
+            'event' => 'webhook.test',
+            'timestamp' => now()->toIso8601String(),
+            'data' => [
+                'message' => 'This is a test webhook from WakaLine Logistics',
+                'client_id' => $client->id,
+                'client_name' => $client->name,
+            ],
+        ];
+
+        try {
+            $secret = $webhook->credentials['secret'] ?? null;
+            $signature = $secret ? hash_hmac('sha256', json_encode($testPayload), $secret) : '';
+
+            $response = Http::timeout(10)
+                ->withHeaders([
+                    'Content-Type' => 'application/json',
+                    'X-Webhook-Event' => 'webhook.test',
+                    'X-Webhook-Signature' => $signature,
+                    'User-Agent' => 'WakaLine-Webhooks/1.0',
+                ])
+                ->post($webhookUrl, $testPayload);
+
+            if ($response->successful()) {
+                IntegrationLog::create([
+                    'client_integration_id' => $webhook->id,
+                    'action' => 'webhook_test',
+                    'status' => 'success',
+                    'data' => [
+                        'response_code' => $response->status(),
+                        'response_body' => $response->body(),
+                    ],
+                ]);
+
+                return back()->with('success', 'Test webhook sent successfully! Response: ' . $response->status());
+            } else {
+                IntegrationLog::create([
+                    'client_integration_id' => $webhook->id,
+                    'action' => 'webhook_test',
+                    'status' => 'failed',
+                    'data' => [
+                        'response_code' => $response->status(),
+                        'response_body' => $response->body(),
+                    ],
+                    'error_message' => "HTTP {$response->status()}",
+                ]);
+
+                return back()->with('error', "Test webhook failed with HTTP {$response->status()}");
+            }
+        } catch (\Exception $e) {
+            IntegrationLog::create([
+                'client_integration_id' => $webhook->id,
+                'action' => 'webhook_test',
+                'status' => 'failed',
+                'error_message' => $e->getMessage(),
+            ]);
+
+            return back()->with('error', 'Test webhook failed: ' . $e->getMessage());
+        }
+    }
+
+    public function deleteWebhook()
+    {
+        $client = Auth::guard('client')->user();
+
+        $webhook = ClientIntegration::where('client_id', $client->id)
+            ->where('integration_type', 'webhook')
+            ->first();
+
+        if ($webhook) {
+            $webhook->delete();
+        }
+
+        return back()->with('success', 'Webhook configuration deleted successfully');
     }
 }

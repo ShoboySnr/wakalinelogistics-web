@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Mail\Transport\SendgridTransport;
+use App\Modules\Admin\Models\Order;
+use App\Observers\OrderWebhookObserver;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
@@ -38,10 +40,11 @@ class AppServiceProvider extends ServiceProvider
             'landing-page'
         );
 
-        // Admin module views
         $this->loadViewsFrom(
             app_path('Modules/Admin/Views'),
             'Admin'
         );
+
+        Order::observe(OrderWebhookObserver::class);
     }
 }

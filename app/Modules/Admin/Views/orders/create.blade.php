@@ -210,6 +210,8 @@
                     </div>
                 </div>
 
+                @include('Admin::orders.partials.stock-items', ['stockClients' => $stockClients])
+
                 <div class="md:col-span-2 bg-pink-50 rounded-lg p-4">
                     <h4 class="text-sm font-semibold mb-3 brand-accent-text">Price Calculator</h4>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">

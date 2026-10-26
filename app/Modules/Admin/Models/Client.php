@@ -30,6 +30,9 @@ class Client extends Authenticatable
         'instagram_handle',
         'payment_terms',
         'credit_limit',
+        'bank_name',
+        'bank_account_name',
+        'bank_account_number',
         'notes',
         'special_instructions',
         'onboarded_date',
@@ -116,6 +119,25 @@ class Client extends Authenticatable
     public function orders()
     {
         return $this->hasMany(Order::class);
+    }
+
+    public function stocks()
+    {
+        return $this->hasMany(ClientStock::class)->orderBy('id');
+    }
+
+    public function stockAfterOrders($orders)
+    {
+        $pending = OrderStockItem::whereIn('order_id', collect($orders)->where('is_failed_delivery', false)->pluck('id'))
+            ->whereNull('deducted_at')
+            ->get()
+            ->groupBy('client_stock_id')
+            ->map(fn ($items) => $items->sum('quantity'));
+
+        return $this->stocks()->get()->map(fn ($stock) => [
+            'product_name' => $stock->product_name,
+            'quantity' => max(0, $stock->quantity - (int) ($pending[$stock->id] ?? 0)),
+        ])->values();
     }
 
     public function getZoneRate(string $zone): ?float

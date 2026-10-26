@@ -83,6 +83,13 @@
 
                     <!-- Table -->
                     <div id="remit-table-wrap" class="hidden">
+                        <div class="px-6 py-4 border-b border-gray-100">
+                            <div class="rounded-lg p-4" style="background-color: #fdf1f1; border: 1px solid #e8a0a4;">
+                                <p class="text-sm font-semibold brand-accent-text mb-2">Client Bank Details</p>
+                                <div id="remit-bank-details" class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm"></div>
+                                <p id="remit-bank-missing" class="hidden text-xs text-gray-500">No bank details saved. Add them on the client's edit page.</p>
+                            </div>
+                        </div>
                         <table class="min-w-full divide-y divide-gray-200 text-sm">
                             <thead class="bg-gray-50 sticky top-0">
                                 <tr>
@@ -421,6 +428,8 @@ async function loadRemittanceData(clientId) {
 
         remitData = data;
 
+        renderRemitBankDetails(data.bank || {});
+
         // Build table rows
         const tbody = document.getElementById('remit-table-body');
         tbody.innerHTML = '';
@@ -481,6 +490,33 @@ function fmt(num) {
     return Number(num).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function renderRemitBankDetails(bank) {
+    const container = document.getElementById('remit-bank-details');
+    const missing = document.getElementById('remit-bank-missing');
+    const fields = [
+        ['Bank', bank.bank_name],
+        ['Account Number', bank.account_number],
+        ['Account Name', bank.account_name],
+    ];
+    const hasAny = fields.some(([, value]) => value);
+
+    container.innerHTML = '';
+    container.classList.toggle('hidden', !hasAny);
+    missing.classList.toggle('hidden', hasAny);
+
+    fields.forEach(([label, value]) => {
+        const cell = document.createElement('div');
+        const labelEl = document.createElement('p');
+        labelEl.className = 'text-xs text-gray-500';
+        labelEl.textContent = label;
+        const valueEl = document.createElement('p');
+        valueEl.className = 'font-medium text-gray-900';
+        valueEl.textContent = value || '—';
+        cell.append(labelEl, valueEl);
+        container.appendChild(cell);
+    });
+}
+
 function copyRemitModalSummary() {
     if (!remitData) return;
 
@@ -491,6 +527,7 @@ function copyRemitModalSummary() {
         '',
     ];
 
+    let productCount = 0;
     remitData.orders.forEach((order, i) => {
         lines.push(`${i + 1}. ${order.delivery_address}${order.is_failed ? ' [FAILED DELIVERY]' : ''}`);
         if (order.is_failed) {
@@ -498,13 +535,35 @@ function copyRemitModalSummary() {
         } else {
             lines.push(`   Received: ₦${fmt(order.amount_received)} | Delivery Fee: ₦${fmt(order.delivery_fee)} | Remit: ₦${fmt(order.to_remit)}`);
         }
+        if (order.products && order.products.length) {
+            lines.push(`   Products: ${order.products.map(p => `${p.product_name} x${p.quantity}`).join(', ')}${order.is_failed ? ' (returned)' : ''}`);
+            if (!order.is_failed) {
+                productCount += order.products.reduce((sum, p) => sum + Number(p.quantity), 0);
+            }
+        }
     });
 
     lines.push('');
     lines.push('─'.repeat(40));
     lines.push(`Total Orders: ${remitData.orders.length}`);
+    if (productCount > 0) {
+        lines.push(`Total Products Delivered: ${productCount}`);
+    }
+    const totalReceived = remitData.orders.reduce((sum, o) => sum + Number(o.amount_received || 0), 0);
+    const totalFees = remitData.orders.reduce((sum, o) => sum + Number(o.delivery_fee || 0), 0);
+    lines.push(`Total Received: ₦${fmt(totalReceived)}`);
+    lines.push(`Total Delivery Fees: ₦${fmt(totalFees)}`);
+    lines.push('');
     const totalRemit = remitData.total_remittance;
     lines.push(`Total to Remit: ${totalRemit < 0 ? '−₦' + fmt(Math.abs(totalRemit)) : '₦' + fmt(totalRemit)}`);
+
+    if (remitData.stocks && remitData.stocks.length) {
+        lines.push('');
+        lines.push('Stock Left:');
+        remitData.stocks.forEach((stock, i) => {
+            lines.push(`${i + 1}. ${stock.product_name}: ${stock.quantity}`);
+        });
+    }
 
     navigator.clipboard.writeText(lines.join('\n')).then(() => {
         const btn = document.getElementById('remit-copy-btn');

@@ -4,6 +4,7 @@ namespace App\Modules\Admin\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Order extends Model
 {
@@ -125,6 +126,29 @@ class Order extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    public function stockItems(): HasMany
+    {
+        return $this->hasMany(OrderStockItem::class);
+    }
+
+    public function deductStock(): void
+    {
+        if ($this->is_failed_delivery) {
+            return;
+        }
+
+        $this->stockItems()->whereNull('deducted_at')->get()->each(function (OrderStockItem $item) {
+            $stock = $item->clientStock
+                ?? ClientStock::where('client_id', $this->client_id)->where('product_name', $item->product_name)->first();
+
+            if ($stock) {
+                $stock->update(['quantity' => max(0, $stock->quantity - $item->quantity)]);
+            }
+
+            $item->update(['deducted_at' => now()]);
+        });
     }
 
     public static function generateOrderNumber(): string

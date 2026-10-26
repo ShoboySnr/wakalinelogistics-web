@@ -10,6 +10,7 @@ use App\Modules\Admin\Models\Rider;
 use App\Modules\Admin\Models\Expense;
 use App\Modules\Admin\Models\RouteShare;
 use App\Modules\Admin\Models\Client;
+use App\Modules\Admin\Models\ClientStock;
 use App\Modules\Admin\Models\JobApplication;
 use App\Services\Ai\AiAnalystService;
 use App\Services\ZoneBatchDiscountService;
@@ -120,7 +121,13 @@ class DashboardController extends Controller
                 return count($item['expired_docs']) > 0;
             });
 
-        return view('Admin::dashboard', compact('stats', 'recent_orders', 'expiring_bike_docs', 'expired_bike_docs', 'upcoming_maintenance'));
+        $low_stocks = ClientStock::with('client:id,name,company_name')
+            ->where('quantity', '<=', 1)
+            ->whereHas('client', fn ($q) => $q->where('pod_remittance_enabled', true))
+            ->orderBy('quantity')
+            ->get();
+
+        return view('Admin::dashboard', compact('stats', 'recent_orders', 'expiring_bike_docs', 'expired_bike_docs', 'upcoming_maintenance', 'low_stocks'));
     }
 
     public function orders(Request $request)
@@ -2315,14 +2322,13 @@ class DashboardController extends Controller
     {
         $query = JobApplication::query()->with('reviewer');
 
+        // Build base query for filters (excluding status filter for stats)
+        $baseQuery = JobApplication::query();
+
         // Filter by job type
         if ($request->filled('job_type')) {
             $query->where('job_type', $request->job_type);
-        }
-
-        // Filter by status
-        if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $baseQuery->where('job_type', $request->job_type);
         }
 
         // Search by name, phone, or email
@@ -2333,11 +2339,30 @@ class DashboardController extends Controller
                   ->orWhere('phone', 'like', "%{$search}%")
                   ->orWhere('email', 'like', "%{$search}%");
             });
+            $baseQuery->where(function($q) use ($search) {
+                $q->where('full_name', 'like', "%{$search}%")
+                  ->orWhere('phone', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
         }
+
+        // Filter by status (only for main query, not stats)
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        // Get statistics based on filtered results
+        $stats = [
+            'pending' => (clone $baseQuery)->where('status', 'pending')->count(),
+            'reviewing' => (clone $baseQuery)->where('status', 'reviewing')->count(),
+            'shortlisted' => (clone $baseQuery)->where('status', 'shortlisted')->count(),
+            'rejected' => (clone $baseQuery)->where('status', 'rejected')->count(),
+            'hired' => (clone $baseQuery)->where('status', 'hired')->count(),
+        ];
 
         $applications = $query->latest()->paginate(20);
 
-        return view('Admin::job-applications.index', compact('applications'));
+        return view('Admin::job-applications.index', compact('applications', 'stats'));
     }
 
     public function showJobApplication($id)

@@ -335,18 +335,31 @@ class AuthController extends Controller
             }
 
             if (!$user->email_verified_at) {
-                // Resend verification code so client can verify immediately
                 $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
                 $user->email_verification_code = $code;
                 $user->email_verification_expires_at = now()->addMinutes(15);
                 $user->save();
-                $this->sendVerificationEmail($user->email, $user->name, $code);
+                
+                try {
+                    $this->sendVerificationEmail($user->email, $user->name, $code);
+                    $emailSent = true;
+                } catch (\Exception $e) {
+                    Log::error('Verification email failed during login', [
+                        'client_id' => $user->id,
+                        'email' => $user->email,
+                        'error' => $e->getMessage()
+                    ]);
+                    $emailSent = false;
+                }
 
                 return response()->json([
                     'success' => false,
                     'requires_verification' => true,
                     'email' => $user->email,
-                    'message' => 'Please verify your email address before logging in. A new verification code has been sent to your email.',
+                    'verification_code' => config('app.debug') ? $code : null,
+                    'message' => $emailSent 
+                        ? 'Please verify your email address before logging in. A new verification code has been sent to your email.'
+                        : 'Please verify your email address before logging in. Your verification code is: ' . $code,
                 ], 401);
             }
         }

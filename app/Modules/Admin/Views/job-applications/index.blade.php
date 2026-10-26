@@ -47,23 +47,23 @@
     <div class="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
         <div class="bg-white border border-gray-200 rounded-lg shadow p-4">
             <div class="text-xs font-medium text-gray-500 uppercase">Pending</div>
-            <div class="text-2xl font-bold text-gray-900">{{ $applications->where('status', 'pending')->count() }}</div>
+            <div class="text-2xl font-bold text-gray-900">{{ $stats['pending'] }}</div>
         </div>
         <div class="bg-white border border-gray-200 rounded-lg shadow p-4">
             <div class="text-xs font-medium text-gray-500 uppercase">Reviewing</div>
-            <div class="text-2xl font-bold text-gray-900">{{ $applications->where('status', 'reviewing')->count() }}</div>
+            <div class="text-2xl font-bold text-gray-900">{{ $stats['reviewing'] }}</div>
         </div>
         <div class="bg-white border border-gray-200 rounded-lg shadow p-4">
             <div class="text-xs font-medium text-gray-500 uppercase">Shortlisted</div>
-            <div class="text-2xl font-bold text-gray-900">{{ $applications->where('status', 'shortlisted')->count() }}</div>
+            <div class="text-2xl font-bold text-gray-900">{{ $stats['shortlisted'] }}</div>
         </div>
         <div class="bg-white border border-gray-200 rounded-lg shadow p-4">
             <div class="text-xs font-medium text-gray-500 uppercase">Rejected</div>
-            <div class="text-2xl font-bold text-gray-900">{{ $applications->where('status', 'rejected')->count() }}</div>
+            <div class="text-2xl font-bold text-gray-900">{{ $stats['rejected'] }}</div>
         </div>
         <div class="bg-white border border-gray-200 rounded-lg shadow p-4">
             <div class="text-xs font-medium text-gray-500 uppercase">Hired</div>
-            <div class="text-2xl font-bold text-gray-900">{{ $applications->where('status', 'hired')->count() }}</div>
+            <div class="text-2xl font-bold text-gray-900">{{ $stats['hired'] }}</div>
         </div>
     </div>
 

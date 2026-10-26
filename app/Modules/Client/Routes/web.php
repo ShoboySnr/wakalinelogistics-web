@@ -25,5 +25,12 @@ Route::prefix('client')->group(function () {
         Route::get('/profile', [ClientDashboardController::class, 'profile'])->name('client.profile');
         Route::put('/profile', [ClientDashboardController::class, 'updateProfile'])->name('client.profile.update');
         Route::put('/profile/password', [ClientDashboardController::class, 'updatePassword'])->name('client.profile.password');
+        
+        // Webhook Settings
+        Route::get('/settings/webhook', [ClientDashboardController::class, 'webhookSettings'])->name('client.webhook.settings');
+        Route::post('/settings/webhook', [ClientDashboardController::class, 'updateWebhookSettings'])->name('client.webhook.update');
+        Route::post('/settings/webhook/toggle', [ClientDashboardController::class, 'toggleWebhook'])->name('client.webhook.toggle');
+        Route::post('/settings/webhook/test', [ClientDashboardController::class, 'testWebhook'])->name('client.webhook.test');
+        Route::delete('/settings/webhook', [ClientDashboardController::class, 'deleteWebhook'])->name('client.webhook.delete');
     });
 });

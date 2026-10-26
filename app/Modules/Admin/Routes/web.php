@@ -3,6 +3,12 @@
 use Illuminate\Support\Facades\Route;
 use App\Modules\Admin\Controllers\AdminAuthController;
 use App\Modules\Admin\Controllers\DashboardController;
+use App\Modules\Admin\Controllers\OrderController;
+use App\Modules\Admin\Controllers\RiderController;
+use App\Modules\Admin\Controllers\ClientController;
+use App\Modules\Admin\Controllers\BikeController;
+use App\Modules\Admin\Controllers\ExpenseController;
+use App\Modules\Admin\Controllers\SettingsController;
 use App\Modules\Admin\Controllers\CommunicationsController;
 use App\Modules\Admin\Controllers\UserController;
 use App\Modules\Admin\Controllers\TransactionController;
@@ -22,16 +28,19 @@ Route::prefix('super-admin')->group(function () {
     // Protected Admin Routes
     Route::middleware(['auth', 'admin'])->group(function () {
         Route::get('/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard');
-        Route::get('/orders', [DashboardController::class, 'orders'])->name('admin.orders');
-        Route::get('/orders/create', [DashboardController::class, 'createOrder'])->name('admin.orders.create');
-        Route::post('/orders', [DashboardController::class, 'storeOrder'])->name('admin.orders.store');
-        Route::get('/orders/{id}', [DashboardController::class, 'showOrder'])->name('admin.orders.show');
-        Route::get('/orders/{id}/edit', [DashboardController::class, 'editOrder'])->name('admin.orders.edit');
-        Route::post('/orders/{id}/status', [DashboardController::class, 'updateOrderStatus'])->name('admin.orders.update-status');
-        Route::get('/orders/{id}/invoice', [DashboardController::class, 'generateInvoice'])->name('admin.orders.invoice');
-        Route::put('/orders/{id}', [DashboardController::class, 'updateOrder'])->name('admin.orders.update');
-        Route::delete('/orders/{id}', [DashboardController::class, 'deleteOrder'])->name('admin.orders.delete');
-        Route::get('/remittance/pod-data', [DashboardController::class, 'getPodRemittanceData'])->name('admin.remittance.pod-data');
+        
+        // Order Routes (moved to OrderController)
+        Route::get('/orders', [OrderController::class, 'index'])->name('admin.orders');
+        Route::get('/orders/create', [OrderController::class, 'create'])->name('admin.orders.create');
+        Route::post('/orders', [OrderController::class, 'store'])->name('admin.orders.store');
+        Route::get('/orders/{id}', [OrderController::class, 'show'])->name('admin.orders.show');
+        Route::get('/orders/{id}/edit', [OrderController::class, 'edit'])->name('admin.orders.edit');
+        Route::post('/orders/{id}/status', [OrderController::class, 'updateStatus'])->name('admin.orders.update-status');
+        Route::get('/orders/{id}/invoice', [OrderController::class, 'generateInvoice'])->name('admin.orders.invoice');
+        Route::put('/orders/{id}', [OrderController::class, 'update'])->name('admin.orders.update');
+        Route::delete('/orders/{id}', [OrderController::class, 'destroy'])->name('admin.orders.delete');
+        Route::post('/orders/{id}/assign-rider', [OrderController::class, 'assignRider'])->name('admin.orders.assign-rider');
+        Route::get('/remittance/pod-data', [OrderController::class, 'getPodRemittanceData'])->name('admin.remittance.pod-data');
 
         // Profile Routes
         Route::get('/profile', [DashboardController::class, 'profile'])->name('admin.profile');
@@ -39,18 +48,18 @@ Route::prefix('super-admin')->group(function () {
         Route::put('/profile/password', [DashboardController::class, 'updatePassword'])->name('admin.profile.password');
         
         // Settings Routes
-        Route::get('/settings', [DashboardController::class, 'settings'])->name('admin.settings');
-        Route::put('/settings', [DashboardController::class, 'updateSettings'])->name('admin.settings.update');
-        Route::get('/settings/batch-discount', [DashboardController::class, 'batchDiscountSettings'])->name('admin.settings.batch-discount');
-        Route::post('/settings/batch-discount', [DashboardController::class, 'updateBatchDiscountSettings'])->name('admin.settings.batch-discount.update');
-        Route::post('/settings/clear-cache', [DashboardController::class, 'clearCache'])->name('admin.settings.clear-cache');
+        Route::get('/settings', [SettingsController::class, 'index'])->name('admin.settings');
+        Route::put('/settings', [SettingsController::class, 'update'])->name('admin.settings.update');
+        Route::get('/settings/batch-discount', [SettingsController::class, 'batchDiscount'])->name('admin.settings.batch-discount');
+        Route::post('/settings/batch-discount', [SettingsController::class, 'updateBatchDiscount'])->name('admin.settings.batch-discount.update');
+        Route::post('/settings/clear-cache', [SettingsController::class, 'clearCache'])->name('admin.settings.clear-cache');
         
         // Expenses
-        Route::get('/expenses', [DashboardController::class, 'expenses'])->name('admin.expenses');
-        Route::post('/expenses', [DashboardController::class, 'storeExpense'])->name('admin.expenses.store');
-        Route::delete('/expenses/{id}', [DashboardController::class, 'deleteExpense'])->name('admin.expenses.delete');
-        Route::get('/expenses/export', [DashboardController::class, 'exportStatement'])->name('admin.expenses.export');
-        Route::get('/expenses/preview', [DashboardController::class, 'previewStatement'])->name('admin.expenses.preview');
+        Route::get('/expenses', [ExpenseController::class, 'index'])->name('admin.expenses');
+        Route::post('/expenses', [ExpenseController::class, 'store'])->name('admin.expenses.store');
+        Route::delete('/expenses/{id}', [ExpenseController::class, 'destroy'])->name('admin.expenses.delete');
+        Route::get('/expenses/export', [ExpenseController::class, 'exportStatement'])->name('admin.expenses.export');
+        Route::get('/expenses/preview', [ExpenseController::class, 'previewStatement'])->name('admin.expenses.preview');
         
         // Transactions
         Route::get('/transactions', [TransactionController::class, 'index'])->name('admin.transactions');
@@ -85,52 +94,52 @@ Route::prefix('super-admin')->group(function () {
         Route::post('/business-intelligence/confirm', [DashboardController::class, 'confirmAnalystActions'])->name('admin.business-intelligence.confirm');
         Route::post('/business-intelligence/reset', [DashboardController::class, 'resetAnalyst'])->name('admin.business-intelligence.reset');
         
-        // Rider Routes
-        Route::get('/riders', [DashboardController::class, 'riders'])->name('admin.riders');
-        Route::get('/riders/create', [DashboardController::class, 'createRider'])->name('admin.riders.create');
-        Route::post('/riders', [DashboardController::class, 'storeRider'])->name('admin.riders.store');
-        Route::get('/riders/{id}', [DashboardController::class, 'showRider'])->name('admin.riders.show');
-        Route::get('/riders/{id}/edit', [DashboardController::class, 'editRider'])->name('admin.riders.edit');
-        Route::put('/riders/{id}', [DashboardController::class, 'updateRider'])->name('admin.riders.update');
-        Route::delete('/riders/{id}', [DashboardController::class, 'deleteRider'])->name('admin.riders.delete');
-        Route::post('/riders/{id}/generate-share-link', [DashboardController::class, 'generateRouteShareLink'])->name('admin.riders.generate-share-link');
-        Route::post('/riders/{id}/disable-share-link', [DashboardController::class, 'disableRouteShareLink'])->name('admin.riders.disable-share-link');
-        Route::post('/riders/{id}/regenerate-code', [DashboardController::class, 'regenerateAccessCode'])->name('admin.riders.regenerate-code');
-        Route::get('/riders/{id}/location', [DashboardController::class, 'getRiderLocation'])->name('admin.riders.location');
-        Route::post('/orders/{id}/assign-rider', [DashboardController::class, 'assignRider'])->name('admin.orders.assign-rider');
+        // Rider Routes (moved to RiderController)
+        Route::get('/riders', [RiderController::class, 'index'])->name('admin.riders');
+        Route::get('/riders/create', [RiderController::class, 'create'])->name('admin.riders.create');
+        Route::post('/riders', [RiderController::class, 'store'])->name('admin.riders.store');
+        Route::get('/riders/{id}', [RiderController::class, 'show'])->name('admin.riders.show');
+        Route::get('/riders/{id}/edit', [RiderController::class, 'edit'])->name('admin.riders.edit');
+        Route::put('/riders/{id}', [RiderController::class, 'update'])->name('admin.riders.update');
+        Route::delete('/riders/{id}', [RiderController::class, 'destroy'])->name('admin.riders.delete');
+        Route::post('/riders/{id}/generate-share-link', [RiderController::class, 'generateShareLink'])->name('admin.riders.generate-share-link');
+        Route::post('/riders/{id}/disable-share-link', [RiderController::class, 'disableShareLink'])->name('admin.riders.disable-share-link');
+        Route::post('/riders/{id}/regenerate-code', [RiderController::class, 'regenerateCode'])->name('admin.riders.regenerate-code');
+        Route::get('/riders/{id}/location', [RiderController::class, 'getLocation'])->name('admin.riders.location');
         
-        // Bike Routes
-        Route::get('/bikes', [DashboardController::class, 'bikes'])->name('admin.bikes');
-        Route::get('/bikes/create', [DashboardController::class, 'createBike'])->name('admin.bikes.create');
-        Route::post('/bikes', [DashboardController::class, 'storeBike'])->name('admin.bikes.store');
-        Route::get('/bikes/{id}', [DashboardController::class, 'showBike'])->name('admin.bikes.show');
-        Route::get('/bikes/{id}/edit', [DashboardController::class, 'editBike'])->name('admin.bikes.edit');
-        Route::put('/bikes/{id}', [DashboardController::class, 'updateBike'])->name('admin.bikes.update');
-        Route::delete('/bikes/{id}', [DashboardController::class, 'deleteBike'])->name('admin.bikes.delete');
-        Route::post('/bikes/{id}/assign-rider', [DashboardController::class, 'assignBikeToRider'])->name('admin.bikes.assign-rider');
-        Route::post('/bikes/{id}/unassign-rider', [DashboardController::class, 'unassignBikeFromRider'])->name('admin.bikes.unassign-rider');
+        // Bike Routes (moved to BikeController)
+        Route::get('/bikes', [BikeController::class, 'index'])->name('admin.bikes');
+        Route::get('/bikes/create', [BikeController::class, 'create'])->name('admin.bikes.create');
+        Route::post('/bikes', [BikeController::class, 'store'])->name('admin.bikes.store');
+        Route::get('/bikes/{id}', [BikeController::class, 'show'])->name('admin.bikes.show');
+        Route::get('/bikes/{id}/edit', [BikeController::class, 'edit'])->name('admin.bikes.edit');
+        Route::put('/bikes/{id}', [BikeController::class, 'update'])->name('admin.bikes.update');
+        Route::delete('/bikes/{id}', [BikeController::class, 'destroy'])->name('admin.bikes.delete');
+        Route::post('/bikes/{id}/assign-rider', [BikeController::class, 'assignRider'])->name('admin.bikes.assign-rider');
+        Route::post('/bikes/{id}/unassign-rider', [BikeController::class, 'unassignRider'])->name('admin.bikes.unassign-rider');
         
-        // Client Routes
-        Route::get('/clients', [DashboardController::class, 'clients'])->name('admin.clients');
-        Route::get('/clients/create', [DashboardController::class, 'createClient'])->name('admin.clients.create');
-        Route::post('/clients', [DashboardController::class, 'storeClient'])->name('admin.clients.store');
-        Route::get('/clients/{id}', [DashboardController::class, 'showClient'])->name('admin.clients.show');
-        Route::get('/clients/{id}/edit', [DashboardController::class, 'editClient'])->name('admin.clients.edit');
-        Route::put('/clients/{id}', [DashboardController::class, 'updateClient'])->name('admin.clients.update');
-        Route::delete('/clients/{id}', [DashboardController::class, 'deleteClient'])->name('admin.clients.delete');
-        Route::get('/clients/{id}/data', [DashboardController::class, 'getClientData'])->name('admin.clients.data');
-        Route::post('/clients/{id}/generate-share-link', [DashboardController::class, 'generateClientShareLink'])->name('admin.clients.generate-share-link');
-        Route::post('/clients/{id}/disable-share-link', [DashboardController::class, 'disableClientShareLink'])->name('admin.clients.disable-share-link');
-        Route::post('/clients/{id}/generate-api-key', [DashboardController::class, 'generateApiKey'])->name('admin.clients.generate-api-key');
-        Route::post('/clients/{id}/regenerate-api-key', [DashboardController::class, 'regenerateApiKey'])->name('admin.clients.regenerate-api-key');
-        Route::post('/clients/{id}/enable-api-access', [DashboardController::class, 'enableApiAccess'])->name('admin.clients.enable-api-access');
-        Route::post('/clients/{id}/disable-api-access', [DashboardController::class, 'disableApiAccess'])->name('admin.clients.disable-api-access');
-        Route::post('/clients/{id}/subscribe', [DashboardController::class, 'manualSubscribe'])->name('admin.clients.subscribe');
-        Route::post('/clients/{id}/add-credits', [DashboardController::class, 'manualAddCredits'])->name('admin.clients.add-credits');
-        Route::post('/clients/{id}/deduct-credits', [DashboardController::class, 'manualDeductCredits'])->name('admin.clients.deduct-credits');
-        Route::post('/clients/{id}/verify-email', [DashboardController::class, 'manualVerifyEmail'])->name('admin.clients.verify-email');
-        Route::post('/clients/{id}/mark-remitted', [DashboardController::class, 'markOrdersRemitted'])->name('admin.clients.mark-remitted');
-        Route::post('/clients/{id}/toggle-pod-remittance', [DashboardController::class, 'togglePodRemittance'])->name('admin.clients.toggle-pod-remittance');
+        // Client Routes (moved to ClientController)
+        Route::get('/clients', [ClientController::class, 'index'])->name('admin.clients');
+        Route::get('/clients/create', [ClientController::class, 'create'])->name('admin.clients.create');
+        Route::post('/clients', [ClientController::class, 'store'])->name('admin.clients.store');
+        Route::get('/clients/{id}', [ClientController::class, 'show'])->name('admin.clients.show');
+        Route::get('/clients/{id}/edit', [ClientController::class, 'edit'])->name('admin.clients.edit');
+        Route::put('/clients/{id}', [ClientController::class, 'update'])->name('admin.clients.update');
+        Route::delete('/clients/{id}', [ClientController::class, 'destroy'])->name('admin.clients.delete');
+        Route::get('/clients/{id}/data', [ClientController::class, 'getData'])->name('admin.clients.data');
+        Route::post('/clients/{id}/generate-share-link', [ClientController::class, 'generateShareLink'])->name('admin.clients.generate-share-link');
+        Route::post('/clients/{id}/disable-share-link', [ClientController::class, 'disableShareLink'])->name('admin.clients.disable-share-link');
+        Route::post('/clients/{id}/generate-api-key', [ClientController::class, 'generateApiKey'])->name('admin.clients.generate-api-key');
+        Route::post('/clients/{id}/regenerate-api-key', [ClientController::class, 'regenerateApiKey'])->name('admin.clients.regenerate-api-key');
+        Route::post('/clients/{id}/enable-api-access', [ClientController::class, 'enableApiAccess'])->name('admin.clients.enable-api-access');
+        Route::post('/clients/{id}/disable-api-access', [ClientController::class, 'disableApiAccess'])->name('admin.clients.disable-api-access');
+        Route::post('/clients/{id}/subscribe', [ClientController::class, 'subscribe'])->name('admin.clients.subscribe');
+        Route::post('/clients/{id}/add-credits', [ClientController::class, 'addCredits'])->name('admin.clients.add-credits');
+        Route::post('/clients/{id}/deduct-credits', [ClientController::class, 'deductCredits'])->name('admin.clients.deduct-credits');
+        Route::post('/clients/{id}/verify-email', [ClientController::class, 'verifyEmail'])->name('admin.clients.verify-email');
+        Route::post('/clients/{id}/mark-remitted', [ClientController::class, 'markRemitted'])->name('admin.clients.mark-remitted');
+        Route::post('/clients/{id}/toggle-pod-remittance', [ClientController::class, 'togglePodRemittance'])->name('admin.clients.toggle-pod-remittance');
+        Route::post('/clients/{id}/stocks', [ClientController::class, 'updateStocks'])->name('admin.clients.update-stocks');
 
         // Client invoices
         Route::post('/clients/{id}/invoices', [InvoiceController::class, 'store'])->name('admin.invoices.store');

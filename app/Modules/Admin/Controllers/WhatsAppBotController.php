@@ -575,6 +575,8 @@ class WhatsAppBotController extends Controller
         $count = Order::whereIn('id', $updated->pluck('id'))
             ->update(['remitted_at' => now()]);
 
+        Order::whereIn('id', $updated->pluck('id'))->get()->each->deductStock();
+
         ActivityLog::log(
             'orders_bulk_remitted',
             "WhatsApp bot bulk-remitted {$count} orders for client: {$client->name}",
@@ -609,6 +611,10 @@ class WhatsAppBotController extends Controller
         }
 
         $order->save();
+
+        if (!$wasRemitted) {
+            $order->deductStock();
+        }
 
         $toRemit = null;
         if ($order->amount_received !== null) {

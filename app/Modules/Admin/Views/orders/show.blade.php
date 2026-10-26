@@ -127,6 +127,23 @@
                     </div>
                     @endif
 
+                    @if($order->stockItems->isNotEmpty())
+                    <div>
+                        <h3 class="text-md font-semibold text-gray-900 mb-3 pb-2 border-b">Products Going Out</h3>
+                        <div class="space-y-2">
+                            @foreach($order->stockItems as $stockItem)
+                            <div class="flex items-center justify-between">
+                                <p class="text-sm text-gray-900">{{ $stockItem->product_name }}</p>
+                                <p class="text-sm text-gray-900">{{ $stockItem->quantity }}</p>
+                            </div>
+                            @endforeach
+                            <p class="text-xs text-gray-500">
+                                {{ $order->stockItems->whereNotNull('deducted_at')->isNotEmpty() ? 'Deducted from client stock' : 'Will be deducted from client stock once remitted' }}
+                            </p>
+                        </div>
+                    </div>
+                    @endif
+
                     <!-- Pricing & Additional Info -->
                     <div>
                         <h3 class="text-md font-semibold text-gray-900 mb-3 pb-2 border-b">Pricing & Additional Info</h3>

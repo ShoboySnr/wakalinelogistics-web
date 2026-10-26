@@ -263,6 +263,45 @@
                     @enderror
                 </div>
 
+                <!-- Bank Details Section -->
+                <div class="md:col-span-2 mt-4">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-1 pb-2 border-b-2 border-gray-200">Bank Details</h3>
+                    <p class="text-sm text-gray-500 mb-4">Used when sending this client's daily remittance.</p>
+                </div>
+
+                <div>
+                    <label for="bank_name" class="block text-sm font-medium text-gray-700 mb-1">
+                        Bank Name
+                    </label>
+                    <input type="text" name="bank_name" id="bank_name" value="{{ old('bank_name', $client->bank_name) }}"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500 @error('bank_name') border-red-500 @enderror">
+                    @error('bank_name')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div>
+                    <label for="bank_account_number" class="block text-sm font-medium text-gray-700 mb-1">
+                        Account Number
+                    </label>
+                    <input type="text" name="bank_account_number" id="bank_account_number" value="{{ old('bank_account_number', $client->bank_account_number) }}"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500 @error('bank_account_number') border-red-500 @enderror">
+                    @error('bank_account_number')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
+                <div class="md:col-span-2">
+                    <label for="bank_account_name" class="block text-sm font-medium text-gray-700 mb-1">
+                        Account Name
+                    </label>
+                    <input type="text" name="bank_account_name" id="bank_account_name" value="{{ old('bank_account_name', $client->bank_account_name) }}"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-pink-500 focus:border-pink-500 @error('bank_account_name') border-red-500 @enderror">
+                    @error('bank_account_name')
+                        <p class="mt-1 text-sm text-red-600">{{ $message }}</p>
+                    @enderror
+                </div>
+
                 <!-- Additional Information Section -->
                 <div class="md:col-span-2 mt-4">
                     <h3 class="text-lg font-semibold text-gray-900 mb-4 pb-2 border-b-2 border-gray-200">Additional Information</h3>

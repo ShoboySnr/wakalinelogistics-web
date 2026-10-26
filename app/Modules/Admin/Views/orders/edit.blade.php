@@ -219,6 +219,14 @@
                     </div>
                 </div>
 
+                @php $deductedStockItems = $order->stockItems->whereNotNull('deducted_at'); @endphp
+                @include('Admin::orders.partials.stock-items', [
+                    'stockClients' => $stockClients,
+                    'existingStockItems' => $order->stockItems->map(fn ($item) => ['client_stock_id' => $item->client_stock_id, 'quantity' => $item->quantity])->all(),
+                    'stockLocked' => $deductedStockItems->isNotEmpty(),
+                    'lockedStockItems' => $order->stockItems,
+                ])
+
                 <div class="md:col-span-2 bg-pink-50 rounded-lg p-4">
                     <h4 class="text-sm font-semibold mb-3 brand-accent-text">Price Calculator</h4>
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">

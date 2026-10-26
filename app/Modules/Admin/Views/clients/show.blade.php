@@ -227,7 +227,10 @@
 
                 @if($podPendingOrders->count() > 0)
                 <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200" id="pod-remittance-table">
+                    <table class="min-w-full divide-y divide-gray-200" id="pod-remittance-table" data-stock-after="{{ $podStockAfter->toJson() }}"
+                           data-total-received="{{ number_format($podTotalReceived, 2) }}"
+                           data-total-fees="{{ number_format($podTotalFees, 2) }}"
+                           data-total-remit="{{ ($podTotalRemittance < 0 ? '−₦' : '₦') . number_format(abs($podTotalRemittance), 2) }}">
                         <thead class="bg-gray-50">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Order #</th>
@@ -252,7 +255,8 @@
                                 data-received="{{ $receivedFormatted }}"
                                 data-fee="{{ number_format($podOrder->price, 2) }}"
                                 data-remit="{{ number_format(abs($toRemit), 2) }}"
-                                data-is-failed="{{ $isFailed ? '1' : '0' }}">
+                                data-is-failed="{{ $isFailed ? '1' : '0' }}"
+                                data-products="{{ $podOrder->stockItems->map(fn ($item) => ['product_name' => $item->product_name, 'quantity' => $item->quantity])->toJson() }}">
                                 <td class="px-6 py-4 text-sm font-medium">
                                     <div class="flex items-center gap-2">
                                         <a href="{{ route('admin.orders.show', $podOrder->id) }}" class="brand-accent-text hover:underline" target="_blank" style="transition: color 0.2s ease;" onmouseover="this.style.color='#a8555a';" onmouseout="this.style.color='#C1666B';">
@@ -298,6 +302,68 @@
                 </div>
                 @endif
             </div>
+
+            @if($client->pod_remittance_enabled)
+            <!-- Stock Records -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="px-6 py-4 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-semibold text-gray-900">Stock Records</h2>
+                        <p class="text-sm text-gray-500 mt-0.5">Products held for this client and quantity left</p>
+                    </div>
+                    <div class="flex gap-2 shrink-0">
+                        <button onclick="copyStockSummary()" type="button" id="stock-copy-btn"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            Copy Stock
+                        </button>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ route('admin.clients.update-stocks', $client->id) }}" class="px-6 py-4">
+                    @csrf
+                    <div id="stock-rows" class="space-y-3">
+                        @forelse($stocks as $i => $stock)
+                        <div class="stock-row flex items-center gap-3">
+                            <input type="hidden" name="stocks[{{ $i }}][id]" value="{{ $stock->id }}">
+                            <input type="text" name="stocks[{{ $i }}][product_name]" value="{{ $stock->product_name }}" placeholder="Product name"
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm">
+                            <input type="number" min="0" name="stocks[{{ $i }}][quantity]" value="{{ $stock->quantity }}" placeholder="Qty left"
+                                   class="w-28 px-3 py-2 border border-gray-300 rounded-md text-sm">
+                            <button type="button" onclick="removeStockRow(this)" class="text-xs text-gray-500 hover:text-gray-700 underline">Remove</button>
+                        </div>
+                        @empty
+                        <div class="stock-row flex items-center gap-3">
+                            <input type="text" name="stocks[0][product_name]" placeholder="Product name"
+                                   class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm">
+                            <input type="number" min="0" name="stocks[0][quantity]" placeholder="Qty left"
+                                   class="w-28 px-3 py-2 border border-gray-300 rounded-md text-sm">
+                            <button type="button" onclick="removeStockRow(this)" class="text-xs text-gray-500 hover:text-gray-700 underline">Remove</button>
+                        </div>
+                        @endforelse
+                    </div>
+
+                    <div class="flex items-center justify-between gap-3 mt-4">
+                        <button type="button" onclick="addStockRow()"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm border border-gray-300 rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/>
+                            </svg>
+                            Add Product
+                        </button>
+                        <button type="submit"
+                                class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-white rounded-md brand-accent-bg brand-accent-hover">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Save Stock
+                        </button>
+                    </div>
+                </form>
+            </div>
+            @endif
 
             <!-- Invoice history -->
             <div class="bg-white rounded-lg shadow">
@@ -1071,6 +1137,65 @@ function disableClientApiAccess(clientId) {
     });
 }
 
+function addStockRow() {
+    const container = document.getElementById('stock-rows');
+    const index = Date.now();
+    const row = document.createElement('div');
+    row.className = 'stock-row flex items-center gap-3';
+    row.innerHTML = `
+        <input type="text" name="stocks[${index}][product_name]" placeholder="Product name"
+               class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm">
+        <input type="number" min="0" name="stocks[${index}][quantity]" placeholder="Qty left"
+               class="w-28 px-3 py-2 border border-gray-300 rounded-md text-sm">
+        <button type="button" onclick="removeStockRow(this)" class="text-xs text-gray-500 hover:text-gray-700 underline">Remove</button>`;
+    container.appendChild(row);
+    row.querySelector('input').focus();
+}
+
+function removeStockRow(btn) {
+    const container = document.getElementById('stock-rows');
+    const row = btn.closest('.stock-row');
+    if (container.querySelectorAll('.stock-row').length === 1) {
+        row.querySelectorAll('input').forEach(input => input.value = '');
+        return;
+    }
+    row.remove();
+}
+
+function getStockLines() {
+    const container = document.getElementById('stock-rows');
+    if (!container) return [];
+    const lines = [];
+    container.querySelectorAll('.stock-row').forEach(row => {
+        const inputs = row.querySelectorAll('input');
+        const name = inputs[0].value.trim();
+        if (!name) return;
+        lines.push(`${lines.length + 1}. ${name}: ${inputs[1].value || 0}`);
+    });
+    return lines;
+}
+
+function copyStockSummary() {
+    const stockLines = getStockLines();
+    if (!stockLines.length) {
+        alert('Add at least one product before copying.');
+        return;
+    }
+
+    const clientName = "{{ $client->name }}{{ $client->company_name ? ' (' . $client->company_name . ')' : '' }}";
+    const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const lines = [`Stock Update — ${clientName}`, `Date: ${date}`, '', ...stockLines];
+
+    navigator.clipboard.writeText(lines.join('\n')).then(() => {
+        const btn = document.getElementById('stock-copy-btn');
+        const original = btn.innerHTML;
+        btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg> Copied!';
+        btn.style.color = '#C1666B';
+        btn.style.borderColor = '#C1666B';
+        setTimeout(() => { btn.innerHTML = original; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
+    });
+}
+
 function copyRemittanceSummary() {
     const clientName = "{{ $client->name }}{{ $client->company_name ? ' (' . $client->company_name . ')' : '' }}";
     const date = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -1083,25 +1208,46 @@ function copyRemittanceSummary() {
     lines.push(`Date: ${date}`);
     lines.push('');
 
+    let productCount = 0;
     rows.forEach((row, i) => {
         const addr = row.dataset.deliveryAddress;
         const received = row.dataset.received;
         const fee = row.dataset.fee;
         const remit = row.dataset.remit;
         const isFailed = row.dataset.isFailed === '1';
+        const products = JSON.parse(row.dataset.products || '[]');
         lines.push(`${i + 1}. ${addr}${isFailed ? ' [FAILED DELIVERY]' : ''}`);
         if (isFailed) {
             lines.push(`   Delivery Fee charged: ₦${fee} | Deducted: −₦${remit}`);
         } else {
             lines.push(`   Received: ₦${received} | Delivery Fee: ₦${fee} | Remit: ₦${remit}`);
         }
+        if (products.length) {
+            lines.push(`   Products: ${products.map(p => `${p.product_name} x${p.quantity}`).join(', ')}${isFailed ? ' (returned)' : ''}`);
+            if (!isFailed) {
+                productCount += products.reduce((sum, p) => sum + Number(p.quantity), 0);
+            }
+        }
     });
 
     lines.push('');
     lines.push('─'.repeat(40));
     lines.push(`Total Orders: ${rows.length}`);
-    @php $absTotal = abs($podTotalRemittance); @endphp
-    lines.push(`Total to Remit: {{ $podTotalRemittance < 0 ? '−₦' . number_format($absTotal, 2) : '₦' . number_format($absTotal, 2) }}`);
+    if (productCount > 0) {
+        lines.push(`Total Products Delivered: ${productCount}`);
+    }
+    const podTable = document.getElementById('pod-remittance-table');
+    lines.push(`Total Received: ₦${podTable.dataset.totalReceived}`);
+    lines.push(`Total Delivery Fees: ₦${podTable.dataset.totalFees}`);
+    lines.push('');
+    lines.push(`Total to Remit: ${podTable.dataset.totalRemit}`);
+
+    const stockAfter = JSON.parse(podTable.dataset.stockAfter || '[]');
+    if (stockAfter.length) {
+        lines.push('');
+        lines.push('Stock Left:');
+        stockAfter.forEach((stock, i) => lines.push(`${i + 1}. ${stock.product_name}: ${stock.quantity}`));
+    }
 
     navigator.clipboard.writeText(lines.join('\n')).then(() => {
         const btn = document.querySelector('[onclick="copyRemittanceSummary()"]');
