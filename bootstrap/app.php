@@ -35,6 +35,10 @@ return Application::configure(basePath: dirname(__DIR__))
 
             Route::prefix('api')
                 ->middleware('api')
+                ->group(base_path('app/Modules/Admin/Routes/admin-api.php'));
+
+            Route::prefix('api')
+                ->middleware('api')
                 ->group(base_path('app/Modules/Rider/Routes/api.php'));
         }
     )
@@ -43,6 +47,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'api.token' => \App\Http\Middleware\ValidateApiToken::class,
             'client.api' => \App\Http\Middleware\ValidateClientApiKey::class,
             'admin' => \App\Modules\Admin\Middleware\AdminMiddleware::class,
+            'admin.api' => \App\Modules\Admin\Middleware\AdminApiMiddleware::class,
             'client.auth' => \App\Modules\Client\Middleware\ClientAuth::class,
         ]);
         

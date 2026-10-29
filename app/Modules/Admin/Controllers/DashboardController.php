@@ -10,7 +10,7 @@ use App\Modules\Admin\Models\Rider;
 use App\Modules\Admin\Models\Expense;
 use App\Modules\Admin\Models\RouteShare;
 use App\Modules\Admin\Models\Client;
-use App\Modules\Admin\Models\ClientStock;
+use App\Modules\Admin\Services\DashboardService;
 use App\Modules\Admin\Models\JobApplication;
 use App\Services\Ai\AiAnalystService;
 use App\Services\ZoneBatchDiscountService;
@@ -28,104 +28,14 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class DashboardController extends Controller
 {
-    public function index()
+    public function index(DashboardService $dashboard)
     {
-        $stats = [
-            // Overall stats
-            'total_orders' => Order::count(),
-            'pending_orders' => Order::where('status', 'pending')->count(),
-            'confirmed_orders' => Order::where('status', 'confirmed')->count(),
-            'in_transit_orders' => Order::where('status', 'in_transit')->count(),
-            'delivered_orders' => Order::where('status', 'delivered')->count(),
-            'cancelled_orders' => Order::where('status', 'cancelled')->count(),
-            'total_revenue' => Order::where('status', 'delivered')->sum('price'),
-            
-            // Today's stats
-            'today_orders' => Order::whereDate('delivery_date', today())
-                                      ->where('status', 'delivered')
-                                      ->whereNotNull('delivery_date')
-                                      ->count(),
-            'today_revenue' => Order::whereDate('delivery_date', today())
-                                    ->where('status', 'delivered')
-                                    ->whereNotNull('delivery_date')
-                                    ->sum('price'),
-            'today_pending' => Order::whereDate('created_at', today())
-                                    ->where('status', 'pending')
-                                    ->count(),
-            'today_delivered' => Order::whereDate('created_at', today())
-                                      ->where('status', 'delivered')
-                                      ->count(),
-            
-            // This week stats
-            'week_orders' => Order::whereBetween('created_at', [now()->startOfWeek(), now()->endOfWeek()])->count(),
-            'week_revenue' => Order::whereBetween('delivery_date', [now()->startOfWeek(), now()->endOfWeek()])
-                                   ->where('status', 'delivered')
-                                   ->whereNotNull('delivery_date')
-                                   ->sum('price'),
-            
-            // This month stats
-            'month_orders' => Order::whereMonth('created_at', now()->month)
-                                   ->whereYear('created_at', now()->year)
-                                   ->count(),
-            'month_revenue' => Order::whereMonth('delivery_date', now()->month)
-                                    ->whereYear('delivery_date', now()->year)
-                                    ->where('status', 'delivered')
-                                    ->whereNotNull('delivery_date')
-                                    ->sum('price'),
-            
-            // Rider stats
-            'total_riders' => Rider::count(),
-            'active_riders' => Rider::where('status', 'active')->count(),
-            'riders_with_orders' => Rider::whereHas('orders', function($q) {
-                $q->whereIn('status', ['pending', 'confirmed', 'in_transit']);
-            })->count(),
-        ];
-
-        $recent_orders = Order::with('user')
-            ->latest()
-            ->take(10)
-            ->get();
-
-        // Get bikes with expiring documents (within 30 days)
-        $expiring_bike_docs = \App\Modules\Admin\Models\Bike::withExpiringDocuments(30)
-            ->with('assignedRider')
-            ->get()
-            ->map(function($bike) {
-                return [
-                    'bike' => $bike,
-                    'expiring_docs' => $bike->getExpiringDocuments(30),
-                ];
-            })
-            ->filter(function($item) {
-                return count($item['expiring_docs']) > 0;
-            });
-
-        // Get bikes due for maintenance within 7 days
-        $upcoming_maintenance = \App\Modules\Admin\Models\Bike::whereNotNull('next_maintenance_date')
-            ->whereBetween('next_maintenance_date', [now(), now()->addDays(7)])
-            ->with('assignedRider')
-            ->orderBy('next_maintenance_date')
-            ->get();
-
-        // Get bikes with expired documents
-        $expired_bike_docs = \App\Modules\Admin\Models\Bike::withExpiredDocuments()
-            ->with('assignedRider')
-            ->get()
-            ->map(function($bike) {
-                return [
-                    'bike' => $bike,
-                    'expired_docs' => $bike->getExpiredDocuments(),
-                ];
-            })
-            ->filter(function($item) {
-                return count($item['expired_docs']) > 0;
-            });
-
-        $low_stocks = ClientStock::with('client:id,name,company_name')
-            ->where('quantity', '<=', 1)
-            ->whereHas('client', fn ($q) => $q->where('pod_remittance_enabled', true))
-            ->orderBy('quantity')
-            ->get();
+        $stats = $dashboard->stats();
+        $recent_orders = $dashboard->recentOrders();
+        $expiring_bike_docs = $dashboard->expiringBikeDocs();
+        $upcoming_maintenance = $dashboard->upcomingMaintenance();
+        $expired_bike_docs = $dashboard->expiredBikeDocs();
+        $low_stocks = $dashboard->lowStocks();
 
         return view('Admin::dashboard', compact('stats', 'recent_orders', 'expiring_bike_docs', 'expired_bike_docs', 'upcoming_maintenance', 'low_stocks'));
     }
