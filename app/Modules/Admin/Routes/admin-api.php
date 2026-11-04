@@ -42,6 +42,7 @@ Route::prefix('admin/v1')->name('api.admin.')->group(function () {
         Route::patch('orders/{id}/rider', [OrderController::class, 'assignRider'])->whereNumber('id')->name('orders.rider');
         Route::patch('orders/{id}/payment-collected', [OrderController::class, 'markPaymentCollected'])->whereNumber('id')->name('orders.payment-collected');
         Route::patch('orders/{id}/payment-confirmed', [OrderController::class, 'confirmPayment'])->whereNumber('id')->name('orders.payment-confirmed');
+        Route::patch('orders/{id}/payment-revert', [OrderController::class, 'revertPayment'])->whereNumber('id')->name('orders.payment-revert');
         Route::delete('orders/{id}', [OrderController::class, 'destroy'])->whereNumber('id')->name('orders.destroy');
 
         Route::get('clients/form-options', [ClientController::class, 'formOptions'])->name('clients.form-options');

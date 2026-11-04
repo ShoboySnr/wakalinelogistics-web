@@ -268,6 +268,19 @@ class OrderService
         ActivityLog::log('order_payment_confirmed', "Confirmed payment on order #{$order->order_number}", $order);
     }
 
+    public function revertPayment(Order $order): void
+    {
+        if (! $order->payment_collected_at && ! $order->payment_confirmed_at) {
+            return;
+        }
+
+        $order->payment_collected_at = null;
+        $order->payment_confirmed_at = null;
+        $order->save();
+
+        ActivityLog::log('order_payment_reverted', "Reverted payment confirmation on order #{$order->order_number}", $order);
+    }
+
     public function assignRider(Order $order, ?int $riderId): void
     {
         $oldRiderId = $order->rider_id;

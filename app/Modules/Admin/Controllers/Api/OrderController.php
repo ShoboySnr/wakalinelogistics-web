@@ -189,6 +189,18 @@ class OrderController extends Controller
         ]);
     }
 
+    public function revertPayment(int $id): JsonResponse
+    {
+        $order = Order::findOrFail($id);
+        $this->orders->revertPayment($order);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment reverted — the rider can be asked to confirm again',
+            'data' => $this->resource($order->fresh()),
+        ]);
+    }
+
     public function destroy(int $id): JsonResponse
     {
         $order = Order::findOrFail($id);
