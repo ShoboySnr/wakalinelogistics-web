@@ -4,10 +4,63 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Admin\Models\RouteShare;
+use App\Modules\Admin\Services\OrderService;
+use App\Modules\Admin\Services\RouteOptimizationService;
 use Illuminate\Http\Request;
 
 class RouteShareApiController extends Controller
 {
+    public function optimizedRoute(Request $request, $riderId, RouteOptimizationService $optimizer)
+    {
+        $routeShare = RouteShare::where('rider_id', $riderId)->firstOrFail();
+
+        if (! $routeShare->isValid()) {
+            return response()->json(['error' => 'Invalid or expired route link'], 404);
+        }
+
+        $coords = $request->validate([
+            'lat' => 'nullable|numeric|between:-90,90',
+            'lng' => 'nullable|numeric|between:-180,180',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $optimizer->optimize($routeShare->rider, $coords['lat'] ?? null, $coords['lng'] ?? null),
+        ]);
+    }
+
+    public function routeStatus(Request $request, $riderId, $orderId, OrderService $orders)
+    {
+        $routeShare = RouteShare::where('rider_id', $riderId)->firstOrFail();
+
+        if (! $routeShare->isValid()) {
+            return response()->json(['error' => 'Invalid or expired route link'], 404);
+        }
+
+        $data = $request->validate([
+            'status' => 'required|in:' . implode(',', OrderService::ROUTE_STATUSES),
+        ]);
+
+        $order = $routeShare->rider->orders()->findOrFail($orderId);
+        $orders->updateStatus($order, $data['status']);
+
+        return response()->json(['success' => true, 'message' => 'Order status updated']);
+    }
+
+    public function paymentCollected($riderId, $orderId, OrderService $orders)
+    {
+        $routeShare = RouteShare::where('rider_id', $riderId)->firstOrFail();
+
+        if (! $routeShare->isValid()) {
+            return response()->json(['error' => 'Invalid or expired route link'], 404);
+        }
+
+        $order = $routeShare->rider->orders()->findOrFail($orderId);
+        $orders->markPaymentCollected($order);
+
+        return response()->json(['success' => true, 'message' => 'Payment marked as collected']);
+    }
+
     public function getRouteData($riderId)
     {
         $routeShare = RouteShare::where('rider_id', $riderId)->firstOrFail();

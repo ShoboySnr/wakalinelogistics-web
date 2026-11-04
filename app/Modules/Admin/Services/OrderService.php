@@ -8,6 +8,7 @@ use App\Modules\Admin\Models\ClientStock;
 use App\Modules\Admin\Models\Order;
 use App\Modules\Admin\Models\Rider;
 use Illuminate\Database\Eloquent\Builder;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +18,8 @@ use Illuminate\Support\Facades\Mail;
 class OrderService
 {
     public const STATUSES = ['pending', 'confirmed', 'in_transit', 'delivered', 'cancelled'];
+
+    public const ROUTE_STATUSES = ['pending', 'confirmed', 'accepted', 'arrived_at_pickup', 'picked_up', 'in_transit', 'arrived_at_dropoff', 'delivered', 'failed', 'cancelled'];
 
     private const IMAGE_FIELDS = ['package_image_1', 'package_image_2', 'package_image_3', 'package_image_4'];
 
@@ -141,6 +144,7 @@ class OrderService
             'package_quantity' => 'nullable|integer|min:1',
             'pickup_date' => 'nullable|date',
             'delivery_date' => 'nullable|date',
+            'delivery_deadline' => 'nullable|date',
             'stock_items' => 'nullable|array',
             'stock_items.*.client_stock_id' => 'nullable|integer',
             'stock_items.*.quantity' => 'nullable|integer|min:1',
@@ -211,7 +215,7 @@ class OrderService
         $oldStatus = $order->status;
         $order->status = $status;
 
-        if ($status === 'in_transit' && !$order->pickup_date) {
+        if (in_array($status, ['picked_up', 'in_transit'], true) && !$order->pickup_date) {
             $order->pickup_date = now();
         }
 
@@ -234,6 +238,34 @@ class OrderService
         }
 
         return $oldStatus;
+    }
+
+    public function markPaymentCollected(Order $order): void
+    {
+        if ($order->payment_collected_at) {
+            return;
+        }
+
+        $order->payment_collected_at = now();
+        $order->save();
+
+        ActivityLog::log('order_payment_collected', "Rider marked payment collected on order #{$order->order_number}", $order);
+    }
+
+    public function confirmPayment(Order $order): void
+    {
+        if ($order->payment_confirmed_at) {
+            return;
+        }
+
+        if (! $order->payment_collected_at) {
+            $order->payment_collected_at = now();
+        }
+
+        $order->payment_confirmed_at = now();
+        $order->save();
+
+        ActivityLog::log('order_payment_confirmed', "Confirmed payment on order #{$order->order_number}", $order);
     }
 
     public function assignRider(Order $order, ?int $riderId): void

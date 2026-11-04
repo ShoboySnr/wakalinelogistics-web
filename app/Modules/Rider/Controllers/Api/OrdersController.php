@@ -17,6 +17,19 @@ class OrdersController extends Controller
         private readonly OrderPresenter $presenter,
     ) {}
 
+    public function route(Request $request, \App\Modules\Admin\Services\RouteOptimizationService $optimizer): JsonResponse
+    {
+        $coords = $request->validate([
+            'lat' => 'nullable|numeric|between:-90,90',
+            'lng' => 'nullable|numeric|between:-180,180',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $optimizer->optimize($request->user(), $coords['lat'] ?? null, $coords['lng'] ?? null),
+        ]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $rider = $request->user();
@@ -122,6 +135,14 @@ class OrdersController extends Controller
         }
 
         $order->save();
+
+        return response()->json(['order' => $this->presenter->detail($order->fresh())]);
+    }
+
+    public function markPaymentCollected(Request $request, int $id, \App\Modules\Admin\Services\OrderService $orders): JsonResponse
+    {
+        $order = $this->findOrder($request, $id);
+        $orders->markPaymentCollected($order);
 
         return response()->json(['order' => $this->presenter->detail($order->fresh())]);
     }

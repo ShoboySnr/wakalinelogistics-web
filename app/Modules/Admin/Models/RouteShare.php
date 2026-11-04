@@ -54,6 +54,12 @@ class RouteShare extends Model
 
     public function getShareUrl(): string
     {
+        $base = rtrim((string) config('app.admin_frontend_url'), '/');
+
+        if ($base !== '') {
+            return "{$base}/route/{$this->rider_id}";
+        }
+
         return url("/route/{$this->rider_id}");
     }
 }

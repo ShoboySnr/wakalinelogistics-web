@@ -76,6 +76,7 @@ class Order extends Model
         'package_quantity',
         'pickup_date',
         'delivery_date',
+        'delivery_deadline',
         'package_image_1',
         'package_image_2',
         'package_image_3',
@@ -86,6 +87,8 @@ class Order extends Model
         'additional_file_3',
         'amount_received',
         'remitted_at',
+        'payment_collected_at',
+        'payment_confirmed_at',
         'is_failed_delivery',
     ];
 
@@ -93,6 +96,9 @@ class Order extends Model
         'pickup_date' => 'datetime',
         'delivery_date' => 'datetime',
         'remitted_at' => 'datetime',
+        'payment_collected_at' => 'datetime',
+        'payment_confirmed_at' => 'datetime',
+        'delivery_deadline' => 'datetime',
         'geocoded_at' => 'datetime',
         'pickup_latitude' => 'decimal:7',
         'pickup_longitude' => 'decimal:7',

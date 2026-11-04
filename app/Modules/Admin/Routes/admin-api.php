@@ -33,12 +33,15 @@ Route::prefix('admin/v1')->name('api.admin.')->group(function () {
         Route::post('orders/calculate-price', [OrderController::class, 'calculatePrice'])->name('orders.calculate-price');
         Route::get('orders/remittance', [OrderController::class, 'remittanceData'])->name('orders.remittance');
         Route::post('orders/remittance/mark-remitted', [OrderController::class, 'markRemitted'])->name('orders.mark-remitted');
+        Route::get('orders/payment-queue', [OrderController::class, 'paymentQueue'])->name('orders.payment-queue');
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
         Route::post('orders', [OrderController::class, 'store'])->name('orders.store');
         Route::get('orders/{id}', [OrderController::class, 'show'])->whereNumber('id')->name('orders.show');
         Route::post('orders/{id}', [OrderController::class, 'update'])->whereNumber('id')->name('orders.update');
         Route::patch('orders/{id}/status', [OrderController::class, 'updateStatus'])->whereNumber('id')->name('orders.status');
         Route::patch('orders/{id}/rider', [OrderController::class, 'assignRider'])->whereNumber('id')->name('orders.rider');
+        Route::patch('orders/{id}/payment-collected', [OrderController::class, 'markPaymentCollected'])->whereNumber('id')->name('orders.payment-collected');
+        Route::patch('orders/{id}/payment-confirmed', [OrderController::class, 'confirmPayment'])->whereNumber('id')->name('orders.payment-confirmed');
         Route::delete('orders/{id}', [OrderController::class, 'destroy'])->whereNumber('id')->name('orders.destroy');
 
         Route::get('clients/form-options', [ClientController::class, 'formOptions'])->name('clients.form-options');
@@ -68,6 +71,7 @@ Route::prefix('admin/v1')->name('api.admin.')->group(function () {
             Route::delete('/', [RiderController::class, 'destroy'])->name('destroy');
             Route::get('orders', [RiderController::class, 'orders'])->name('orders');
             Route::get('location', [RiderController::class, 'location'])->name('location');
+            Route::get('route', [RiderController::class, 'route'])->name('route');
             Route::post('share-link', [RiderController::class, 'shareLink'])->name('share-link');
             Route::post('regenerate-code', [RiderController::class, 'regenerateCode'])->name('regenerate-code');
         });

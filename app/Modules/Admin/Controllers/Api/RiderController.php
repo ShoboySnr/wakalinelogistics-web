@@ -136,6 +136,21 @@ class RiderController extends Controller
         return response()->json(['success' => true, 'message' => 'Access code regenerated', 'data' => ['daily_code' => $code]]);
     }
 
+    public function route(Request $request, int $id, \App\Modules\Admin\Services\RouteOptimizationService $optimizer): JsonResponse
+    {
+        $rider = Rider::findOrFail($id);
+
+        $coords = $request->validate([
+            'lat' => 'nullable|numeric|between:-90,90',
+            'lng' => 'nullable|numeric|between:-180,180',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data' => $optimizer->optimize($rider, $coords['lat'] ?? null, $coords['lng'] ?? null),
+        ]);
+    }
+
     public function location(int $id): JsonResponse
     {
         $rider = Rider::findOrFail($id);

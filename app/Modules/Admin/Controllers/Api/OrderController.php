@@ -115,7 +115,7 @@ class OrderController extends Controller
 
     public function updateStatus(Request $request, int $id): JsonResponse
     {
-        $request->validate(['status' => 'required|in:' . implode(',', OrderService::STATUSES)]);
+        $request->validate(['status' => 'required|in:' . implode(',', OrderService::ROUTE_STATUSES)]);
 
         $order = Order::findOrFail($id);
         $this->orders->updateStatus($order, $request->status);
@@ -138,6 +138,54 @@ class OrderController extends Controller
             'success' => true,
             'message' => 'Rider assigned successfully',
             'data' => $this->resource($order),
+        ]);
+    }
+
+    public function paymentQueue(Request $request): JsonResponse
+    {
+        $perPage = min(100, max(5, (int) $request->get('per_page', 20)));
+        $orders = Order::with(['rider:id,name,phone', 'client:id,name,company_name,pod_remittance_enabled'])
+            ->whereNotNull('payment_collected_at')
+            ->whereNull('payment_confirmed_at')
+            ->orderBy('payment_collected_at')
+            ->paginate($perPage);
+
+        return response()->json([
+            'success' => true,
+            'data' => OrderResource::collection($orders->items()),
+            'meta' => [
+                'current_page' => $orders->currentPage(),
+                'last_page' => $orders->lastPage(),
+                'per_page' => $orders->perPage(),
+                'total' => $orders->total(),
+            ],
+            'stats' => [
+                'awaiting_confirmation' => Order::whereNotNull('payment_collected_at')->whereNull('payment_confirmed_at')->count(),
+            ],
+        ]);
+    }
+
+    public function markPaymentCollected(int $id): JsonResponse
+    {
+        $order = Order::findOrFail($id);
+        $this->orders->markPaymentCollected($order);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment marked as collected',
+            'data' => $this->resource($order->fresh()),
+        ]);
+    }
+
+    public function confirmPayment(int $id): JsonResponse
+    {
+        $order = Order::findOrFail($id);
+        $this->orders->confirmPayment($order);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment confirmed',
+            'data' => $this->resource($order->fresh()),
         ]);
     }
 

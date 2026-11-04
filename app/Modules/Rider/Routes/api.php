@@ -16,11 +16,13 @@ Route::prefix('rider/v1')->group(function () {
         Route::post('auth/devices', [AuthController::class, 'registerDevice']);
         Route::post('auth/logout', [AuthController::class, 'logout']);
 
+        Route::get('route', [OrdersController::class, 'route']);
         Route::get('orders', [OrdersController::class, 'index']);
         Route::get('orders/{id}', [OrdersController::class, 'show']);
         Route::post('orders/{id}/status', [OrdersController::class, 'updateStatus']);
         Route::post('orders/{id}/fail', [OrdersController::class, 'fail']);
         Route::post('orders/{id}/proof', [OrdersController::class, 'uploadProof']);
+        Route::post('orders/{id}/payment-collected', [OrdersController::class, 'markPaymentCollected']);
 
         Route::post('availability', [PresenceController::class, 'setAvailability']);
         Route::post('location', [PresenceController::class, 'pushLocation']);

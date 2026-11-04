@@ -18,9 +18,12 @@ Route::get('/user', function (Request $request) {
 
 Route::prefix('route-share')->group(function () {
     Route::get('{riderId}/data', [RouteShareApiController::class, 'getRouteData']);
+    Route::get('{riderId}/optimized-route', [RouteShareApiController::class, 'optimizedRoute']);
     Route::get('{riderId}/grouped-orders', [RouteShareApiController::class, 'getGroupedOrdersHtml']);
     Route::post('{riderId}/location', [RouteShareApiController::class, 'updateRiderLocation']);
     Route::post('{riderId}/orders/{orderId}/status', [RouteShareApiController::class, 'updateOrderStatus']);
+    Route::post('{riderId}/orders/{orderId}/route-status', [RouteShareApiController::class, 'routeStatus']);
+    Route::post('{riderId}/orders/{orderId}/payment-collected', [RouteShareApiController::class, 'paymentCollected']);
     Route::post('{riderId}/validate-code', [RouteShareApiController::class, 'validateDailyCode']);
 });
 
