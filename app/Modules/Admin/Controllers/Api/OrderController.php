@@ -39,6 +39,33 @@ class OrderController extends Controller
         ]);
     }
 
+    public function calculatePrice(Request $request, \App\Modules\DeliveryCalculator\Services\DeliveryPriceService $pricing): JsonResponse
+    {
+        $validated = $request->validate([
+            'pickup_address' => 'required|string|max:500',
+            'dropoff_address' => 'required|string|max:500',
+        ]);
+
+        $result = $pricing->processDeliveryCalculation($validated['pickup_address'], $validated['dropoff_address']);
+
+        if (isset($result['error'])) {
+            return response()->json(['success' => false, 'message' => $result['error']], 422);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'delivery_fee' => $result['delivery_fee'],
+                'distance_km' => $result['distance_km'],
+                'pickup_zone' => $result['pickup_zone'],
+                'delivery_zone' => $result['delivery_zone'],
+                'pickup_formatted' => $result['pickup_formatted'] ?? null,
+                'delivery_formatted' => $result['delivery_formatted'] ?? null,
+                'breakdown' => $result['price_breakdown'] ?? null,
+            ],
+        ]);
+    }
+
     public function formOptions(): JsonResponse
     {
         return response()->json([

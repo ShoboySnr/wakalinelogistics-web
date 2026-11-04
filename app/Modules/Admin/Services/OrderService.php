@@ -189,6 +189,16 @@ class OrderService
     {
         $order->update($this->prepare($validated, $request));
 
+        if ($request->boolean('mark_remitted')) {
+            if (! $order->remitted_at && $order->amount_received !== null) {
+                $order->remitted_at = now();
+                $order->save();
+            }
+        } elseif ($order->remitted_at) {
+            $order->remitted_at = null;
+            $order->save();
+        }
+
         $this->syncStockItems($order, $request);
 
         ActivityLog::log('order_updated', "Updated order #{$order->order_number}", $order);

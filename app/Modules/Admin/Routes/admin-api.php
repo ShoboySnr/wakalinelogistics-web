@@ -30,6 +30,7 @@ Route::prefix('admin/v1')->name('api.admin.')->group(function () {
         Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
         Route::get('orders/form-options', [OrderController::class, 'formOptions'])->name('orders.form-options');
+        Route::post('orders/calculate-price', [OrderController::class, 'calculatePrice'])->name('orders.calculate-price');
         Route::get('orders/remittance', [OrderController::class, 'remittanceData'])->name('orders.remittance');
         Route::post('orders/remittance/mark-remitted', [OrderController::class, 'markRemitted'])->name('orders.mark-remitted');
         Route::get('orders', [OrderController::class, 'index'])->name('orders.index');
