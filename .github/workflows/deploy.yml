@@ -34,8 +34,13 @@ jobs:
 
             php artisan down --retry=15 || true
 
+            # First run: adopt the existing (non-git) directory as a git checkout.
+            # .env, vendor/, node_modules/, public/build are gitignored, so they are left untouched.
+            if [ ! -d .git ]; then
+              git init -q
+            fi
             git fetch "https://${GH_TOKEN}@github.com/ShoboySnr/wakalinelogistics-web.git" main
-            git checkout -f -B main FETCH_HEAD
+            git reset --hard FETCH_HEAD
 
             composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
 
