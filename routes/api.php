@@ -114,7 +114,7 @@ Route::prefix('wakalinelogistics/v1')->group(function () {
         Route::post('integrations/{type}',        [\App\Http\Controllers\Api\ClientIntegrationsController::class, 'store']);
         Route::post('integrations/{type}/toggle', [\App\Http\Controllers\Api\ClientIntegrationsController::class, 'toggle']);
         Route::delete('integrations/{type}',      [\App\Http\Controllers\Api\ClientIntegrationsController::class, 'destroy']);
-        Route::get('integrations/{type}/logs',    [\App\Http\Controllers\Api\ClientIntegrationsController::class, 'logs']);
+        Route::get('integrationsr/{type}/logs',    [\App\Http\Controllers\Api\ClientIntegrationsController::class, 'logs']);
 
         // Feature Suggestions
         Route::get('suggestions',                 [\App\Http\Controllers\Api\FeatureSuggestionController::class, 'index']);
